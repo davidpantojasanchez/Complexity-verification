@@ -1,13 +1,13 @@
 
-module SetMod {
-
+abstract module SetMod {
+ 
   method Pick<T>(S:set<T>, ghost sizeT:nat, ghost counter_in:nat) returns (e:T, ghost counter_out:nat)
     requires S != {}
     ensures counter_out == counter_in + time_Pick(S,sizeT)
     ensures e in S
   
 
-  ghost function time_Pick<T>(S:set<T>, sizeT:nat) : int { sizeT }
+  ghost function time_Pick<T>(S:set<T>, sizeT:nat) : nat { sizeT }
 
   method Empty<T>(S:set<T>, ghost counter_in:nat) returns (b: bool, ghost counter_out:nat)
     ensures b == (S == {})
