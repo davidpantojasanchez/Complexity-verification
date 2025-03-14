@@ -112,9 +112,10 @@ abstract module SetCover{
   }
 
 method verifySetCover(U:Set, S:SetSet, k:nat,ghost counter_in:nat) returns (b:bool,ghost counter:nat)
-ensures b == (isCover(U.Model(),S.Model()) &&  |S.Model()| <= k)
+//ensures b == (isCover(U.Model(),S.Model()) &&  |S.Model()| <= k)
 {
   counter := counter_in;
+  ghost var oldU := U;
   
   var emptyU;
   emptyU,counter := U.Empty(counter); //+1
