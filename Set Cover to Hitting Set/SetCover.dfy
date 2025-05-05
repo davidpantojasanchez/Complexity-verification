@@ -2,7 +2,7 @@
 import opened ImmutableUnorderedSet
 import opened ImmutableUnorderedSetofSet*/
 include "SetModuleClara.dfy"
-import opened SetMod
+//import opened SetMod
 //DEFINICION DEL PROBLEMA SET COVER
 
 ghost predicate SetCover<T>(U:set<T>, S: set<set<T>>, k:nat)

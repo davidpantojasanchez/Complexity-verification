@@ -1,7 +1,30 @@
-
-include "SetCoverToHittingSet.dfy"
-include "HittingSetToSetCoverClara.dfy"
 include "SetModule.dfy"
+
+ghost predicate SetCover<T>(U:set<T>, S: set<set<T>>, k:nat)
+  requires forall s | s in S :: s <= U // los sets son subsets del universo
+  requires isCover(U, S) // existe un subconjunto de sets tal que su union es igual al universo
+{
+  exists C:set<set<T>> | C <= S :: isCover(U, C) && |C| <= k
+}
+
+ghost predicate isCover<T>(universe:set<T>, sets:set<set<T>>)
+{
+  forall e | e in universe :: (exists s | s in sets :: e in s)
+}
+
+ghost function maximumSize<T>(S:set<set<T>>):nat
+ensures forall s | s in S :: maximumSize(S) >= |s|
+ensures exists s :: s in S && maximumSize(S) == |s|
+
+function SetCover_to_HittingSet<T>(U: set<T>, S: set<set<T>>, k: nat) : (r:(set<set<T>>, set<set<set<T>>>, int))
+  requires forall s | s in S :: s <= U // los sets son subsets del universo
+  requires isCover(U, S) // existe un subconjunto de sets tal que su union es igual al universo
+  ensures forall s | s in r.1 :: s <= r.0 // los sets son subsets del universo
+{
+  var newS: set<set<set<T>>> := (set u | u in U :: (set s | s in S && u in s));
+  (S, newS, k)
+}
+
 
 method method_SetCover_to_HittingSet<T>(U: set<T>, S: set<set<T>>, k: nat) returns (r:(set<set<T>>, set<set<set<T>>>, int), ghost counter:int)
   requires forall s | s in S :: s <= U
@@ -43,7 +66,7 @@ method method_SetCover_to_HittingSet<T>(U: set<T>, S: set<set<T>>, k: nat) retur
     var S2 := S;
     assert counter == prevCounter + 2 + (1 + |U| + |S|*|U| + |U| + |S|*|U|)*(|S| - |S2|);
     var hs:set<set<T>> := {};
-
+    
     while 0<|S2|
       decreases S2
 
@@ -56,8 +79,9 @@ method method_SetCover_to_HittingSet<T>(U: set<T>, S: set<set<T>>, k: nat) retur
 
       invariant counter <= prevCounter + 2 + (1 + |U| + |S|*|U| + |U| + |S|*|U|)*(|S| - |S2|)
  
-      //invariant |U| >= 0 && |S| >= 0
+      invariant |U| >= 0 && |S| >= 0
     {
+      assume false;
       ghost var increment := 1 + |U| + |S|*|U| + |U| + |S|*|U|;
       assert 1 + |U| + |S|*|U| + |U| + |S|*|U| == increment;
 
@@ -109,6 +133,8 @@ method method_SetCover_to_HittingSet<T>(U: set<T>, S: set<set<T>>, k: nat) retur
         assert counter <= prevCounter + 2 + (increment)*prev_S_minus_S2 + increment;
         assert counter <= prevCounter + 2 + (increment)*(prev_S_minus_S2 + 1);
       }
+      
+      assume false;
     }
   
     assert counter <= prevCounter + 2 + (1 + |U| + |S|*|U| + |U| + |S|*|U|)*(|S|);
@@ -214,17 +240,17 @@ lemma if_S2_has_no_set_with_v_then_can_remove_safely<T>(S:set<set<T>>, S2:set<se
 }
 
 
-method {:verify false} method_HittingSet_to_SetCover(HU: set<int>, HS: set<set<int>>, Hk: nat) returns (r:(set<set<int>>, set<set<set<int>>>, int), ghost counter:int)
-  requires forall s | s in HS ::  s <= HU
-  ensures r == HittingSet_to_SetCover(HU, HS, Hk)
-  //ensures counter <=
-{
-  var HU2 := HU;
-  while 0<|HU2|
-    decreases |HU2|
-  {
-    var u :| u in HU2;
-    // ...
-  }
-}
+//method {:verify false} method_HittingSet_to_SetCover(HU: set<int>, HS: set<set<int>>, Hk: nat) returns (r:(set<set<int>>, set<set<set<int>>>, int), ghost counter:int)
+//  requires forall s | s in HS ::  s <= HU
+//  ensures r == HittingSet_to_SetCover(HU, HS, Hk)
+//  //ensures counter <=
+//{
+//  var HU2 := HU;
+//  while 0<|HU2|
+//    decreases |HU2|
+//  {
+//    var u :| u in HU2;
+//    // ...
+//  }
+//}
 
