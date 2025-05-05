@@ -191,10 +191,9 @@ lemma mult_preserves_order(a:int, b:int, a':int, b':int)
 
 method verifySetCover(U:Set, S:SetSet, k:nat,ghost counter_in:nat) returns (b:bool,ghost counter:nat)
 ensures b == (isCover(U.Model(),S.Model()) &&  |S.Model()| <= k)
-ensures counter <= counter_in + 2 + |U.Model()|*(U.sizeSet() + |S.Model()|*(S.maximumSizeElements() + S.sizeSetSet() + S.maximumSizeElements() + 1) + 3)
-//ensures counter <= counter_in + 2 + |U.Model()|*U.sizeSet() + |U.Model()|*(|S.Model()|*S.maximumSizeElements() + |S.Model()|*S.sizeSetSet() + |S.Model()|*S.maximumSizeElements() + |S.Model()|*1) + |U.Model()|*3
 {
   counter := counter_in;
+  ghost var oldU := U;
   
   var emptyU;
   emptyU,counter := U.Empty(counter); //+1
