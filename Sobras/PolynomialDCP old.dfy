@@ -1,6 +1,6 @@
 
 include "reduction.dfy"
-//include "SetOperations.dfy"
+include "SetOperations.dfy"
 
 
 function DATDP_to_PCDLim(C: set<map<Question, Answer>>, E: set<map<Question, Answer>>, k: int, I: set<Question>) :
@@ -18,8 +18,8 @@ returns (r:(map<map<Question, Answer>, bool>, map<map<Question, Answer>, int>, s
   requires 0 <= k <= |I|
   requires (forall vehicle:map<Question, Answer> | vehicle in C :: vehicle.Keys == I)
   ensures r == DATDP_to_PCDLim(C, E, k, I)
-  ensures counter <= (|E| + 1) * |C|
-  //ensures counter <= (|E| + 2) * |C|
+  //ensures counter <= (|E| + 1) * |C|
+  ensures counter <= (|E| + 2) * |C|
 {
   counter := 0;
   var P:set<Question> := {};
@@ -44,16 +44,16 @@ returns (r:(map<map<Question, Answer>, bool>, map<map<Question, Answer>, int>, s
     invariant prev_C == C
     invariant C2 <= C
 
-    //invariant counter == (|E| + 1) * (|C| - |C2|)
-    invariant counter == (|E| + 2) * (|C| - |C2|) //+ (|C| - |C2|)
+    invariant counter == (|E| + 1) * (|C| - |C2|)
+    //invariant counter == (|E| + 2) * (|C| - |C2|) //+ (|C| - |C2|)
   {
     ghost var prevCounter := counter;
     prev_C2 := C2;
     prev_f := f;
     counter := counter + 1;
 
-    var c :| c in C2;
-    //var c, counter := pick(C2, counter);
+    //var c :| c in C2;
+    var c, counter := pick(C2, counter);
 
     //ghost var prevCounter := counter;
 
