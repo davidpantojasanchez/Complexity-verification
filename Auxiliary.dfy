@@ -1,3 +1,6 @@
+
+module Auxiliary {
+
 // 1 - Tipos de datos, funciones y predicados auxiliares
 
 // "Question" representa a las preguntas de PCD o a los tests de D-ATDP
@@ -78,9 +81,9 @@ ghost predicate okFitnessPartial(f:map<map<Question, Answer>, bool>, g:map<map<Q
 }
 
 // Comprueba que no se ha inferido más información privada que la permitida
-ghost predicate okPrivate(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, a:real, b:real, Q:set<Question>)
+ghost predicate okPrivate(g:map<map<Question, Answer>, int>, P:set<Question>, a:real, b:real, Q:set<Question>)
   requires forall m | m in g.Keys :: m.Keys == Q
-  requires f.Keys == g.Keys
+  //requires f.Keys == g.Keys
   requires P <= Q
   requires 0.0 <= a <= 1.0
   requires 0.0 <= b <= 1.0
@@ -150,3 +153,23 @@ requires interview <= Q
 {
   forall q | q in Q :: if q in interview then answers[q] != Nothing else answers[q] == Nothing
 }
+
+function fitness(C:set<map<Question, Answer>>, E:set<map<Question, Answer>>, I:set<Question>) : (f:map<map<Question, Answer>, bool>)
+  requires E <= C
+  requires forall vehicle:map<Question, Answer> | vehicle in C :: vehicle.Keys == I
+  ensures f.Keys == C
+  ensures forall vehicle:map<Question, Answer> | vehicle in C :: f[vehicle] == (vehicle in E)
+{
+  map vehicle | vehicle in C :: (vehicle in E)
+}
+
+function quantity(C:set<map<Question, Answer>>, I:set<Question>) : (g:map<map<Question, Answer>, int>)
+  requires forall vehicle:map<Question, Answer> | vehicle in C :: vehicle.Keys == I
+  ensures g.Keys == C
+  ensures forall vehicle:map<Question, Answer> | vehicle in C :: g[vehicle] == 1
+{
+  map candidate | candidate in C :: 1
+}
+
+}
+

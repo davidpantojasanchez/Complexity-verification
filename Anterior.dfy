@@ -1,4 +1,3 @@
-
 abstract module SetMod{
   type T(==)
   const sizeT :nat

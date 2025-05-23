@@ -1,19 +1,16 @@
-// 3 - Reducción polinómica de D-ATDP a 
+include "Auxiliary.dfy"
+include "Problems.dfy"
 
-include "problems.dfy"
+// * LA TRANSFORMACIÓN ES CORRECTA
+
+
+abstract module Reduction {
+  import opened Auxiliary
+  import opened Problems
+
 
 
 // D-ATDP ==> D-ATDP-Intermediate
-
-
-function fitness(C:set<map<Question, Answer>>, E:set<map<Question, Answer>>, I:set<Question>) : (f:map<map<Question, Answer>, bool>)
-  requires E <= C
-  requires forall vehicle:map<Question, Answer> | vehicle in C :: vehicle.Keys == I
-  ensures f.Keys == C
-  ensures forall vehicle:map<Question, Answer> | vehicle in C :: f[vehicle] == (vehicle in E)
-{
-  map vehicle | vehicle in C :: (vehicle in E)
-}
 
 ghost predicate {:opaque} PredDATDP(C: set<map<Question, Answer>>, E: set<map<Question, Answer>>, k: int, I: set<Question>) {
   E <= C
@@ -38,9 +35,21 @@ lemma {:induction false} DATDPimpliesDATDPintermediate(C: set<map<Question, Answ
     assert forall vehicle:map<Question, Answer> | vehicle in C :: vehicle.Keys == I by { reveal PredDATDP(); }
     assert DATDP(C, E, k, I) by {       
       reveal PredDATDP();
-    }    
+    }
     // Por definicion de DATDP(C, E, k, I), sé que existe un i :
     reveal DATDP();
+    assert
+      exists i:Question | i in I ::
+        forall o:Answer | o in (set m:map<Question, Answer> | m in C :: m[i]) ::
+          DATDP(
+            restrictSet(C, i, o),
+            restrictSet(E, i, o),
+            k - 1,
+            I
+          )
+    by {
+      assert DATDP(C, E, k, I);
+    }
     var i: Question :| i in I &&
       forall o: Answer | o in (set m: map<Question, Answer> | m in C :: m[i]) ::
         DATDP( restrictSet(C, i, o), restrictSet(E, i, o), k - 1, I);
@@ -57,8 +66,7 @@ lemma {:induction false} DATDPimpliesDATDPintermediate(C: set<map<Question, Answ
 
       assert DATDPintermediate(C1, fitness(C1, E1, I), k-1, I); 
       assert fitness(C1, E1, I) == restrictMap(fitness(C, E, I), i, o);
-      // !!!
-      assume DATDPintermediate(restrictSet(C, i, o),restrictMap(fitness(C, E, I), i, o),k - 1, I);
+      assert DATDPintermediate(restrictSet(C, i, o),restrictMap(fitness(C, E, I), i, o),k - 1, I);
     }
     assert DATDPintermediate(C, fitness(C, E, I), k, I) by { reveal DATDPintermediate();}
   }
@@ -132,15 +140,6 @@ lemma {:induction false} DATDPintermediateimpliesDATDP(C: set<map<Question, Answ
 
 // ATDP-Intermediate ==> PCD-Limit
 
-
-function quantity(C:set<map<Question, Answer>>, I:set<Question>) : (g:map<map<Question, Answer>, int>)
-  requires forall vehicle:map<Question, Answer> | vehicle in C :: vehicle.Keys == I
-  ensures g.Keys == C
-  ensures forall vehicle:map<Question, Answer> | vehicle in C :: g[vehicle] == 1
-{
-  map candidate | candidate in C :: 1
-}
-
 lemma {:induction false} DATDPintermediateImpliesPCDLim(C: set<map<Question, Answer>>, f: map<map<Question, Answer>, bool>,k: int, I: set<Question>)
   decreases k
   requires PredDATDPintermediate(C, f, k, I)
@@ -156,7 +155,7 @@ lemma {:induction false} DATDPintermediateImpliesPCDLim(C: set<map<Question, Ans
     assert 0 <= k <= |I| by { reveal PredDATDPintermediate(); }
     assert (forall vehicle: map<Question, Answer> | vehicle in C :: vehicle.Keys == I) by { reveal PredDATDPintermediate(); }
     assert DATDPintermediate(C, f, k, I) by { reveal PredDATDPintermediate(); }
-    assert okPrivate(f, quantity(C, I), {}, 0.0, 1.0, I);
+    assert okPrivate(quantity(C, I), {}, 0.0, 1.0, I);
 
     if (okFitness(f)) {
       // Si okFitness(f), PCDLim(f, quantity(C, I), {}, k, 0.0, 1.0, I) es trivialmente cierto
@@ -183,6 +182,7 @@ lemma {:induction false} DATDPintermediateImpliesPCDLim(C: set<map<Question, Ans
     }
     assert PCDLim(f, quantity(C, I), {}, k, 0.0, 1.0, I) by { reveal PCDLim(); }
   }
+  assert PCDLim(f, quantity(C, I), {}, k, 0.0, 1.0, I) by { reveal PCDLim(); }
 }
 
 
@@ -221,14 +221,15 @@ lemma separationPersists(C: set<map<Question, Answer>>, f: map<map<Question, Ans
       forall o: Answer | o in (set m: map<Question, Answer> | m in C :: m[i]) ::
         separatedMixed(restrictSet(C, i, o), restrictMap(f, i, o)) by { reveal DATDPintermediate(); }
     // Hipótesis inductiva: asumimos que separationPersists(restrictSet(C, i, o), restrictMap(f, i, o), k-1, I) se cumple
-    var i :| i in I;
-    assert forall m | m in C :: i in m.Keys;
-    var o :| o in (set m: map<Question, Answer> | m in C :: m[i]);
-    separationPersists(restrictSet(C, i, o), restrictMap(f, i, o), k-1, I);
     // De la hipótesis, podemos deducir:
     assert forall i: Question | i in I ::
       forall o: Answer | o in (set m: map<Question, Answer> | m in C :: m[i]) ::
-        DATDPintermediate(restrictSet(C, i, o), restrictMap(f, i, o), k-1, I);
+        DATDPintermediate(restrictSet(C, i, o), restrictMap(f, i, o), k-1, I) by { 
+          var i :| i in I;
+          assert forall m | m in C :: i in m.Keys;
+          var o :| o in (set m: map<Question, Answer> | m in C :: m[i]);
+          separationPersists(restrictSet(C, i, o), restrictMap(f, i, o), k-1, I);
+    }
     // Hemos encaminado lo suficiente al verificador para que pueda deducir que DATDPintermediate(C, f, k, I) es cierto
     assert DATDPintermediate(C, f, k, I) by { reveal DATDPintermediate(); }
   }
@@ -256,7 +257,7 @@ lemma {:induction false} PCDLimImpliesDATDPintermediate(f:map<map<Question, Answ
     assert PCDLim(f, g, P, k, a, b, Q) by {
       reveal PredPCDLim();
     }
-    assert okPrivate(f, g, P, 0.0, 1.0, Q);
+    assert okPrivate(g, P, 0.0, 1.0, Q);
     
     if (okFitness(f)) {
       // Vamos a demostrar que okFitness(f) implica separatedMixed(g.Keys, f)
@@ -308,21 +309,45 @@ lemma DATDPreducesToPCDLim(C: set<map<Question, Answer>>, E: set<map<Question, A
   requires (forall vehicle:map<Question, Answer> | vehicle in C :: vehicle.Keys == I)
   ensures DATDP(C, E, k, I) == PCDLim(fitness(C, E, I), quantity(C, I), {}, k, 0.0, 1.0, I)
 {
-  reveal PredDATDP();
-  reveal PredDATDPintermediate();
-  reveal PredPCDLim();
+  //reveal PredDATDP();
+  //reveal PredDATDPintermediate();
+  //reveal PredPCDLim();
   if (DATDP(C, E, k, I)) {
+    reveal PredDATDP();
+    reveal PredDATDPintermediate();
+    reveal PredPCDLim();
     DATDPimpliesDATDPintermediate(C, E, k, I);
     assert DATDPintermediate(C, fitness(C, E, I), k, I);
     DATDPintermediateImpliesPCDLim(C, fitness(C, E, I), k , I);
   }
   else if PCDLim(fitness(C, E, I), quantity(C, I), {}, k, 0.0, 1.0, I) {
-    PCDLimImpliesDATDPintermediate(fitness(C, E, I), quantity(C, I), {}, k, 0.0, 1.0, I);
-    assert DATDPintermediate(quantity(C, I).Keys, fitness(C, E, I), k, I);
+    PCDLimImpliesDATDPintermediate(fitness(C, E, I), quantity(C, I), {}, k, 0.0, 1.0, I) by {
+      reveal PredPCDLim();
+    }
+    assert DATDPintermediate(quantity(C, I).Keys, fitness(C, E, I), k, I) by {
+      reveal PredDATDPintermediate();
+    }
     assert C == quantity(C, I).Keys;
-    DATDPintermediateimpliesDATDP(C, fitness(C, E, I), k, I);
+    DATDPintermediateimpliesDATDP(C, fitness(C, E, I), k, I) by {
+      reveal PredDATDP();
+      reveal PredDATDPintermediate();
+    }
     assert DATDP(C, correctSpecifications(C, fitness(C, E, I), I), k, I);
-    assert correctSpecifications(C, fitness(C, E, I), I) == E by { reveal DATDPintermediate(); }
+
+    assert correctSpecifications(C, fitness(C, E, I), I) == E by {
+      //reveal DATDPintermediate();
+      assert correctSpecifications(C, fitness(C, E, I), I) == set candidate | candidate in fitness(C, E, I).Keys && (fitness(C, E, I)[candidate]) :: candidate;
+      //assert (set candidate | candidate in fitness(C, E, I).Keys && (fitness(C, E, I)[candidate]) :: candidate)
+      //    == (set candidate | candidate in fitness(C, E, I).Keys && candidate in E :: candidate);
+      assert fitness(C, E, I).Keys == C;  // ?
+      assert forall candidate | candidate in fitness(C, E, I).Keys :: candidate in C;
+      assert (set candidate | candidate in fitness(C, E, I).Keys && candidate in E :: candidate)
+          == (set candidate | candidate in E :: candidate);
+    }
+
     assert DATDP(C, E, k, I);
   }
+}
+
+
 }
