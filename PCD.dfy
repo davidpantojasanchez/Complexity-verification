@@ -10,6 +10,17 @@ abstract module PCD {
 
   // * LA VERIFICACIÓN DE PCDLim ES POLINÓMICA
 
+  function poly(f:MapMap<Question, Answer, bool>, g:MapMap<Question, Answer, int>, P:Set<Question>):(R:nat)   // {:opaque}
+  ensures R >= f.Size()
+  ensures R >= g.Size()
+  ensures R >= P.Size()
+  ensures R >= |f.Model().Keys|
+  ensures R >= |g.Model().Keys|
+  ensures R >= |f.Model().Values|
+  ensures R >= |g.Model().Values|
+  ensures R >= 1
+
+
   method verifyPCD//(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>)
     (f:MapMap<Question, Answer, bool>, g:MapMap<Question, Answer, int>, P:Set<Question>, k:int, a:real, b:real, Q:Set<Question>, questionsToVerify:Set<Question>, ghost counter_in:nat)
     returns (R:bool, ghost counter:nat)
@@ -43,6 +54,7 @@ abstract module PCD {
     candidates_empty, counter := candidates.Empty(counter);
     var groups:Map_Map_SetMap<Question, Answer>;
     assert counter == counter_in + f.Size() + 2;
+    assert f.Size() <= poly(f,g,P);
     var i:int := 0;
     while candidates_empty != true
       decreases |candidates.Model()|
@@ -72,12 +84,38 @@ abstract module PCD {
       ghost var aux := (counter_in + f.Size() + 2 + (candidates.maximumSizeElements() + 2*f.Size() + 2*g.Size() + candidates.Size() + 1)*i)
                         + candidates.maximumSizeElements() + f.Size() + g.Size() + f'.Size() + g'.Size();
       assert counter == aux;
+      ghost var candidates' := candidates;
       R := R && okFit && okPriv;
+      assert candidate.Model() in candidates.Model();
       candidates, counter := candidates.Remove(candidate, counter);
-      assume false;
-      assert counter == aux + candidates.Size();
+      //     if e.Model() !in Model() then |R.Model()| == |Model()| else |R.Model()| == |Model()| - 1
+      assert counter <= aux + candidates.Size() by {
+        assert candidates.Size() <= candidates'.Size() by {
+          assert if candidate.Model() !in candidates'.Model() then |candidates.Model()| == |candidates'.Model()| else |candidates.Model()| == |candidates'.Model()| - 1;
+          assert candidates'.Size() == |candidates'.Model()|*candidates'.maximumSizeElements();
+          assert candidates.Size() == |candidates.Model()|*candidates'.maximumSizeElements() by {
+            assert candidates.Size() == |candidates.Model()|*candidates.maximumSizeElements();
+            assert candidates.maximumSizeElements() == candidates'.maximumSizeElements();
+          }
+          assert |candidates.Model()| <= |candidates'.Model()|;
+          mult_preserves_order(|candidates.Model()|, candidates'.maximumSizeElements(), |candidates'.Model()|, candidates'.maximumSizeElements());
+          assert |candidates.Model()|*candidates'.maximumSizeElements() <= |candidates'.Model()|*candidates'.maximumSizeElements();
+        }
+        assume false;
+        assert aux == (counter_in + f.Size() + 2 + (candidates.maximumSizeElements() + 2*f.Size() + 2*g.Size() + candidates.Size() + 1)*i)
+                        + candidates.maximumSizeElements() + f.Size() + g.Size() + f'.Size() + g'.Size();
+        assert aux + candidates.Size() == ((counter_in + f.Size() + 2 + (candidates.maximumSizeElements() + 2*f.Size() + 2*g.Size() + candidates.Size() + 1)*i)
+                        + candidates.maximumSizeElements() + f.Size() + g.Size() + f'.Size() + g'.Size()) + candidates.Size();
+        assume false;
+        assert counter <= ((counter_in + f.Size() + 2 + (candidates.maximumSizeElements() + 2*f.Size() + 2*g.Size() + candidates.Size() + 1)*i)
+                        + candidates.maximumSizeElements() + f.Size() + g.Size() + f'.Size() + g'.Size()) + candidates.Size();
+        assume false;
+        assume counter == aux + candidates'.Size();
+        assume counter <= aux + candidates.Size();
+      }
       candidates_empty, counter := candidates.Empty(counter);
 
+      assume false;
       assert counter == (counter_in + f.Size() + 2 + (candidates.maximumSizeElements() + 2*f.Size() + 2*g.Size() + candidates.Size() + 1)*i)
                         + candidates.maximumSizeElements() + f.Size() + g.Size() + f'.Size() + g'.Size() + candidates.Size() + 1;
       i := i + 1;

@@ -171,5 +171,16 @@ function quantity(C:set<map<Question, Answer>>, I:set<Question>) : (g:map<map<Qu
   map candidate | candidate in C :: 1
 }
 
+
+lemma mult_preserves_order(a:int, b:int, a':int, b':int)
+  requires 0 <= a <= a'
+  requires 0 <= b <= b'
+  ensures a*b <= a'*b'
+{
 }
+
+
+}
+
+
 
