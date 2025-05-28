@@ -90,7 +90,7 @@ abstract module PCD {
 
 
 
-method inner_loop
+method {:only} inner_loop
 (f:MapMap<Question, Answer, bool>, g:MapMap<Question, Answer, int>, P:Set<Question>, k:int, a:real, b:real, Q:Set<Question>, questionsToVerify:Set<Question>,
 candidates_:SetMap<Question, Answer>, i_:nat, ghost counter_in:nat, ghost counter_:nat, R':bool)
 returns (candidates:SetMap<Question, Answer>, candidates_empty:bool, i:nat, R:bool, ghost counter:nat)
@@ -229,16 +229,18 @@ returns (candidates:SetMap<Question, Answer>, candidates_empty:bool, i:nat, R:bo
 
   //assert invariant_loop(f, g, P, Q, candidates, candidates_empty, i) by {
 
-  assert postcondition(f, g, P, Q, candidates_, candidates, candidates_empty, i) by {
+  assert postcondition(f, g, P, Q, candidates_, candidates, candidates_empty, i)
+  by {
     reveal postcondition();
-    assert candidates.Model() <= f.Model().Keys;
+   /* assert candidates.Model() <= f.Model().Keys;
     assert candidates_empty == (candidates.Model() == {});
     assert forall candidate | candidate in candidates.Model() :: Q.Model() == candidate.Keys;
     assert |candidates.Model()| == |candidates_.Model()| - 1;
-    assert i == |f.Model().Keys| - |candidates.Model()|;
+    assert i == |f.Model().Keys| - |candidates.Model()|;*/
   }
 
-  assert postcondition(f, g, P, Q, candidates_, candidates, candidates_empty, i) && (counter <= counter_in + poly(f,g,P)*(3 + 7*i)) by
+  assert postcondition(f, g, P, Q, candidates_, candidates, candidates_empty, i) &&
+   (counter <= counter_in + poly(f,g,P)*(3 + 7*i)) by
   {reveal postcondition();}
   
   
