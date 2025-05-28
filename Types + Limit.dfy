@@ -14,7 +14,7 @@ abstract module TypeLimitMod{
     counter_out <= counter_in + upperBound
   }
 
-  type Set<T(==)>{
+  type Set< T(==) >{
 
   ghost function Model():set<T>
   ensures |Model()| <= upperBound

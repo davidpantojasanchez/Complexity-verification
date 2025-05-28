@@ -71,7 +71,7 @@ abstract module PCD {
       ghost var candidates_ := candidates;
       candidates, candidates_empty, i, R, counter := inner_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates, i, counter_in, counter, R);
       assert i == |f.Model().Keys| - |candidates.Model()| by {
-        assert postcondition(f, g, P, Q, candidates_, candidates, candidates_empty, i);
+        reveal postcondition();
         assert   (candidates.Model() <= f.Model().Keys)
               && (candidates_empty == (candidates.Model() == {}))
               && (forall candidate | candidate in candidates.Model() :: Q.Model() == candidate.Keys)
@@ -238,8 +238,12 @@ returns (candidates:SetMap<Question, Answer>, candidates_empty:bool, i:nat, R:bo
     assert i == |f.Model().Keys| - |candidates.Model()|;
   }
 
-  assert postcondition(f, g, P, Q, candidates_, candidates, candidates_empty, i) && (counter <= counter_in + poly(f,g,P)*(3 + 7*i));
-  assume false;
+  assert postcondition(f, g, P, Q, candidates_, candidates, candidates_empty, i) && (counter <= counter_in + poly(f,g,P)*(3 + 7*i)) by
+  {reveal postcondition();}
+  
+  
+  
+  //assume false;
 }
 
 
@@ -258,7 +262,7 @@ ensures R >= |g.Model().Values|
 ensures R >= 1
 
 
-ghost predicate postcondition(f:MapMap<Question, Answer, bool>, g:MapMap<Question, Answer, int>, P:Set<Question>, Q:Set<Question>, candidates_:SetMap<Question, Answer>, candidates:SetMap<Question, Answer>, candidates_empty:bool, i:nat) { //{:opaque}
+opaque ghost predicate postcondition(f:MapMap<Question, Answer, bool>, g:MapMap<Question, Answer, int>, P:Set<Question>, Q:Set<Question>, candidates_:SetMap<Question, Answer>, candidates:SetMap<Question, Answer>, candidates_empty:bool, i:nat) { //{:opaque}
      (candidates.Model() <= f.Model().Keys)
   && (candidates_empty == (candidates.Model() == {}))
   && (forall candidate | candidate in candidates.Model() :: Q.Model() == candidate.Keys)
