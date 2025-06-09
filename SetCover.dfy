@@ -27,7 +27,7 @@ ensures counter <= counter_in + 2 + U.Size() + |U.Model()|*(U.Size() + |S.Model(
   
   var e:T;
   var U':Set;
-  //U':=U; //copia: ESTO IGUAL DEBE SER UN METODO ADICIONAL??
+  //U':=U;
   U', counter := U.Copy(counter);
   assert U'.Model() == U.Model();
   assert U.Model()-U'.Model() == {} && |U.Model()-U'.Model()|==0;
@@ -215,83 +215,8 @@ ensures counter <= counter_in + 2 + U.Size() + |U.Model()|*(U.Size() + |S.Model(
   //assert counter <= counter_in + 2 + |U.Model()|*U.Size() + |U.Model()|*|S.Model()|*S.maximumSizeElements() + |U.Model()|*|S.Model()|*S.Size() + |U.Model()|*|S.Model()|*S.maximumSizeElements() + |U.Model()|*|S.Model()|*1 + |U.Model()|*3;
 }
 
-/*
-method inner_loop<T>(empty:bool, U':Set, S':SetSet, oldU':Set, U:Set, S:SetSet, found:bool, i:int, counter_start_inner_loop:int, increment_per_iteration_inner:int, increment_per_iteration_outer:int, ghost counter_in:nat)
 
-  requires empty == (S'.Model() == {})
-  requires U'.Model() == oldU'.Model()-{e}
-  requires S'.Model()<= S.Model()
-  requires !found ==> (forall s| s in S.Model()-S'.Model():: e !in s)
-  requires found ==> exists s:set<T> :: s in S.Model() && e in s
-  requires i == (|S.Model()| - |S'.Model()|)
-  requires counter <= counter_start_inner_loop + i*(increment_per_iteration_inner)
-  requires increment_per_iteration_outer == U.Size() + |S.Model()|*(S.maximumSizeElements() + S.Size() + S.maximumSizeElements() + 1) + 3
-{
-    while !empty && !found
-      decreases (if !empty && !found then 1 else 0)+|S'.Model()|
-      invariant empty == (S'.Model() == {}) 
-      invariant U'.Model() == oldU'.Model()-{e}
-      invariant S'.Model()<= S.Model()
-      invariant !found ==> (forall s| s in S.Model()-S'.Model():: e !in s)
-      invariant found ==> exists s:set<T> :: s in S.Model() && e in s
-      
-      invariant i == (|S.Model()| - |S'.Model()|)
-      invariant counter <= counter_start_inner_loop + i*(increment_per_iteration_inner)    // *(|S.Model()| - |S'.Model()|)
-      invariant increment_per_iteration_inner == S.maximumSizeElements() + S.Size() + S.maximumSizeElements() + 1
 
-      invariant increment_per_iteration_outer == U.Size() + |S.Model()|*(S.maximumSizeElements() + S.Size() + S.maximumSizeElements() + 1) + 3
-    {
-     ghost var counter_inner := counter;
-     assert counter_inner <= counter_start_inner_loop + i*(increment_per_iteration_inner);
-     ghost var prev_i := i;
-    
-     assert S'.maximumSizeElements() <= S.maximumSizeElements();
-  
-     var s;
-     ghost var oldS':= S';
-     s,counter := S'.Pick(counter); //+maxS
-     assert |oldS'.Model()| == |S'.Model()|;
-     assert oldS' == S';
-     
-     ghost var counter_1 := counter;
-     assert s.Model() in S'.Model();
-     S',counter := S'.Remove(s,counter);//+|S|*maxS
-     assert |S'.Model()| == |oldS'.Model()| - 1;
-     
-     assert counter == counter_1 + oldS'.Size();
-     assert counter_1 == counter_inner + oldS'.maximumSizeElements();
-     assert counter == counter_inner + oldS'.maximumSizeElements() + oldS'.Size();
-     
-     ghost var counter_2 := counter;
-     found,counter := s.Contains(e,counter);//+maxS*sizeT
-     empty,counter := S'.Empty(counter);//+1
-     assert counter <= counter_2 + S.maximumSizeElements() + 1;
-              //Total suma <= maxS*(|S| + sizeT + 1)+1
-     
-     assert counter <= counter_inner + oldS'.maximumSizeElements() + oldS'.Size() + S.maximumSizeElements() + 1;
-     assert 0 <= |oldS'.Model()| <= |S.Model()|;
-     assert 0 <= oldS'.maximumSizeElements() <= S.maximumSizeElements();
-    
-     mult_preserves_order(|oldS'.Model()|, oldS'.maximumSizeElements(), |S.Model()|, S.maximumSizeElements());
-     assert |oldS'.Model()|*oldS'.maximumSizeElements() <= |S.Model()|*S.maximumSizeElements();
-
-     assert oldS'.Size() == |oldS'.Model()|*oldS'.maximumSizeElements();
-     assert S.Size() == |S.Model()|*S.maximumSizeElements();
-
-     assert oldS'.Size() <= S.Size();
-     assert counter <= counter_inner + S.maximumSizeElements() + S.Size() + S.maximumSizeElements() + 1;
-     assert counter_inner <= counter_start_inner_loop + i*(increment_per_iteration_inner);
-     
-     i := i + 1;
-     assert i == prev_i + 1;
-     assert counter <= counter_inner + increment_per_iteration_inner;
-     assert counter_inner <= counter_start_inner_loop + (i-1)*(increment_per_iteration_inner);
-     assert counter <= counter_start_inner_loop + i*(increment_per_iteration_inner);
-   
-    }
-}
-
-*/
 
 
 
