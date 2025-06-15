@@ -149,7 +149,7 @@ requires var (US,SS,kS) := HittingSet_to_SetCover(U,S,k);
   assert exists e :: e in U && xs in setsElem(U,S,e) && setsElem(U,S,e) in CS;
   var e:int :| e in U && xs in setsElem(U,S,e) && setsElem(U,S,e) in CS;
   assert e in allEs;
- min(allEs)  
+  min(allEs)  
 }
 
 

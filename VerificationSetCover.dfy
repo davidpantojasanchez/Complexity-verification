@@ -43,18 +43,31 @@ ensures b == (isCover(U,S) &&  |S| <= k)
   var size;
   size := |S|;
 
-  assert emptyU && b ==> U-U' == U && isCover(U,S);
-  b := emptyU && b && size <= k;
-  assert b == (isCover(U,S) &&  |S| <= k) by {
-    assert (emptyU && b) == isCover(U,S) by {
-      assume false;
-      assert (emptyU && b) == exists C:set<set<T>> | C <= S :: isCover(U, C) && |C| <= k;
+  assert b == isCover(U,S) by {
+    assert b == isCover(U-U',S);
+
+    if U' == {} {
+      assert b == isCover(U - U',S);
+      assert U - U' == U;
+      assert b == isCover(U,S);
     }
-    assert size == |S|;
-    assert ((emptyU && b) && size <= k) == (isCover(U,S) &&  size <= k);
-    assert (size <= k) == (|S| <= k);
-    assert ((emptyU && b) && size <= k) == (isCover(U,S) &&  |S| <= k);
+    else {
+      assert !(!emptyU && b);
+      assert emptyU || !b;
+      assert emptyU == (U' == {});
+      assert !(U' == {});
+      assert !emptyU;
+      assert !isCover(U-U',S);
+    }
+
   }
+
+  ghost var b' := b;
+  assert emptyU && b ==> U-U' == U && isCover(U,S);
+  b := emptyU && b && (size <= k);
+  assert b == (emptyU && isCover(U,S) && size <= k);
+
+  assert b == (isCover(U,S) &&  |S| <= k);
 }
 
 
@@ -158,8 +171,8 @@ ensures j == j_ + 1
           assert exists e | e in {e} :: exists_s_in_S_such_that_e_in_s(S, e);
           assert |{e}| == 1;
           
+          //if_only_element_has_property_set_has_property({e}, S, e);
           ghost var E:set<T> := {e};
-          if_only_element_has_property_set_has_property({e}, S, e);
           assert forall e | e in {e} :: exists_s_in_S_such_that_e_in_s(S, e) by {
             assert forall e | e in E :: exists_s_in_S_such_that_e_in_s(S, e);
             assert E == {e};
@@ -312,6 +325,7 @@ lemma SetCover_HittingSet2<T>(U:set<T>, S: set<set<T>>, k:nat)
      } 
   }
 
+/*
 lemma if_only_element_has_property_set_has_property<T>(E:set<T>, S:set<set<T>>, elem:T)
 requires |E| == 1
 //requires exists e | e in E :: exists_s_in_S_such_that_e_in_s(S, e)
@@ -333,6 +347,7 @@ ensures forall e | e in E :: exists_s_in_S_such_that_e_in_s(S, e)
   // ...
   assume false;
 }
+*/
 
 
 
