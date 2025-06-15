@@ -4,7 +4,7 @@ include "Problems.dfy"
 // * LA TRANSFORMACIÓN ES CORRECTA
 
 
-abstract module Reduction {
+abstract module ReductionPCDlim {
   import opened Auxiliary
   import opened Problems
 

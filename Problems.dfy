@@ -1,7 +1,7 @@
 include "Auxiliary.dfy"
 include "Types.dfy"
 
-abstract module Problems{
+abstract module Problems {
   import opened TypeMod
   import opened Auxiliary
   
