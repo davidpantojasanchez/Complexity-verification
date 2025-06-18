@@ -1,8 +1,6 @@
 include "Auxiliary.dfy"
-include "Types.dfy"
 
 abstract module Problems {
-  import opened TypeMod
   import opened Auxiliary
   
 ghost predicate isCover<T>(universe:set<T>, sets:set<set<T>>)

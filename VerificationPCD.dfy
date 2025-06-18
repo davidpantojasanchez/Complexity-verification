@@ -1,19 +1,115 @@
 include "Auxiliary.dfy"
 include "Problems.dfy"
-include "Types.dfy"
 include "DATDPtoPCDlim.dfy"
 
 abstract module VerificationPCD {
   import opened Auxiliary
   import opened Problems
-  import opened TypeMod
 
   // * LA VERIFICACIÓN DE PCDLim ES POLINÓMICA
 
 
+
+
+method verifyPCD'
+  (f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, interview:Interview)
+  returns (R:bool)
+requires (forall m | m in f.Keys :: m.Keys == Q)
+requires (f.Keys == g.Keys)
+requires (P <= Q)
+requires (0.0 <= a <= b <= 1.0)
+requires (0 <= k <= |Q|)
+
+/*
+function getSetsQuestionsFunction(interview:Interview, k:nat) : (R:set<set<Question>>)
+requires correctSizeInterview(interview, k)
+ensures if (interview == Empty) || (|interview.Children|==0) then (R=={}) else
+        set children:set<Interview> | children in interview.Children.Values ::
+        set child:Interview | child in children ::
+*/
+
+
+predicate allPathsTaken(interview:Interview, k:nat, R:set<set<Question>>)
+requires correctSizeInterview(interview, k)
+requires forall questions:set<Question> | questions in R :: |questions|<=k
+{
+  if ((interview == Empty) ||  |interview.Children|==0) then true else
+  true // ...
+}
+
+/*
+predicate isPath(interview:Interview, k:nat, path:set<Question>)
+requires correctSizeInterview(interview, k)
+{
+  if ((interview == Empty) ||  |interview.Children|==0) && |path|==0 then true else
+
+}
+*/
+
+method getPaths(interview:Interview, k:nat) returns (R:set<set<Question>>)
+decreases k
+requires correctSizeInterview(interview, k)
+{
+  assert (k == 0) ==> ((interview == Empty) ||  |interview.Children|==0) by {
+    if (k == 0) && !(interview == Empty) && !(|interview.Children|==0) {
+      assert correctSizeInterview(interview, k) ==
+             (forall child:Interview | (child in interview.Children.Values) :: correctSizeInterview(child, k-1));
+      assert correctSizeInterview(interview, k) ==
+             (forall child:Interview | (child in interview.Children.Values) :: correctSizeInterview(child, -1));
+      assert correctSizeInterview(interview, k) ==
+             (forall child:Interview | (child in interview.Children.Values) :: false);
+      assert !correctSizeInterview(interview, k);
+    }
+  }
+
+  R := {};
+  if (interview != Empty) && (|interview.Children|!=0) {
+    assert k>0;
+
+    var children:set<Interview> := interview.Children.Values;
+    var children' := children;
+
+    while 0<|children|
+      decreases |children|
+      invariant k>0
+      invariant children <= interview.Children.Values
+      //invariant R ==
+    {
+      var child:Interview :| child in children;
+      var subsets:set<set<Question>> := getPaths(child, k-1) by {
+        subinterviewsSmaller(interview, k);
+        assert forall child:Interview | child in interview.Children.Values :: correctSizeInterview(child, k-1);
+        assert child in interview.Children.Values;
+      }
+      ghost var subsets' := subsets;
+      var R':set<set<Question>> := {};
+
+      while 0<|subsets|
+        decreases |subsets|
+        invariant subsets <= subsets'
+        invariant R' == set subset:set<Question> | subset in (subsets' - subsets) :: {interview.Key} + subset
+      {
+        var sub:set<Question> :| sub in subsets;
+
+        R' := R' + {{interview.Key} + sub};
+
+        subsets := subsets - {sub};
+      }
+      assert R' == set subset:set<Question> | subset in subsets' :: {interview.Key} + subset;
+
+      R := R + R';
+
+      children := children - {child};
+    }
+
+  }
+}
+
+
+
   // Para todas las formas válidas de responder a las preguntas de la entrevista / grupos de tipos de candidatos
   // (<= |f.Keys|), ver si la población restante es apta y/o infiere información privada
-  method {:only} verifyPCD//(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>)
+  method verifyPCD
     (f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>)
     returns (R:bool)
   
@@ -49,23 +145,20 @@ abstract module VerificationPCD {
       reveal invariant_loop();
     }
  
-    //reveal problem_requirements();
-    /*assert R == (forall candidate:map<Question, Answer> | candidate in (f - candidates) :: 
+    reveal problem_requirements();
+    assert R == (forall candidate:map<Question, Answer> | candidate in (f - candidates) :: 
     (
       var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
       var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
       okFitness(f') && okPrivate(g', P, a, b, Q)
-    ));*/
+    ));
 
     assert verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates, R) by { reveal verification_loop(); reveal problem_requirements(); }
-    //assume false;
-    //assert invariant_loop(f, g, P, Q, candidates, candidates_empty, i);
-    
     assume false;
+
     while candidates_empty != true
       decreases |candidates|
-      invariant invariant_loop(f, g, P, Q, candidates, candidates_empty, i)
-      invariant verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates, R)
+      invariant reveal problem_requirements(); reveal invariant_loop(); invariant_loop(f, g, P, Q, candidates, candidates_empty, i)
       /*
       invariant reveal problem_requirements();
         R == (forall candidate:map<Question, Answer> | candidate in (f - candidates) :: 
@@ -74,9 +167,10 @@ abstract module VerificationPCD {
           var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
           okFitness(f') && okPrivate(g', P, a, b, Q)
         ))
-        */ // entry yes, mantained no
-      //invariant reveal problem_requirements(); reveal verification_loop(); verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates, R)
-    {     assume false;
+        */
+      invariant reveal problem_requirements(); reveal verification_loop(); verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates, R)
+    {
+      assume false;
 
       ghost var R_ := R;
       ghost var candidates_ := candidates;
@@ -230,7 +324,7 @@ returns (candidates:set<map<Question, Answer>>, candidates_empty:bool, i:nat, R:
   ensures invariant_loop(f, g, P, Q, candidates, candidates_empty, i)
   
   ensures candidates < candidates_
-  ensures verification_body(f, g, P, k, a, b, Q, questionsToVerify, candidates_, candidates, R_, R)
+  ensures reveal problem_requirements(); verification_body(f, g, P, k, a, b, Q, questionsToVerify, candidates_, candidates, R_, R)
 {
   candidates := candidates_;
   i := i_;
@@ -314,8 +408,8 @@ opaque ghost predicate verification(f:map<map<Question, Answer>, bool>, g:map<ma
   (|questionsToVerify| <= k) &&
   (forall candidate:map<Question, Answer> | candidate in f.Keys ::                                                   // para todos los posibles entrevistados que pueden responder la entrevista...
   (
-    var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in person.Keys :: person[q] == candidate[q]) :: f[person];
-    var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in person.Keys :: person[q] == candidate[q]) :: g[person];
+    var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person]; // person.Keys :: person[q] == candidate[q]) :: f[person];
+    var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
     okFitness(f') && okPrivate(g', P, a, b, Q)
   ))
 }
@@ -324,7 +418,7 @@ opaque ghost predicate verification_body(f:map<map<Question, Answer>, bool>, g:m
   requires problem_requirements(f, g, P, k, a, b, Q, questionsToVerify)
   requires candidates <= candidates_ <= f.Keys
 {
-  //reveal problem_requirements();
+  reveal problem_requirements();
   R == (R_ && forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::                                                   // para el entrevistado que acaba de ser procesado...
   (
     var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];

@@ -8,6 +8,40 @@ module Auxiliary {
 datatype Question = CharacteristicQ(int)
 datatype Answer = CharacteristicA(int) | T
 
+datatype Interview = Empty | Node ( Key:Question, Children:map<Answer, Interview>)
+
+predicate correctSizeInterview(i:Interview, k:int)  // redundante con "correctQuestionsInterview", pero ayuda tenerlo separado
+{
+  if k == -1 then
+    false
+  else
+  match i
+    case Empty => true
+    case Node (_, children) => forall child:Interview | child in children.Values :: correctSizeInterview(child, k-1)
+}
+
+predicate correctQuestionsInterview(i:Interview, k:int, Q:set<Question>)
+{
+  if k == -1 then
+    false
+  else
+  match i
+    case Empty => true
+    case Node (key, children) => key in Q && forall child:Interview | child in children.Values :: correctQuestionsInterview(child, k-1, Q)
+}
+
+
+lemma subinterviewsSmaller(interview:Interview, k:int)
+requires correctSizeInterview(interview, k)
+ensures match interview
+  case Empty => true
+  case Node (_, children) => forall child:Interview | child in children.Values :: correctSizeInterview(child, k-1)
+{
+}
+
+
+
+
 // "Maybe" es usado en mapas de Question a Maybe<Answer> para poder representar preguntas que no han sido respondidas
 datatype Maybe<T> = 
   | Nothing
