@@ -16,7 +16,7 @@ requires {} !in S
 { var newS: set<set<set<int>>> := (set u | u in U :: (set s | s in S && u in s));
   forall e | e in S ensures (exists s | s in newS :: e in s)
   {    assert e != {};
-       assert exists n :: n in e; 
+      // assert exists n :: n in e; 
        var n :| n in e;
        assert e in (set s | s in S && n in s);
        assert (set s | s in S && n in s) in newS;
@@ -109,7 +109,7 @@ lemma HittingSet_SetCover1(U:set<int>, S: set<set<int>>, k:nat)
     forall s | s in US 
     ensures (exists ss | ss in CS :: s in ss)
     {
-     assert C * s != {}; //por ser C Hitting-set
+     //assert C * s != {}; //por ser C Hitting-set
      var y :| y in C * s; 
      var ss := (set ys | ys in US && y in ys);
      assert ss in CS && s in ss;
@@ -131,9 +131,9 @@ function minSetsElem(U:set<int>, S: set<set<int>>, e:int): (m:int)
 requires forall s | s in S :: s <= U 
 requires e in U && setsElem(U,S,e) != {}
 { 
-  assert e in U && setsElem(U,S,e) == setsElem(U,S,e);
+  //assert e in U && setsElem(U,S,e) == setsElem(U,S,e);
   var allEs:set<int> := set e' | e' in U && setsElem(U,S,e') == setsElem(U,S,e);
-  assert e in U && setsElem(U,S,e) == setsElem(U,S,e);
+  //assert e in U && setsElem(U,S,e) == setsElem(U,S,e);
   assert e in allEs;
   min(allEs)  
 }
@@ -146,7 +146,7 @@ requires var (US,SS,kS) := HittingSet_to_SetCover(U,S,k);
          CS <= SS && isCover(US, CS) && {} !in CS && |CS| <= kS
 { 
   var allEs:set<int> := set e' | e' in U && xs in setsElem(U,S,e') && setsElem(U,S,e') in CS;
-  assert exists e :: e in U && xs in setsElem(U,S,e) && setsElem(U,S,e) in CS;
+ // assert exists e :: e in U && xs in setsElem(U,S,e) && setsElem(U,S,e) in CS;
   var e:int :| e in U && xs in setsElem(U,S,e) && setsElem(U,S,e) in CS;
   assert e in allEs;
   min(allEs)  
@@ -187,7 +187,7 @@ lemma HittingSet_SetCover2(U:set<int>, S: set<set<int>>, k:nat)
     }
     else { 
       var CS :set<set<set<int>>> := CS' -{{}};
-      assert CS <= SS && isCover(US, CS) && |CS| <= kS && {} !in CS;
+     // assert CS <= SS && isCover(US, CS) && |CS| <= kS && {} !in CS;
 
       var C:set<int> := set e | e in U  && (set s | s in S && e in s) in CS :: minSetsElem(U,S,e);
       forall xs | xs in S
