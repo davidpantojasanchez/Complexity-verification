@@ -292,7 +292,7 @@ opaque ghost predicate verification(f:map<map<Question, Answer>, bool>, g:map<ma
 }
 
 
-lemma {:only} allCandidate(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>, candidates:set<map<Question, Answer>>, R:bool)
+lemma allCandidate(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>, candidates:set<map<Question, Answer>>, R:bool)
 requires problem_requirements(f, g, P, k, a, b, Q, questionsToVerify)
 requires verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates, R)
 requires candidates == {} 
