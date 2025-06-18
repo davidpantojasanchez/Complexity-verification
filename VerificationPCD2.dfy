@@ -506,7 +506,7 @@ ensures
 
 
 
-lemma verification_body_lemma(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>,
+lemma {:only} verification_body_lemma(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>,
 candidates_:set<map<Question, Answer>>, candidates_empty_:bool, i_:nat, R_:bool, f':map<map<Question, Answer>, bool>, g':map<map<Question, Answer>, int>, candidates:set<map<Question, Answer>>, candidate:map<Question, Answer>, okFit:bool, okPriv:bool, R:bool)
 requires problem_requirements(f, g, P, k, a, b, Q, questionsToVerify)
 
@@ -526,104 +526,393 @@ requires verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates_,R
 requires R == (R_ && okFit && okPriv)
 
 ensures verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates,R)
-
-/*{
-
-    assert R == (R_ && (forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::
+{
+  assert 
+    R_ == (forall candidate:map<Question, Answer> | candidate in (f - candidates_) :: 
     (
       var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
       var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
       okFitness(f') && okPrivate(g', P, a, b, Q)
-    )))
+    )) by { reveal verification_loop(); }
+
+
+  
+  start_of_loop_values_match_with_end_of_loop_values_body_lemma(f, g, P, k, a, b, Q, questionsToVerify, candidates_, candidates_empty_, i_, R_, f', g', candidates, candidate, okFit, okPriv, R);
+
+
+  assert (f.Keys - candidates) == (f.Keys - candidates_) + (candidates_ - candidates) by {
+    assert candidates == candidates_ - {candidate};
+    assert (candidates_ - candidates) == {candidate};
+    assert (f.Keys - candidates) == (f.Keys - candidates_) + {candidate};
+  }
+
+
+  forall_of_two_sets_equals_forall_of_combined_sets_body_lemma(f, g, P, k, a, b, Q, questionsToVerify, candidates_, candidates_empty_, i_, R_, f', g', candidates, candidate, okFit, okPriv, R);
+
+
+  //assume false;
+  assert
+    (forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates_) :: 
+    (
+      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      okFitness(f') && okPrivate(g', P, a, b, Q)
+    ))
+    &&
+    (forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::
+    (
+      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      okFitness(f') && okPrivate(g', P, a, b, Q)
+    ))
+    ==
+    (forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates) ::
+    (
+      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      okFitness(f') && okPrivate(g', P, a, b, Q)
+    ));
+
+
+
+
+  //assume false;
+  reveal verification_loop();
+}
+
+
+lemma {:only} forall_of_two_sets_equals_forall_of_combined_sets_body_lemma(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>,
+candidates_:set<map<Question, Answer>>, candidates_empty_:bool, i_:nat, R_:bool, f':map<map<Question, Answer>, bool>, g':map<map<Question, Answer>, int>, candidates:set<map<Question, Answer>>, candidate:map<Question, Answer>, okFit:bool, okPriv:bool, R:bool)
+requires problem_requirements(f, g, P, k, a, b, Q, questionsToVerify)
+requires (f.Keys - candidates) == (f.Keys - candidates_) + (candidates_ - candidates)
+ensures
+  (forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates_) :: 
+  (
+    var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+    var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+    okFitness(f') && okPrivate(g', P, a, b, Q)
+  ))
+  &&
+  (forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::
+  (
+    var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+    var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+    okFitness(f') && okPrivate(g', P, a, b, Q)
+  ))
+  ==
+  (forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates) ::
+  (
+    var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+    var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+    okFitness(f') && okPrivate(g', P, a, b, Q)
+  ))
+{
+
+  assert
+  (
+    (forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates_) :: 
+    (
+      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      okFitness(f') && okPrivate(g', P, a, b, Q)
+    ))
+    &&
+    (forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::
+    (
+      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      okFitness(f') && okPrivate(g', P, a, b, Q)
+    ))
+  )
+    ==
+    (forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates) ::
+    (
+      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      okFitness(f') && okPrivate(g', P, a, b, Q)
+    ))
     by {
-
-      assert okFit == okFitness(f');
-      assert okPriv == okPrivate(g', P, a, b, Q) by {  }
-      assert R == (R_ && okFit && okPriv);
-      assert R == (R_ && okFitness(f') && okPrivate(g', P, a, b, Q));
-      
-      assert forall q | q in questionsToVerify :: q in candidate.Keys by {  }
-      assert forall person:map<Question, Answer> | person in f.Keys :: person.Keys == Q by {  }
-      assert forall person:map<Question, Answer> | person in g.Keys :: person.Keys == Q by {  }
-
-
-      assert (okFitness(f') && okPrivate(g', P, a, b, Q)) == forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::
+      assert
       (
-        var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
-        var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
-        okFitness(f') && okPrivate(g', P, a, b, Q)
-      )
-      by {
-        assert {candidate} == (candidates_ - candidates);
-
-        assert (forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::
+        (forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates_) :: 
         (
           var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
           var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
           okFitness(f') && okPrivate(g', P, a, b, Q)
         ))
+        &&
+        (forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::
+        (
+          var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+          var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+          okFitness(f') && okPrivate(g', P, a, b, Q)
+        ))
+      )
         ==
-        (var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
-        var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
-        okFitness(f') && okPrivate(g', P, a, b, Q)) by {  }
-
-        assert 
-        (var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
-        var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
-        okFitness(f') && okPrivate(g', P, a, b, Q))
-        ==
-        (okFit && okPriv) by {
-           reveal invariant_loop(f, g, P, Q, candidates_, candidates_empty_, i_);
-
-          assert f' == map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
-          assert g' == map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
-
-          ghost var f1 := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
-          ghost var g1 := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
-          assert (var f0 := f1;
-                var g0 := g1;
-                okFitness(f0) && okPrivate(g0, P, a, b, Q))
-                ==
-                (okFitness(f1) && okPrivate(g1, P, a, b, Q));
-
-          assert (var f0 := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
-                var g0 := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
-                okFitness(f0) && okPrivate(g0, P, a, b, Q))
-                ==
-                (okFitness(map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person]) &&
-                okPrivate(map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person], P, a, b, Q));
-
-          /*
-          assert (var f0 := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
-                var g0 := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
-                okFitness(f0) && okPrivate(g0, P, a, b, Q))
-                ==
-                (okFitness(f') && okPrivate(g', P, a, b, Q));
-          */
-        }
-        
-        /*
-        assert forall q | q in questionsToVerify :: q in candidate.Keys by {  }
-        assert forall person:map<Question, Answer> | person in f.Keys :: person.Keys == Q by {  }
-        assert forall person:map<Question, Answer> | person in g.Keys :: person.Keys == Q by {  }
-        */
-      }
+        (forall candidate:map<Question, Answer> | candidate in ((f.Keys - candidates_) + (candidates_ - candidates)) ::
+        (
+          var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+          var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+          okFitness(f') && okPrivate(g', P, a, b, Q)
+        ))
+        ;
+      assert (f.Keys - candidates) == (f.Keys - candidates_) + (candidates_ - candidates);
     }
-    
-    assert verification_body(f, g, P, k, a, b, Q, questionsToVerify, candidates_, candidates, R_, R) by {
-      reveal verification_body();
-      
-      assert R == (R_ && forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::
+
+  //assume false;
+}
+
+
+/*
+lemma {:only} forall_of_two_sets_equals_forall_of_combined_sets_body_lemma(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>,
+candidates_:set<map<Question, Answer>>, candidates_empty_:bool, i_:nat, R_:bool, f':map<map<Question, Answer>, bool>, g':map<map<Question, Answer>, int>, candidates:set<map<Question, Answer>>, candidate:map<Question, Answer>, okFit:bool, okPriv:bool, R:bool)
+requires problem_requirements(f, g, P, k, a, b, Q, questionsToVerify)
+requires (f.Keys - candidates) == (f.Keys - candidates_) + (candidates_ - candidates)
+ensures
+  (forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates_) :: 
+  (
+    var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+    var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+    okFitness(f') && okPrivate(g', P, a, b, Q)
+  ))
+  &&
+  (forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::
+  (
+    var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+    var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+    okFitness(f') && okPrivate(g', P, a, b, Q)
+  ))
+  ==
+  (forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates) ::
+  (
+    var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+    var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+    okFitness(f') && okPrivate(g', P, a, b, Q)
+  ))
+{
+  /*
+  assert
+  (
+    (forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates_) :: 
+    (
+      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      okFitness(f') && okPrivate(g', P, a, b, Q)
+    ))
+    &&
+    (forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::
+    (
+      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      okFitness(f') && okPrivate(g', P, a, b, Q)
+    ))
+  )
+    ==
+    (forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates_) || candidate in (candidates_ - candidates) ::
+    (
+      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      okFitness(f') && okPrivate(g', P, a, b, Q)
+    ))
+    ;
+
+  assert
+  (
+    (forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates_) :: 
+    (
+      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      okFitness(f') && okPrivate(g', P, a, b, Q)
+    ))
+    &&
+    (forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::
+    (
+      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      okFitness(f') && okPrivate(g', P, a, b, Q)
+    ))
+  )
+    ==
+    (forall candidate:map<Question, Answer> | candidate in ((f.Keys - candidates_) + (candidates_ - candidates)) ::
+    (
+      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      okFitness(f') && okPrivate(g', P, a, b, Q)
+    ))
+    ;
+  */
+  
+
+
+  assert
+  (
+    (forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates_) :: 
+    (
+      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      okFitness(f') && okPrivate(g', P, a, b, Q)
+    ))
+    &&
+    (forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::
+    (
+      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      okFitness(f') && okPrivate(g', P, a, b, Q)
+    ))
+  )
+    ==
+    (forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates) ::
+    (
+      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      okFitness(f') && okPrivate(g', P, a, b, Q)
+    ))
+    by {
+      assert
       (
-        var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
-        var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
-        okFitness(f') && okPrivate(g', P, a, b, Q)
-      ));
+        (forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates_) :: 
+        (
+          var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+          var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+          okFitness(f') && okPrivate(g', P, a, b, Q)
+        ))
+        &&
+        (forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::
+        (
+          var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+          var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+          okFitness(f') && okPrivate(g', P, a, b, Q)
+        ))
+      )
+        ==
+        (forall candidate:map<Question, Answer> | candidate in ((f.Keys - candidates_) + (candidates_ - candidates)) ::
+        (
+          var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+          var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+          okFitness(f') && okPrivate(g', P, a, b, Q)
+        ))
+        ;
+      assert (f.Keys - candidates) == (f.Keys - candidates_) + (candidates_ - candidates);
     }
-  }*/
 
 
-  lemma if_contained_then_smaller<A, B>(f':map<A, B>, f:map<A, B>)
+
+  assume false;
+}
+*/
+
+
+
+/*
+ghost predicate aux_123(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>,
+candidates_:set<map<Question, Answer>>, candidates_empty_:bool, i_:nat, R_:bool, f':map<map<Question, Answer>, bool>, g':map<map<Question, Answer>, int>, candidates:set<map<Question, Answer>>, candidate:map<Question, Answer>, okFit:bool, okPriv:bool, R:bool)
+requires problem_requirements(f, g, P, k, a, b, Q, questionsToVerify)
+requires candidate.Keys == Q
+{
+  reveal problem_requirements();
+  (
+    var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+    var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+    okFitness(f') && okPrivate(g', P, a, b, Q)
+  )
+}
+*/
+
+
+
+lemma start_of_loop_values_match_with_end_of_loop_values_body_lemma(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>,
+candidates_:set<map<Question, Answer>>, candidates_empty_:bool, i_:nat, R_:bool, f':map<map<Question, Answer>, bool>, g':map<map<Question, Answer>, int>, candidates:set<map<Question, Answer>>, candidate:map<Question, Answer>, okFit:bool, okPriv:bool, R:bool)
+requires problem_requirements(f, g, P, k, a, b, Q, questionsToVerify)
+
+requires !candidates_empty_
+requires candidates_ <= f.Keys
+//requires invariant_loop(f, g, P, Q, candidates_, candidates_empty_, i_)
+
+requires candidate in candidates_
+requires candidates <= candidates_
+requires forall m | m in g'.Keys :: m in g.Keys
+requires candidates == candidates_ - {candidate}
+requires  f' == map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person]
+requires  g' == map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person]
+requires okFit == okFitness(f')
+requires okPriv == okPrivate(g', P, a, b, Q)
+requires verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates_,R_)
+requires R == (R_ && okFit && okPriv)
+
+ensures R == (R_ && (forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::
+  (
+    var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+    var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+    okFitness(f') && okPrivate(g', P, a, b, Q)
+  )))
+{
+  assert okFit == okFitness(f');
+  assert okPriv == okPrivate(g', P, a, b, Q) by {  }
+  assert R == (R_ && okFit && okPriv);
+  assert R == (R_ && okFitness(f') && okPrivate(g', P, a, b, Q));
+  
+  assert forall q | q in questionsToVerify :: q in candidate.Keys by {  }
+  assert forall person:map<Question, Answer> | person in f.Keys :: person.Keys == Q by {  }
+  assert forall person:map<Question, Answer> | person in g.Keys :: person.Keys == Q by {  }
+
+
+  assert (okFitness(f') && okPrivate(g', P, a, b, Q)) == forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::
+  (
+    var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+    var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+    okFitness(f') && okPrivate(g', P, a, b, Q)
+  )
+  by {
+    assert {candidate} == (candidates_ - candidates);
+
+    assert (forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::
+    (
+      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      okFitness(f') && okPrivate(g', P, a, b, Q)
+    ))
+    ==
+    (var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+    var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+    okFitness(f') && okPrivate(g', P, a, b, Q)) by {  }
+
+    assert 
+    (var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+    var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+    okFitness(f') && okPrivate(g', P, a, b, Q))
+    ==
+    (okFit && okPriv) by {
+        reveal invariant_loop(f, g, P, Q, candidates_, candidates_empty_, i_);
+
+      assert f' == map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      assert g' == map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      ghost var f1 := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      ghost var g1 := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      assert (var f0 := f1;
+            var g0 := g1;
+            okFitness(f0) && okPrivate(g0, P, a, b, Q))
+            ==
+            (okFitness(f1) && okPrivate(g1, P, a, b, Q));
+
+      assert (var f0 := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+            var g0 := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+            okFitness(f0) && okPrivate(g0, P, a, b, Q))
+            ==
+            (okFitness(map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person]) &&
+            okPrivate(map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person], P, a, b, Q));
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+lemma if_contained_then_smaller<A, B>(f':map<A, B>, f:map<A, B>)
     requires forall key:A | key in f' :: key in f
     ensures |f'| <= |f|
   {
