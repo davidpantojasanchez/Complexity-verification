@@ -246,12 +246,10 @@ returns (candidates:set<map<Question, Answer>>, candidates_empty:bool, i:nat, R:
   assert decreases_body(candidates_, candidates) by {reveal decreases_body(); }
   assert verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates, R) by
   { 
-   verification_body_lemma(f,g,P,k,a,b,Q,questionsToVerify,candidates_,candidates_empty_,i,R_,f',g',candidates,candidate, okFit,okPriv,R);
+    verification_body_lemma(f,g,P,k,a,b,Q,questionsToVerify,candidates_,candidates_empty_,i,R_,f',g',candidates,candidate, okFit,okPriv,R);
   }
 
 }
-
-
 
 
 
@@ -264,6 +262,23 @@ opaque ghost predicate invariant_loop(f:map<map<Question, Answer>, bool>, g:map<
   //&& (|candidates| == |candidates_| - 1)
   && (i == |f.Keys| - |candidates|)
 }
+
+opaque ghost predicate invariant_body_loop(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>,
+candidates_:set<map<Question, Answer>>, candidates_empty_:bool, i_:nat, R_:bool, f':map<map<Question, Answer>, bool>, g':map<map<Question, Answer>, int>, candidates:set<map<Question, Answer>>, candidate:map<Question, Answer>, okFit:bool, okPriv:bool, R:bool)
+requires problem_requirements(f, g, P, k, a, b, Q, questionsToVerify)
+{
+ (!candidates_empty_) &&
+ (candidates_ <= f.Keys) &&
+ (candidate in candidates_) &&
+ (candidates <= candidates_) &&
+ (forall m | m in g'.Keys :: m in g.Keys) &&
+ (candidates == candidates_ - {candidate}) &&
+ (f' == map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person]) &&
+ (g' == map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person]) &&
+ (okFit == okFitness(f')) &&
+ (okPriv == okPrivate(g', P, a, b, Q))
+}
+
 
 opaque ghost predicate decreases_body(candidates_:set<map<Question, Answer>>, candidates:set<map<Question, Answer>>) {
   (|candidates| == |candidates_| - 1)
@@ -506,14 +521,12 @@ ensures
 
 
 
-lemma {:only} verification_body_lemma(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>,
+lemma verification_body_lemma(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>,
 candidates_:set<map<Question, Answer>>, candidates_empty_:bool, i_:nat, R_:bool, f':map<map<Question, Answer>, bool>, g':map<map<Question, Answer>, int>, candidates:set<map<Question, Answer>>, candidate:map<Question, Answer>, okFit:bool, okPriv:bool, R:bool)
 requires problem_requirements(f, g, P, k, a, b, Q, questionsToVerify)
 
 requires !candidates_empty_
 requires candidates_ <= f.Keys
-//requires invariant_loop(f, g, P, Q, candidates_, candidates_empty_, i_)
-
 requires candidate in candidates_
 requires candidates <= candidates_
 requires forall m | m in g'.Keys :: m in g.Keys
@@ -522,6 +535,9 @@ requires  f' == map person:map<Question, Answer> | person in f.Keys && (forall q
 requires  g' == map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person]
 requires okFit == okFitness(f')
 requires okPriv == okPrivate(g', P, a, b, Q)
+
+//requires invariant_body_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates_, candidates_empty_, i_, R_, f', g', candidates, candidate, okFit, okPriv, R)
+
 requires verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates_,R_)
 requires R == (R_ && okFit && okPriv)
 
@@ -538,10 +554,13 @@ ensures verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates,R)
 
 
   // Este lema demuestra que se cumple que el cuerpo del bucle es correcto. Es decir, demuestra que los cambios que han ocurrido desde el inicio del cuerpo (desde el valor anterior de R; R_) han tenido el efecto deseado
-  start_of_loop_values_match_with_end_of_loop_values_body_lemma(f, g, P, k, a, b, Q, questionsToVerify, candidates_, candidates_empty_, i_, R_, f', g', candidates, candidate, okFit, okPriv, R);
+  start_of_loop_values_match_with_end_of_loop_values_body_lemma(f, g, P, k, a, b, Q, questionsToVerify, candidates_, candidates_empty_, i_, R_, f', g', candidates, candidate, okFit, okPriv, R) by {
+    reveal invariant_body_loop();
+  }
 
 
   assert (f.Keys - candidates) == (f.Keys - candidates_) + (candidates_ - candidates) by {
+    reveal invariant_body_loop();
     assert candidates == candidates_ - {candidate};
     assert (candidates_ - candidates) == {candidate};
     assert (f.Keys - candidates) == (f.Keys - candidates_) + {candidate};
@@ -551,11 +570,9 @@ ensures verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates,R)
   // entonces, como (f.Keys - candidates) == (f.Keys - candidates_) + (candidates_ - candidates), se cumple para (f.Keys - candidates)
   forall_of_two_sets_equals_forall_of_combined_sets_body_lemma(f, g, P, k, a, b, Q, questionsToVerify, candidates_, candidates_empty_, i_, R_, f', g', candidates, candidate, okFit, okPriv, R);
 
-  assume false;
-  
-
+  // Se aserta la poscondición del lema, que es justo lo que queremos obtener
   assert
-    (forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates_) :: 
+    ((forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates_) :: 
     (
       var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
       var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
@@ -567,19 +584,17 @@ ensures verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates,R)
       var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
       var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
       okFitness(f') && okPrivate(g', P, a, b, Q)
-    ))
+    )))
     ==
     (forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates) ::
     (
       var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
       var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
       okFitness(f') && okPrivate(g', P, a, b, Q)
-    )) by {
-      forall_of_two_sets_equals_forall_of_combined_sets_body_lemma(f, g, P, k, a, b, Q, questionsToVerify, candidates_, candidates_empty_, i_, R_, f', g', candidates, candidate, okFit, okPriv, R);
-    }
+    ));
 
+  // Pero no funciona
   assume false;
-  
   reveal verification_loop();
 }
 
