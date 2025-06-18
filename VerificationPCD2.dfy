@@ -292,7 +292,7 @@ opaque ghost predicate verification(f:map<map<Question, Answer>, bool>, g:map<ma
 }
 
 
-lemma allCandidate(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>, candidates:set<map<Question, Answer>>, R:bool)
+lemma {:only} allCandidate(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>, candidates:set<map<Question, Answer>>, R:bool)
 requires problem_requirements(f, g, P, k, a, b, Q, questionsToVerify)
 requires verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates, R)
 requires candidates == {} 
@@ -300,7 +300,6 @@ requires |questionsToVerify| <= k
 ensures R == verification(f, g, P, k, a, b, Q, questionsToVerify)
 {
   assert (|questionsToVerify| <= k);
-
   assert
     (forall candidate:map<Question, Answer> | candidate in f ::
     (
@@ -308,29 +307,7 @@ ensures R == verification(f, g, P, k, a, b, Q, questionsToVerify)
       var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
       okFitness(f') && okPrivate(g', P, a, b, Q)
     )) == verification(f,g, P, k, a, b, Q, questionsToVerify) by {
-    assert
-      ((|questionsToVerify| <= k) &&
-      (forall candidate:map<Question, Answer> | candidate in f ::
-      (
-        var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
-        var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
-        okFitness(f') && okPrivate(g', P, a, b, Q)
-      ))) == verification(f,g, P, k, a, b, Q, questionsToVerify) by { reveal verification(); }
-
-    assert
-      ((|questionsToVerify| <= k) &&
-      (forall candidate:map<Question, Answer> | candidate in f ::
-      (
-        var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
-        var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
-        okFitness(f') && okPrivate(g', P, a, b, Q)
-      ))) ==
-      (forall candidate:map<Question, Answer> | candidate in f ::
-      (
-        var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
-        var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
-        okFitness(f') && okPrivate(g', P, a, b, Q)
-      ));
+    reveal verification();
     }
 
 
@@ -348,14 +325,6 @@ ensures R == verification(f, g, P, k, a, b, Q, questionsToVerify)
         okFitness(f') && okPrivate(g', P, a, b, Q)
       )) by { reveal verification_loop(); }
     
-    assert (forall candidate:map<Question, Answer> | candidate in candidates :: 
-      (
-        var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
-        var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
-        okFitness(f') && okPrivate(g', P, a, b, Q)
-      ));
-    
-    assert candidates <= f.Keys;
     assert f.Keys == ((f.Keys - candidates) + candidates) by {
       assert candidates <= f.Keys;
       SetMinusSubsetPlusSubsetEqualsSet(f.Keys, candidates);
