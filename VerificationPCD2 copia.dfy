@@ -627,7 +627,7 @@ ensures verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates,R)
 
 
   // Pero no funciona
- // assume false;
+  assume false;
 }
 
 
