@@ -30,6 +30,16 @@ predicate correctQuestionsInterview(i:Interview, k:int, Q:set<Question>)
     case Node (key, children) => key in Q && forall child:Interview | child in children.Values :: correctQuestionsInterview(child, k-1, Q)
 }
 
+predicate correctAnswersInterview(i:Interview, k:int, A:set<Answer>)
+{
+  if k == -1 then
+    false
+  else
+  match i
+    case Empty => true
+    case Node (key, children) => children.Keys == A && forall child:Interview | child in children.Values :: correctAnswersInterview(child, k-1, A)
+}
+
 
 lemma subinterviewsSmaller(interview:Interview, k:int)
 requires correctSizeInterview(interview, k)
@@ -39,7 +49,33 @@ ensures match interview
 {
 }
 
+predicate isPath(interview:Interview, k:int, path:set<Question>)
+requires correctSizeInterview(interview, k)
+{
+  match interview
+  case Empty => path=={}
+  case Node (key, children) =>
+    (key in path) &&
+    (exists child:Interview | child in children.Values :: isPath(child, k-1, path - {key}))
+}
 
+/*
+ghost function pathsInterview(interview:Interview, k:int, A:set<Answer>) : (paths:set<set<Question>>)
+requires correctSizeInterview(interview, k)
+requires correctAnswersInterview(interview, k, A)
+//ensures |paths|<=|A|...
+decreases k
+{
+  match interview
+    case Empty => {}
+    case Node (key, children) =>
+      set interview:Interview | interview in children.Values :: pathsInterview(interview, k-1, A)
+}
+
+ghost function union(S: set<set<Question>>): (r:set<Question>)
+  ensures forall x | x in r :: (exists s | s in S :: x in s)
+  ensures forall s | s in S :: (forall q | q in s :: q in r)
+*/
 
 
 // "Maybe" es usado en mapas de Question a Maybe<Answer> para poder representar preguntas que no han sido respondidas

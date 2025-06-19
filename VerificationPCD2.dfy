@@ -92,7 +92,7 @@ ensures forall path:set<Question> | path in R :: path <= Q
       invariant children <= interview.Children.Values
       invariant forall path:set<Question> | path in R :: path <= Q
 
-      //invariant forall child:Interview | child in (children' - children) :: (set subset:set<Question> | isPath(child, k-1, subset) :: {interview.Key} + subset) <= R
+      //invariant forall child:Interview | child in (children' - children) :: getPaths(child, k-1, subset) <= R
     {
       var child:Interview :| child in children;
       var subsets:set<set<Question>> := getPaths(child, k-1, Q) by {
@@ -124,6 +124,8 @@ ensures forall path:set<Question> | path in R :: path <= Q
 
   }
 }
+
+
 
 
 
@@ -533,7 +535,21 @@ ensures verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates,R)
 <<<<<<< HEAD
 =======
 
+<<<<<<< HEAD
 >>>>>>> 70c14af6c8604ecd51507ead458d93a46ae461fb
+=======
+lemma verification_loop_recover(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>, candidates:set<map<Question, Answer>>, R:bool)
+requires problem_requirements(f, g, P, k, a, b, Q, questionsToVerify)
+requires R == (forall candidate:map<Question, Answer> | candidate in (f - candidates) ::
+    (
+      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
+      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
+      okFitness(f') && okPrivate(g', P, a, b, Q)
+    ))
+ensures verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates,R)
+{reveal verification_loop();}
+
+>>>>>>> cbca086b5857d5598a8b608fb9474c03b93eef4e
 lemma verification_body_lemma(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>,
 candidates_:set<map<Question, Answer>>, candidates_empty_:bool, i_:nat, R_:bool, f':map<map<Question, Answer>, bool>, g':map<map<Question, Answer>, int>, candidates:set<map<Question, Answer>>, candidate:map<Question, Answer>, okFit:bool, okPriv:bool, R:bool)
 requires problem_requirements(f, g, P, k, a, b, Q, questionsToVerify)
@@ -604,6 +620,9 @@ ensures verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates,R)
       okFitness(f') && okPrivate(g', P, a, b, Q)
     ));
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> cbca086b5857d5598a8b608fb9474c03b93eef4e
   
   /*calc{
     R;
@@ -634,12 +653,15 @@ ensures verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates,R)
     ));
   }*/
   verification_loop_recover(f,g,P, k, a, b, Q, questionsToVerify, candidates,R);  
+<<<<<<< HEAD
 =======
 
   // Pero no funciona
   assume false;
   reveal verification_loop();
 >>>>>>> 70c14af6c8604ecd51507ead458d93a46ae461fb
+=======
+>>>>>>> cbca086b5857d5598a8b608fb9474c03b93eef4e
 }
 
 
