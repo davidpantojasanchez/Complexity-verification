@@ -3,7 +3,6 @@ include "Problems.dfy"
 abstract module VerificationSetCover {
   import opened Problems
   import opened Auxiliary
-  import opened TypeMod
 
 ghost function maximumSizeElements<T>(S:set<set<T>>):nat
 ensures forall s | s in S :: maximumSizeElements(S) >= |s|

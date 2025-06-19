@@ -59,23 +59,42 @@ requires correctSizeInterview(interview, k)
     (exists child:Interview | child in children.Values :: isPath(child, k-1, path - {key}))
 }
 
-/*
-ghost function pathsInterview(interview:Interview, k:int, A:set<Answer>) : (paths:set<set<Question>>)
+
+ghost function pathsInterview(interview:Interview, k:int) : (paths:set<set<Question>>)
 requires correctSizeInterview(interview, k)
-requires correctAnswersInterview(interview, k, A)
-//ensures |paths|<=|A|...
+requires k>=0
 decreases k
 {
+  assert (k == 0) ==> ((interview == Empty) ||  |interview.Children|==0) by {
+    if (k == 0) && !(interview == Empty) && !(|interview.Children|==0) {
+      assert correctSizeInterview(interview, k) ==
+             (forall child:Interview | (child in interview.Children.Values) :: correctSizeInterview(child, k-1));
+      assert correctSizeInterview(interview, k) ==
+             (forall child:Interview | (child in interview.Children.Values) :: correctSizeInterview(child, -1));
+      assert correctSizeInterview(interview, k) ==
+             (forall child:Interview | (child in interview.Children.Values) :: false);
+      assert !correctSizeInterview(interview, k);
+    }
+  }
+
   match interview
     case Empty => {}
     case Node (key, children) =>
-      set interview:Interview | interview in children.Values :: pathsInterview(interview, k-1, A)
+      if |interview.Children|==0 then {} else
+      union (set interview:Interview | interview in children.Values :: pathsInterview(interview, k-1))
 }
 
-ghost function union(S: set<set<Question>>): (r:set<Question>)
+ghost function pathsInterviewPlusElement(interview:Interview, k:int, e:Question) : (paths:set<set<Question>>)
+requires correctSizeInterview(interview, k)
+requires k>=0
+decreases k
+{
+  (set subset:set<Question> | subset in pathsInterview(interview, k) :: {e} + subset)
+}
+
+ghost function union(S: set<set<set<Question>>>): (r:set<set<Question>>)
   ensures forall x | x in r :: (exists s | s in S :: x in s)
   ensures forall s | s in S :: (forall q | q in s :: q in r)
-*/
 
 
 // "Maybe" es usado en mapas de Question a Maybe<Answer> para poder representar preguntas que no han sido respondidas
