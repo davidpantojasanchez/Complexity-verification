@@ -518,7 +518,7 @@ ensures
 {
 }
 
-lemma {:only} absurdo(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>, candidates:set<map<Question, Answer>>, R:bool)
+lemma verification_loop_recover(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>, candidates:set<map<Question, Answer>>, R:bool)
 requires problem_requirements(f, g, P, k, a, b, Q, questionsToVerify)
 requires R == (forall candidate:map<Question, Answer> | candidate in (f - candidates) ::
     (
@@ -578,7 +578,7 @@ ensures verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates,R)
 
   // Se aserta la poscondición del lema, que es justo lo que queremos obtener
   assert
-    ((forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates_) :: 
+    ((forall candidate:map<Question, Answer> | candidate in (f - candidates_) :: 
     (
       var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
       var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
@@ -598,8 +598,6 @@ ensures verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates,R)
       var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
       okFitness(f') && okPrivate(g', P, a, b, Q)
     ));
-
-  
   
   /*calc{
     R;
@@ -629,6 +627,7 @@ ensures verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates,R)
       okFitness(f') && okPrivate(g', P, a, b, Q)
     ));
   }*/
+  verification_loop_recover(f,g,P, k, a, b, Q, questionsToVerify, candidates,R);  
 }
 
 
