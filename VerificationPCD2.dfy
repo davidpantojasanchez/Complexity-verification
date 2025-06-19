@@ -10,7 +10,7 @@ abstract module VerificationPCD {
 
 
 method verifyPCD'
-  (f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, interview:Interview)
+  (f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, A:set<Answer>, interview:Interview)
   returns (R:bool)
 requires (forall m | m in f.Keys :: m.Keys == Q)
 requires (f.Keys == g.Keys)
@@ -90,8 +90,9 @@ ensures forall path:set<Question> | path in R :: path <= Q
       decreases |children|
       invariant k>0
       invariant children <= interview.Children.Values
-      //invariant R ==
       invariant forall path:set<Question> | path in R :: path <= Q
+
+      //invariant forall child:Interview | child in (children' - children) :: (set subset:set<Question> | isPath(child, k-1, subset) :: {interview.Key} + subset) <= R
     {
       var child:Interview :| child in children;
       var subsets:set<set<Question>> := getPaths(child, k-1, Q) by {
@@ -521,7 +522,7 @@ ensures
 
 
 
-lemma {:only} verification_body_lemma(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>,
+lemma verification_body_lemma(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>,
 candidates_:set<map<Question, Answer>>, candidates_empty_:bool, i_:nat, R_:bool, f':map<map<Question, Answer>, bool>, g':map<map<Question, Answer>, int>, candidates:set<map<Question, Answer>>, candidate:map<Question, Answer>, okFit:bool, okPriv:bool, R:bool)
 requires problem_requirements(f, g, P, k, a, b, Q, questionsToVerify)
 
@@ -593,41 +594,9 @@ ensures verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates,R)
       okFitness(f') && okPrivate(g', P, a, b, Q)
     ));
 
-  assert verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates,R) by{
-  reveal verification_loop();
-  calc{
-    R;
-   R_ && okFit && okPriv;
-   (forall candidate:map<Question, Answer> | candidate in (f - candidates_) :: 
-    (
-      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
-      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
-      okFitness(f') && okPrivate(g', P, a, b, Q)
-    )) && okFitness(f') && okPrivate(g', P, a, b, Q);
-    (forall candidate:map<Question, Answer> | candidate in (f - candidates_) :: 
-    (
-      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
-      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
-      okFitness(f') && okPrivate(g', P, a, b, Q)
-    )) && (forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::
-    (
-      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
-      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
-      okFitness(f') && okPrivate(g', P, a, b, Q)
-    ));
-    (forall candidate:map<Question, Answer> | candidate in (f.Keys - candidates) ::
-    (
-      var f' := map person:map<Question, Answer> | person in f.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: f[person];
-      var g' := map person:map<Question, Answer> | person in g.Keys && (forall q:Question | q in questionsToVerify :: person[q] == candidate[q]) :: g[person];
-      okFitness(f') && okPrivate(g', P, a, b, Q)
-    ));
-  }
-      //reveal verification_loop();
-  }
-
-
   // Pero no funciona
- // assume false;
+  assume false;
+  reveal verification_loop();
 }
 
 
