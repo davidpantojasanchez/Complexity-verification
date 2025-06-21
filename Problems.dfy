@@ -50,7 +50,7 @@ ghost predicate {:opaque} DATDP(C:set<map<Question, Answer>>, E:set<map<Question
 }
 
 /*
-Variante de D-ATDP diseñada para ser más similar al problema PCD-Límite. En lugar del conjunto de especificaciones
+Variante de D-ATDP diseñada para ser más similar al problema CDPC-Límite. En lugar del conjunto de especificaciones
 correctas E, tiene un mapa f de IUTs (mapas de tests a comportamientos) a bool (si la IUT es correcta o no)
 */
 ghost predicate {:opaque} DATDPintermediate(C: set<map<Question, Answer>>, f: map<map<Question, Answer>, bool>, k: int, I: set<Question>)
@@ -71,7 +71,7 @@ ghost predicate {:opaque} DATDPintermediate(C: set<map<Question, Answer>>, f: ma
         )
 }
 
-// PCD-Límite : Problema de clasificación de datos con características privadas no exhaustivo, interactivo, con límite de preguntas y total
+// CDPC-Límite : Problema de clasificación de datos con características privadas no exhaustivo, interactivo, con límite de preguntas y total
 /*
 No exhaustivo: Las funciones f y g son parciales
 Interactivo: Las preguntas pueden cambiar en función de las respuestas (la entrevista es adaptativa)
@@ -79,7 +79,7 @@ Con límite de preguntas: Las ramas de la entrevista adaptativa no puede tener m
 Total: Requiere poder discernir la aptitud de la población completamente
        Independientemente de quién es el candidato entrevistado, la entrevista debe ser capaz de determinar con certeza absoluta si es apto o no
 */
-ghost predicate {:opaque} PCDLim(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>)
+ghost predicate {:opaque} CDPCLim(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>)
   requires forall m | m in g.Keys :: m.Keys == Q
   requires f.Keys == g.Keys
   requires P <= Q
@@ -93,7 +93,7 @@ ghost predicate {:opaque} PCDLim(f:map<map<Question, Answer>, bool>, g:map<map<Q
     okFitness(f) ||
     exists i:Question | i in Q ::
       forall o:Answer | o in (set m:map<Question, Answer> | m in f.Keys :: m[i]) ::
-        PCDLim(
+        CDPCLim(
           restrictMap(f, i, o),
           restrictMap(g, i, o),
           P, k - 1, a, b, Q

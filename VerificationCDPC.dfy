@@ -1,15 +1,14 @@
 include "Auxiliary.dfy"
 include "Problems.dfy"
-include "DATDPtoPCDlim.dfy"
+include "DATDPtoCDPClim.dfy"
 
-abstract module VerificationPCD {
+abstract module VerificationCDPC {
   import opened Auxiliary
   import opened Problems
 
-  // * LA VERIFICACIÓN DE PCDLim ES POLINÓMICA
+  // * LA VERIFICACIÓN DE CDPCLim ES POLINÓMICA
 
-
-method verifyPCD'
+method verifyCDPC
   (f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, A:set<Answer>, interview:Interview)
   returns (R:bool)
 requires (forall m | m in f.Keys :: m.Keys == Q)
@@ -21,7 +20,7 @@ requires (0 <= k <= |Q|)
 requires correctSizeInterview(interview, k)
 requires correctQuestionsInterview(interview, k, Q)
 
-ensures postcondition(f, g, P, k, a, b, Q, A, interview, R)   // R == (forall path:set<Question> | path in pathsInterview(interview, k) :: verification(f, g, P, k, a, b, Q, path))
+ensures postcondition(f, g, P, k, a, b, Q, A, interview, R)
 {
  /* 
   if !correctSizeInterview(interview, k) || !correctQuestionsInterview(interview, k, Q) {
@@ -42,7 +41,7 @@ ensures postcondition(f, g, P, k, a, b, Q, A, interview, R)   // R == (forall pa
     assert R == (forall path:set<Question> | path in (pathsInterview(interview, k, Q) - paths) :: verification(f, g, P, k, a, b, Q, path));
 
     var path:set<Question> :| path in paths;
-    var r:bool := verifyPCD(f, g, P, k, a, b, Q, path);
+    var r:bool := verifyPathCDPC(f, g, P, k, a, b, Q, path);
     R := R && r;
     assert R == ((forall p:set<Question> | p in (pathsInterview(interview, k, Q) - paths) :: verification(f, g, P, k, a, b, Q, p)) && r);
     ghost var old_paths := paths;
@@ -118,7 +117,6 @@ ensures R == pathsInterview(interview, k, Q)
   }
 
   R := {};
-  //if (interview != Empty) && (|interview.Children|!=0) {
   if (interview == Empty) || (|interview.Children|==0) {
     assert R == pathsInterview(interview, k, Q);
     return R;
@@ -380,7 +378,7 @@ ensures union(set c:Interview | c in (children' - children) :: pathsInterviewPlu
 
   // Para todas las formas válidas de responder a las preguntas de la entrevista / grupos de tipos de candidatos
   // (<= |f.Keys|), ver si la población restante es apta y/o infiere información privada
-  method verifyPCD//(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>)
+  method verifyPathCDPC//(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>)
     (f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, questionsToVerify:set<Question>)
     returns (R:bool)
   

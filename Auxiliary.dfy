@@ -3,8 +3,8 @@ module Auxiliary {
 
 // Tipos de datos, funciones y predicados auxiliares
 
-// "Question" representa a las preguntas de PCD o a los tests de D-ATDP
-// "Answer" representa a las respuestas de PCD o a los comportamientos de D-ATDP
+// "Question" representa a las preguntas de CDPC o a los tests de D-ATDP
+// "Answer" representa a las respuestas de CDPC o a los comportamientos de D-ATDP
 datatype Question = CharacteristicQ(int)
 datatype Answer = CharacteristicA(int) | T
 
@@ -158,7 +158,7 @@ ghost predicate okFitness(f:map<map<Question, Answer>, bool>)
   (forall b:bool | b in f.Values :: b == false)
 }
 
-// Similar a okFitness, pero utilizada por PCD-Parcial
+// Similar a okFitness, pero utilizada por CDPC-Parcial
 // Determina si todos los valores del mapa están en un rango determinado
 ghost predicate okFitnessPartial(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, Q:set<Question>, x:real, y:real)
   requires forall m | m in g.Keys :: m.Keys == Q
