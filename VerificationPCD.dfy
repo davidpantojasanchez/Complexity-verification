@@ -9,7 +9,7 @@ abstract module VerificationPCD {
   // * LA VERIFICACIÓN DE PCDLim ES POLINÓMICA
 
 
-method verifyPCD'
+method {:only} verifyPCD'
   (f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, A:set<Answer>, interview:Interview)
   returns (R:bool)
 requires (forall m | m in f.Keys :: m.Keys == Q)
@@ -21,40 +21,38 @@ requires (0 <= k <= |Q|)
 requires correctSizeInterview(interview, k)
 requires correctQuestionsInterview(interview, k, Q)
 
-//ensures postcondition(f, g, P, k, a, b, Q, A, interview, R);
+ensures postcondition(f, g, P, k, a, b, Q, A, interview, R)   // R == (forall path:set<Question> | path in pathsInterview(interview, k) :: verification(f, g, P, k, a, b, Q, path))
 {
   /*
   if !correctSizeInterview(interview, k) || !correctQuestionsInterview(interview, k, Q) {
     assert postcondition(f, g, P, k, a, b, Q, A, interview, R) by { reveal postcondition(); }
     assert (forall path:set<Question> | path in pathsInterview(interview, k) :: path <= Q);
     return false;
-  }
-  */
-
+  } */
   var paths:set<set<Question>> := getPaths(interview, k, Q);
   R := true;
 
   while 0<|paths|
   decreases |paths|
   invariant forall path:set<Question> | path in paths :: path <= Q
-  invariant R == (forall path:set<Question> | path in (pathsInterview(interview, k) - paths) :: verification(f, g, P, k, a, b, Q, path))
+  invariant R == (forall path:set<Question> | path in (pathsInterview(interview, k, Q) - paths) :: verification(f, g, P, k, a, b, Q, path))
   {
-    assert R == (forall path:set<Question> | path in (pathsInterview(interview, k) - paths) :: verification(f, g, P, k, a, b, Q, path));
+    assert R == (forall path:set<Question> | path in (pathsInterview(interview, k, Q) - paths) :: verification(f, g, P, k, a, b, Q, path));
 
     var path:set<Question> :| path in paths;
     var r:bool := verifyPCD(f, g, P, k, a, b, Q, path);
     R := R && r;
     paths := paths - {path};
 
-    assume R == (forall path:set<Question> | path in (pathsInterview(interview, k) - (paths + {path})) :: verification(f, g, P, k, a, b, Q, path));
+    assume R == (forall path:set<Question> | path in (pathsInterview(interview, k, Q) - (paths + {path})) :: verification(f, g, P, k, a, b, Q, path));
     assert r == verification(f, g, P, k, a, b, Q, path);
   }
 
-  assert R == (forall path:set<Question> | path in pathsInterview(interview, k) :: verification(f, g, P, k, a, b, Q, path));
-  assert (forall path:set<Question> | path in pathsInterview(interview, k) :: path <= Q);
+  assert R == (forall path:set<Question> | path in pathsInterview(interview, k, Q) :: verification(f, g, P, k, a, b, Q, path));
+  assert (forall path:set<Question> | path in pathsInterview(interview, k, Q) :: path <= Q);
 
   assert requires_of_the_postcondition(f, g, P, k, a, b, Q, A, interview, R) by {
-    assert (forall path:set<Question> | path in pathsInterview(interview, k) :: path <= Q);
+    assert (forall path:set<Question> | path in pathsInterview(interview, k, Q) :: path <= Q);
   }
   assert postcondition(f, g, P, k, a, b, Q, A, interview, R);
 }
@@ -70,7 +68,7 @@ requires correctQuestionsInterview(interview, k, Q)
 
 requires requires_of_the_postcondition(f, g, P, k, a, b, Q, A, interview, R) //(forall path:set<Question> | path in pathsInterview(interview, k) :: path <= Q)
 {
-  R == (forall path:set<Question> | path in pathsInterview(interview, k) :: verification(f, g, P, k, a, b, Q, path))
+  R == (forall path:set<Question> | path in pathsInterview(interview, k, Q) :: verification(f, g, P, k, a, b, Q, path))
 }
 
 ghost predicate requires_of_the_postcondition(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, A:set<Answer>, interview:Interview, R:bool)
@@ -82,15 +80,16 @@ requires (0 <= k <= |Q|)
 requires correctSizeInterview(interview, k)
 requires correctQuestionsInterview(interview, k, Q)
 {
-  (forall path:set<Question> | path in pathsInterview(interview, k) :: path <= Q)
+  (forall path:set<Question> | path in pathsInterview(interview, k, Q) :: path <= Q)
 }
 
-method getPaths(interview:Interview, k:nat, Q:set<Question>) returns (R:set<set<Question>>)
+
+method {:only} getPaths(interview:Interview, k:nat, Q:set<Question>) returns (R:set<set<Question>>)
 decreases k
 requires correctSizeInterview(interview, k)
 requires correctQuestionsInterview(interview, k, Q)
 ensures forall path:set<Question> | path in R :: path <= Q
-ensures R == pathsInterview(interview, k)
+ensures R == pathsInterview(interview, k, Q)
 {
   assert (k == 0) ==> ((interview == Empty) ||  |interview.Children|==0) by {
     if (k == 0) && !(interview == Empty) && !(|interview.Children|==0) {
@@ -105,111 +104,191 @@ ensures R == pathsInterview(interview, k)
   }
 
   R := {};
-  if (interview != Empty) && (|interview.Children|!=0) {
-    assert k>0;
-
-    var children:set<Interview> := interview.Children.Values;
-    var children' := children;
-
-    while 0<|children|
-      decreases |children|
-      invariant k>0
-      invariant children <= interview.Children.Values
-      invariant forall path:set<Question> | path in R :: path <= Q
-      //invariant forall child:Interview | child in (children' - children) :: pathsInterviewPlusElement(child, k-1, interview.Key) <= R
-      invariant R == union (set child:Interview | child in (children' - children) :: pathsInterviewPlusElement(child, k-1, interview.Key))
-    {
-      var child:Interview :| child in children;
-      var subsets:set<set<Question>> := getPaths(child, k-1, Q) by {
-        subinterviewsSmaller(interview, k);
-        assert forall child:Interview | child in interview.Children.Values :: correctSizeInterview(child, k-1);
-        assert child in interview.Children.Values;
-      }
-      ghost var subsets' := subsets;
-      var R':set<set<Question>> := {};
-
-      while 0<|subsets|
-        decreases |subsets|
-        invariant subsets <= subsets'
-        invariant R' == set subset:set<Question> | subset in (subsets' - subsets) :: {interview.Key} + subset
-        invariant forall path:set<Question> | path in R' :: path <= Q
-      {
-        var sub:set<Question> :| sub in subsets;
-
-        R' := R' + {{interview.Key} + sub};
-
-        subsets := subsets - {sub};
-      }
-      assert R' == set subset:set<Question> | subset in subsets' :: {interview.Key} + subset;
-      assert R' == (set subset:set<Question> | subset in pathsInterview(child, k-1) :: {interview.Key} + subset);
-      assert R' == pathsInterviewPlusElement(child, k-1, interview.Key);
-
-      R := R + R';
-      
-      assert pathsInterviewPlusElement(child, k-1, interview.Key) <= R;
-      ghost var Child := {child};
-      if_only_element_has_pathsInterviewPlusElement_set_has_pathsInterviewPlusElement(Child, child, k-1, interview.Key, R);
-      assert forall child:Interview | child in Child :: pathsInterviewPlusElement(child, k-1, interview.Key) <= R;
-      
-      assert  R == union (set child:Interview | child in (children' - children) :: pathsInterviewPlusElement(child, k-1, interview.Key)) + pathsInterviewPlusElement(child, k-1, interview.Key);
-      
-      ghost var prev_children := children;
-      children := children - {child};
-      assert (children' - prev_children) == (children' - children - {child});
-      ghost var children'_aux := (children' - children - {child});
-      assert 0 <= |(children' - children - {child})| <= |children'|;
-      assert 0 <= |children'_aux| <= |children'|;
-
-      assert R == union (set child:Interview | child in (children' - children) :: pathsInterviewPlusElement(child, k-1, interview.Key)) by {
-        assert  R == union (set child:Interview | child in children'_aux :: pathsInterviewPlusElement(child, k-1, interview.Key)) + pathsInterviewPlusElement(child, k-1, interview.Key);
-        union_lemma(interview, children', children'_aux, children, child, k);
-        assert union (set child:Interview | child in (children' - children) :: pathsInterviewPlusElement(child, k-1, interview.Key)) ==
-               union (set child:Interview | child in children'_aux :: pathsInterviewPlusElement(child, k-1, interview.Key)) + pathsInterviewPlusElement(child, k-1, interview.Key);
-      }
-    }
-
-    assert R == union (set child:Interview | child in children' :: pathsInterviewPlusElement(child, k-1, interview.Key)) by {
-      assert R == union (set child:Interview | child in (children' - children) :: pathsInterviewPlusElement(child, k-1, interview.Key));
-      assert |children|==0;
-    }
-
-    assume R == pathsInterview(interview, k);
+  //if (interview != Empty) && (|interview.Children|!=0) {
+  if (interview == Empty) || (|interview.Children|==0) {
+    assert R == pathsInterview(interview, k, Q);
+    return R;
   }
-  else {
-    assert R == pathsInterview(interview, k);
+  
+  assert k>0;
+
+  var children:set<Interview> := interview.Children.Values;
+  var children' := children;
+
+  assert R == union (set c:Interview | c in (children' - children) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)) by {
+    assert R == {};
+    assert union({}) == {};
+    assert (set c:Interview | c in (children' - children) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)) == {};
+    assert  union (set c:Interview | c in (children' - children) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)) == {};
   }
 
-  assert R == pathsInterview(interview, k);
+  while 0<|children|
+    decreases |children|
+    invariant k>0
+    invariant children <= interview.Children.Values
+    invariant children' == interview.Children.Values
+    invariant forall path:set<Question> | path in R :: path <= Q
+    invariant R == union (set c:Interview | c in (children' - children) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q))
+  {
+
+    var child:Interview :| child in children;
+    var subsets:set<set<Question>> := getPaths(child, k-1, Q) by {
+      subinterviewsSmaller(interview, k);
+      assert forall child:Interview | child in interview.Children.Values :: correctSizeInterview(child, k-1);
+      assert child in interview.Children.Values;
+    }
+    //ghost var prev_children:set<Interview> := children;
+    R, children := getPaths_body_loop(interview, k, Q, R, children, children', child, subsets);
+    //assert |prev_children| == |children| + 1;
+  }
+
+  assert R == union (set child:Interview | child in children' :: pathsInterviewPlusElement(child, k-1, interview.Key, Q)) by {
+    assert R == union (set child:Interview | child in (children' - children) :: pathsInterviewPlusElement(child, k-1, interview.Key, Q));
+    assert |children|==0;
+    assert (children' - children) == children';
+    assert R == union (set child:Interview | child in children' :: pathsInterviewPlusElement(child, k-1, interview.Key, Q));
+  }
+  
+  assume R == pathsInterview(interview, k, Q);
 }
 
 
-lemma if_only_element_has_pathsInterviewPlusElement_set_has_pathsInterviewPlusElement(Child:set<Interview>, child:Interview, k:int, key:Question, R:set<set<Question>>)
+
+method getPaths_body_loop(interview:Interview, k:nat, Q:set<Question>, R_:set<set<Question>>, children_:set<Interview>, children':set<Interview>, child:Interview, subsets_:set<set<Question>>) returns (R:set<set<Question>>, children:set<Interview>)
+  requires correctSizeInterview(interview, k)
+  requires correctQuestionsInterview(interview, k, Q)
+
+  requires (interview != Empty) && (|interview.Children.Values| != 0)
+  requires 0<|children_|
+  requires children' == interview.Children.Values
+  requires children_ <= children'
+  requires child in children_
+  requires subsets_ == pathsInterview(child, k-1, Q)
+
+  requires k>0
+  requires children_ <= interview.Children.Values
+  requires children' == interview.Children.Values
+  requires forall path:set<Question> | path in R_ :: path <= Q
+  requires R_ == union (set c:Interview | c in (children' - children_) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q))
+
+  ensures |children_| == |children| + 1
+
+  ensures k>0
+  ensures children <= interview.Children.Values
+  ensures children' == interview.Children.Values
+  ensures forall path:set<Question> | path in R_ :: path <= Q
+  ensures R == union (set c:Interview | c in (children' - children) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q))
+{
+  R := R_;
+  children := children_;
+  var subsets:set<set<Question>> := subsets_;
+
+  ghost var subsets' := subsets;
+  var R':set<set<Question>> := {};
+
+  while 0<|subsets|
+    decreases |subsets|
+    invariant subsets <= subsets'
+    invariant children' == interview.Children.Values
+    invariant R' == set subset:set<Question> | subset in (subsets' - subsets) :: {interview.Key} + subset
+    invariant forall path:set<Question> | path in R' :: path <= Q
+  {
+    var sub:set<Question> :| sub in subsets;
+
+    R' := R' + {{interview.Key} + sub};
+
+    subsets := subsets - {sub};
+  }
+  assert R' == set subset:set<Question> | subset in subsets' :: {interview.Key} + subset;
+  assert R' == (set subset:set<Question> | subset in pathsInterview(child, k-1, Q) :: {interview.Key} + subset);
+  assert R' == pathsInterviewPlusElement(child, k-1, interview.Key, Q);
+
+  R := R + R';
+  
+  assert pathsInterviewPlusElement(child, k-1, interview.Key, Q) <= R;
+  ghost var Child := {child};
+  if_only_element_has_pathsInterviewPlusElement_set_has_pathsInterviewPlusElement(Child, child, k-1, interview.Key, R, Q);
+  assert forall child:Interview | child in Child :: pathsInterviewPlusElement(child, k-1, interview.Key, Q) <= R;
+  
+  assert  R == union (set child:Interview | child in (children' - children) :: pathsInterviewPlusElement(child, k-1, interview.Key, Q)) + pathsInterviewPlusElement(child, k-1, interview.Key, Q);
+  
+  ghost var prev_children := children;
+  children := children - {child};
+  assert (children' - prev_children) == (children' - children - {child});
+  assert 0 <= |(children' - children - {child})| <= |children'|;
+
+  assert R == union (set c:Interview | c in (children' - children) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)) by {
+    assert  R == union (set c:Interview | c in (children' - children - {child}) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)) + pathsInterviewPlusElement(child, k-1, interview.Key, Q);
+
+    assert children' == interview.Children.Values;
+    assert correctQuestionsInterview(interview, k, Q);
+    union_lemma(interview, children, children', child, k, Q);
+
+    assert union (set c:Interview | c in (children' - children) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)) ==
+            union (set c:Interview | c in (children' - children - {child}) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)) + pathsInterviewPlusElement(child, k-1, interview.Key, Q);
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+lemma if_only_element_has_pathsInterviewPlusElement_set_has_pathsInterviewPlusElement(Child:set<Interview>, child:Interview, k:int, key:Question, R:set<set<Question>>, Q:set<Question>)
 requires Child == {child}
 requires correctSizeInterview(child, k)
+requires correctQuestionsInterview(child, k, Q)
 requires k>=0
-requires pathsInterviewPlusElement(child, k, key) <= R
-ensures forall c | c in Child :: pathsInterviewPlusElement(c, k, key) <= R
+requires key in Q
+requires pathsInterviewPlusElement(child, k, key, Q) <= R
+ensures forall c | c in Child :: pathsInterviewPlusElement(c, k, key, Q) <= R
 {
 }
 
 
-lemma {:only} union_lemma(interview:Interview, children:set<Interview>, children':set<Interview>, children'_aux:set<Interview>, child:Interview, k:int)
+lemma union_lemma(interview:Interview, children:set<Interview>, children':set<Interview>, child:Interview, k:int, Q:set<Question>)
 
 requires correctSizeInterview(interview, k)
 requires correctSizeInterview(child, k-1)
+requires correctQuestionsInterview(interview, k, Q)
+requires correctQuestionsInterview(child, k-1, Q)
 requires k>=0
-requires children'_aux == (children' - children - {child})
-
 requires interview != Empty
 requires forall c:Interview | c in children' :: correctSizeInterview(c, k-1)
-//requires (child != Empty) && (|child.Children|!=0)
-//requires forall c:Interview | c in children :: correctSizeInterview(c, k-1)
-//requires forall c:Interview | c in children'_aux :: correctSizeInterview(c, k-1)
+requires child !in children 
+requires child in children'
+requires children <= children'
 
-ensures union(set child:Interview | child in (children' - children) :: pathsInterviewPlusElement(child, k-1, interview.Key)) ==
-        (union(set child:Interview | child in children'_aux :: pathsInterviewPlusElement(child, k-1, interview.Key)) + pathsInterviewPlusElement(child, k-1, interview.Key))
+requires forall c:Interview | c in children' :: correctQuestionsInterview(c, k-1, Q)
+
+ensures union(set c:Interview | c in (children' - children) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)) ==
+        (union(set c:Interview | c in (children' - children - {child}) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)) + pathsInterviewPlusElement(child, k-1, interview.Key, Q))
+
 {
-  assume false;
+  assert ((children' - children - {child}) + {child}) == (children' - children);
+  
+  calc == {
+    ((set c:Interview | c in (children' - children - {child}) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)) + (set c:Interview | c in ({child}) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)));
+    ((set c:Interview | c in ((children' - children - {child}) + {child}) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)));
+    ((set c:Interview | c in (children' - children) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)));
+  }
+
+  calc == {
+    (union(set c:Interview | c in (children' - children - {child}) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)) + pathsInterviewPlusElement(child, k-1, interview.Key, Q));
+    (union(set c:Interview | c in (children' - children - {child}) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)) + union({pathsInterviewPlusElement(child, k-1, interview.Key, Q)}));
+    (union((set c:Interview | c in (children' - children - {child}) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)) + {pathsInterviewPlusElement(child, k-1, interview.Key, Q)}));
+    (union((set c:Interview | c in (children' - children - {child}) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)) + (set c:Interview | c in ({child}) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q))));
+    (union(set c:Interview | c in ((children' - children - {child}) + {child}) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)));
+    (union(set c:Interview | c in (children' - children) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)));
+  }
+  assert union(set c:Interview | c in (children' - children) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)) ==
+        (union(set c:Interview | c in (children' - children - {child}) :: pathsInterviewPlusElement(c, k-1, interview.Key, Q)) + pathsInterviewPlusElement(child, k-1, interview.Key, Q));
 }
 
 

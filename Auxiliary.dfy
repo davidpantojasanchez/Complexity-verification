@@ -60,10 +60,12 @@ requires correctSizeInterview(interview, k)
 }
 
 
-ghost function pathsInterview(interview:Interview, k:int) : (paths:set<set<Question>>)
-requires correctSizeInterview(interview, k)
-requires k>=0
+ghost function pathsInterview(interview:Interview, k:int, Q:set<Question>) : (paths:set<set<Question>>)
 decreases k
+requires correctSizeInterview(interview, k)
+requires correctQuestionsInterview(interview, k, Q)
+requires k>=0
+ensures forall path | path in paths :: (forall q | q in path :: q in Q)
 {
   assert (k == 0) ==> ((interview == Empty) ||  |interview.Children|==0) by {
     if (k == 0) && !(interview == Empty) && !(|interview.Children|==0) {
@@ -76,21 +78,24 @@ decreases k
       assert !correctSizeInterview(interview, k);
     }
   }
-
   match interview
-    case Empty => {}
-    case Node (key, children) =>
-      if |interview.Children|==0 then {} else
-      union (set interview:Interview | interview in children.Values :: pathsInterview(interview, k-1))
+  case Empty => {}
+  case Node (key, children) =>
+    if |interview.Children|==0 then {} else
+    union (set child:Interview | child in children.Values :: (set subset:set<Question> | subset in pathsInterview(child, k-1, Q) :: {interview.Key} + subset)) //pathsInterviewPlusElement(child, k-1, interview.Key))
 }
 
-ghost function pathsInterviewPlusElement(interview:Interview, k:int, e:Question) : (paths:set<set<Question>>)
-requires correctSizeInterview(interview, k)
-requires k>=0
+ghost function pathsInterviewPlusElement(interview:Interview, k:int, e:Question, Q:set<Question>) : (paths:set<set<Question>>)
 decreases k
+requires correctSizeInterview(interview, k)
+requires correctQuestionsInterview(interview, k, Q)
+requires k>=0
+requires e in Q
+ensures forall path | path in paths :: (forall q | q in path :: q in Q)
 {
-  (set subset:set<Question> | subset in pathsInterview(interview, k) :: {e} + subset)
+  (set subset:set<Question> | subset in pathsInterview(interview, k, Q) :: {e} + subset)
 }
+
 
 ghost function union(S: set<set<set<Question>>>): (r:set<set<Question>>)
   ensures forall x | x in r :: (exists s | s in S :: x in s)
