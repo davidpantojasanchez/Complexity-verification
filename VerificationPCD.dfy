@@ -98,7 +98,7 @@ requires correctQuestionsInterview(interview, k, Q)
 }
 
 
-method {:only} getPaths(interview:Interview, k:nat, Q:set<Question>) returns (R:set<set<Question>>)
+method getPaths(interview:Interview, k:nat, Q:set<Question>) returns (R:set<set<Question>>)
 decreases k
 requires correctSizeInterview(interview, k)
 requires correctQuestionsInterview(interview, k, Q)
@@ -163,7 +163,77 @@ ensures R == pathsInterview(interview, k, Q)
     assert R == union (set child:Interview | child in children' :: pathsInterviewPlusElement(child, k-1, interview.Key, Q));
   }
   
-  assume R == pathsInterview(interview, k, Q);
+  assert pathsInterview(interview, k, Q) == (union (set child:Interview | child in children' :: pathsInterviewPlusElement(child, k-1, interview.Key, Q))) by {
+    pathsInterview_equals_union_pathsInterviewPlusElement_lemma(interview, children', k, Q);
+  }
+
+  assert R == pathsInterview(interview, k, Q);
+}
+
+
+lemma pathsInterview_equals_union_pathsInterviewPlusElement_lemma(interview:Interview, children':set<Interview>, k:int, Q:set<Question>)
+requires (interview != Empty)
+requires (|interview.Children|!=0)
+requires children' == interview.Children.Values
+requires 0<=k
+requires correctSizeInterview(interview, k)
+requires correctQuestionsInterview(interview, k, Q)
+ensures pathsInterview(interview, k, Q) == (union (set child:Interview | child in children' :: pathsInterviewPlusElement(child, k-1, interview.Key, Q)))
+{
+  if_empty_pathsInterview_equals_union(interview, k, Q);
+  assert pathsInterview(interview, k, Q) ==
+    (union (set child:Interview | child in interview.Children.Values :: (set subset:set<Question> | subset in pathsInterview(child, k-1, Q) :: {interview.Key} + subset)));
+  assert forall child:Interview | child in children' :: (pathsInterviewPlusElement(child, k-1, interview.Key, Q) == (set subset:set<Question> | subset in pathsInterview(child, k-1, Q) :: {interview.Key} + subset));
+  assert (set child:Interview | child in children' :: pathsInterviewPlusElement(child, k-1, interview.Key, Q)) ==
+         (set child:Interview | child in children' :: (set subset:set<Question> | subset in pathsInterview(child, k-1, Q) :: {interview.Key} + subset));
+}
+
+lemma if_empty_pathsInterview_equals_union(interview:Interview, k:int, Q:set<Question>)
+decreases k
+requires correctSizeInterview(interview, k)
+requires correctQuestionsInterview(interview, k, Q)
+requires k>=0
+requires (interview != Empty) && (|interview.Children|!=0)
+ensures pathsInterview(interview, k, Q) ==
+        (union (set child:Interview | child in interview.Children.Values :: (set subset:set<Question> | subset in pathsInterview(child, k-1, Q) :: {interview.Key} + subset)))
+{
+  var u := (set child:Interview | child in interview.Children.Values :: (set subset:set<Question> | subset in pathsInterview(child, k-1, Q) :: {interview.Key} + subset));
+
+  assert 
+    (match interview
+    case Empty => {}
+    case Node (key, children) =>
+      if |interview.Children|==0 then {} else
+      union (set child:Interview | child in children.Values :: (set subset:set<Question> | subset in pathsInterview(child, k-1, Q) :: {interview.Key} + subset)))
+    ==
+    (match interview
+    case Empty => {}
+    case Node (key, children) =>
+      if |interview.Children|==0 then {} else
+      union (u))
+  by {
+    assert u == (set child:Interview | child in interview.Children.Values :: (set subset:set<Question> | subset in pathsInterview(child, k-1, Q) :: {interview.Key} + subset));
+  }
+
+  assert 
+    pathsInterview(interview, k, Q)
+    ==
+    (match interview
+    case Empty => {}
+    case Node (key, children) =>
+      if |interview.Children|==0 then {} else
+      union (u))
+  by {
+    assert u == (set child:Interview | child in interview.Children.Values :: (set subset:set<Question> | subset in pathsInterview(child, k-1, Q) :: {interview.Key} + subset));
+  }
+
+
+  assert pathsInterview(interview, k, Q) ==
+  (match interview
+  case Empty => {}
+  case Node (key, children) =>
+    if |interview.Children|==0 then {} else
+    union (set child:Interview | child in children.Values :: (set subset:set<Question> | subset in pathsInterview(child, k-1, Q) :: {interview.Key} + subset)));
 }
 
 

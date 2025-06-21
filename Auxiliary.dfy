@@ -1,7 +1,7 @@
 
 module Auxiliary {
 
-// 1 - Tipos de datos, funciones y predicados auxiliares
+// Tipos de datos, funciones y predicados auxiliares
 
 // "Question" representa a las preguntas de PCD o a los tests de D-ATDP
 // "Answer" representa a las respuestas de PCD o a los comportamientos de D-ATDP
@@ -59,7 +59,6 @@ requires correctSizeInterview(interview, k)
     (exists child:Interview | child in children.Values :: isPath(child, k-1, path - {key}))
 }
 
-
 ghost function pathsInterview(interview:Interview, k:int, Q:set<Question>) : (paths:set<set<Question>>)
 decreases k
 requires correctSizeInterview(interview, k)
@@ -82,7 +81,7 @@ ensures forall path | path in paths :: (forall q | q in path :: q in Q)
   case Empty => {}
   case Node (key, children) =>
     if |interview.Children|==0 then {} else
-    union (set child:Interview | child in children.Values :: (set subset:set<Question> | subset in pathsInterview(child, k-1, Q) :: {interview.Key} + subset)) //pathsInterviewPlusElement(child, k-1, interview.Key))
+    union (set child:Interview | child in children.Values :: (set subset:set<Question> | subset in pathsInterview(child, k-1, Q) :: {interview.Key} + subset))
 }
 
 ghost function pathsInterviewPlusElement(interview:Interview, k:int, e:Question, Q:set<Question>) : (paths:set<set<Question>>)
