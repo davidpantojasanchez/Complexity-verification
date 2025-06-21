@@ -9,7 +9,7 @@ abstract module VerificationPCD {
   // * LA VERIFICACIÓN DE PCDLim ES POLINÓMICA
 
 
-method {:only} verifyPCD'
+method verifyPCD'
   (f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, A:set<Answer>, interview:Interview)
   returns (R:bool)
 requires (forall m | m in f.Keys :: m.Keys == Q)
@@ -23,18 +23,20 @@ requires correctQuestionsInterview(interview, k, Q)
 
 ensures postcondition(f, g, P, k, a, b, Q, A, interview, R)   // R == (forall path:set<Question> | path in pathsInterview(interview, k) :: verification(f, g, P, k, a, b, Q, path))
 {
-  /*
+ /* 
   if !correctSizeInterview(interview, k) || !correctQuestionsInterview(interview, k, Q) {
     assert postcondition(f, g, P, k, a, b, Q, A, interview, R) by { reveal postcondition(); }
     assert (forall path:set<Question> | path in pathsInterview(interview, k) :: path <= Q);
     return false;
-  } */
+  }
+  */
   var paths:set<set<Question>> := getPaths(interview, k, Q);
   R := true;
 
   while 0<|paths|
   decreases |paths|
   invariant forall path:set<Question> | path in paths :: path <= Q
+  invariant paths <= pathsInterview(interview, k, Q)
   invariant R == (forall path:set<Question> | path in (pathsInterview(interview, k, Q) - paths) :: verification(f, g, P, k, a, b, Q, path))
   {
     assert R == (forall path:set<Question> | path in (pathsInterview(interview, k, Q) - paths) :: verification(f, g, P, k, a, b, Q, path));
@@ -42,10 +44,21 @@ ensures postcondition(f, g, P, k, a, b, Q, A, interview, R)   // R == (forall pa
     var path:set<Question> :| path in paths;
     var r:bool := verifyPCD(f, g, P, k, a, b, Q, path);
     R := R && r;
+    assert R == ((forall p:set<Question> | p in (pathsInterview(interview, k, Q) - paths) :: verification(f, g, P, k, a, b, Q, p)) && r);
+    ghost var old_paths := paths;
     paths := paths - {path};
 
-    assume R == (forall path:set<Question> | path in (pathsInterview(interview, k, Q) - (paths + {path})) :: verification(f, g, P, k, a, b, Q, path));
-    assert r == verification(f, g, P, k, a, b, Q, path);
+    assert R == ((forall p:set<Question> | p in (pathsInterview(interview, k, Q) - (paths + {path})) :: verification(f, g, P, k, a, b, Q, p)) && r) by {
+      assert R == ((forall p:set<Question> | p in (pathsInterview(interview, k, Q) - old_paths) :: verification(f, g, P, k, a, b, Q, p)) && r);
+      assert path in old_paths;
+      assert old_paths == (paths + {path}) by { assert path in old_paths; }
+      assert (path in (pathsInterview(interview, k, Q) - old_paths)) == (path in (pathsInterview(interview, k, Q) - (paths + {path})));
+    }
+
+    assert R == (forall path:set<Question> | path in (pathsInterview(interview, k, Q) - paths) :: verification(f, g, P, k, a, b, Q, path)) by {
+      assert r == verification(f, g, P, k, a, b, Q, path);
+      assert R == (forall p:set<Question> | p in ((pathsInterview(interview, k, Q) - (paths + {path})) + {path}) :: verification(f, g, P, k, a, b, Q, p));
+    }
   }
 
   assert R == (forall path:set<Question> | path in pathsInterview(interview, k, Q) :: verification(f, g, P, k, a, b, Q, path));
@@ -56,6 +69,7 @@ ensures postcondition(f, g, P, k, a, b, Q, A, interview, R)   // R == (forall pa
   }
   assert postcondition(f, g, P, k, a, b, Q, A, interview, R);
 }
+
 
 ghost predicate postcondition(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answer>, int>, P:set<Question>, k:int, a:real, b:real, Q:set<Question>, A:set<Answer>, interview:Interview, R:bool)
 requires (forall m | m in f.Keys :: m.Keys == Q)
@@ -492,7 +506,6 @@ ensures R == verification(f, g, P, k, a, b, Q, questionsToVerify)
     )) == verification(f,g, P, k, a, b, Q, questionsToVerify) by {
     reveal verification();
     }
-
 
   assert R==
   (forall candidate:map<Question, Answer> | candidate in f ::
