@@ -38,8 +38,6 @@ ensures postcondition(f, g, P, k, a, b, Q, A, interview, R)
   invariant paths <= pathsInterview(interview, k, Q)
   invariant R == (forall path:set<Question> | path in (pathsInterview(interview, k, Q) - paths) :: verification(f, g, P, k, a, b, Q, path))
   {
-    assert R == (forall path:set<Question> | path in (pathsInterview(interview, k, Q) - paths) :: verification(f, g, P, k, a, b, Q, path));
-
     var path:set<Question> :| path in paths;
     var r:bool := verifyPathCDPC(f, g, P, k, a, b, Q, path);
     R := R && r;
@@ -410,9 +408,7 @@ ensures union(set c:Interview | c in (children' - children) :: pathsInterviewPlu
       invariant invariant_loop(f, g, P, Q, candidates, candidates_empty, i)
       invariant verification_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates, R)
     {     
-      ghost var R_ := R;
       ghost var candidates_ := candidates;
-
       assert candidates <= f.Keys by {reveal invariant_loop();}
 
       candidates, candidates_empty, i, R := body_loop(f, g, P, k, a, b, Q, questionsToVerify, candidates, candidates_empty, i, R);
