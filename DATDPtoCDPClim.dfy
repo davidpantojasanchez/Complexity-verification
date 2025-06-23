@@ -349,6 +349,16 @@ lemma DATDPreducesToCDPCLim(C: set<map<Question, Answer>>, E: set<map<Question, 
 }
 
 
+function DATDP_to_CDPClim(C: set<map<Question, Answer>>, E: set<map<Question, Answer>>, k: int, I: set<Question>) : (r:(map<map<Question, Answer>, bool>, map<map<Question, Answer>, int>, set<Question>, int, real, real, set<Question>))
+  requires E <= C
+  requires 0 <= k <= |I|
+  requires (forall vehicle:map<Question, Answer> | vehicle in C :: vehicle.Keys == I)
+  ensures DATDP(C, E, k, I) == CDPCLim(fitness(C, E, I), quantity(C, I), {}, k, 0.0, 1.0, I)
+{
+  DATDPreducesToCDPCLim(C, E, k, I);
+  (fitness(C, E, I), quantity(C, I), {}, k, 0.0, 1.0, I)
+}
+
 
 
 }
