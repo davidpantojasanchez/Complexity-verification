@@ -695,7 +695,7 @@ method okPrivateMethod(g:map<map<Question, Answer>, int>, P:set<Question>, a:rea
   }
 }
 
-method {:only} nCandidatesMethod(g:map<map<Question, Answer>, int>, Q:set<Question>) returns (r:int)
+method nCandidatesMethod(g:map<map<Question, Answer>, int>, Q:set<Question>) returns (r:int)
   requires forall m | m in g.Keys :: m.Keys == Q
   ensures r == nCandidates(g, Q)
 {

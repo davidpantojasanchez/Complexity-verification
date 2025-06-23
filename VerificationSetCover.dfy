@@ -161,24 +161,18 @@ ensures j == j_ + 1
     assert isCover(U-U'_,S);
     if found {
       ghost var prev_difference := (U-U'_);
-      assert forall e | e in (prev_difference + {e}) :: (exists s | s in S :: e in s) by {
-        assert forall e | e in prev_difference :: exists_s_in_S_such_that_e_in_s(S, e) by { reveal exists_s_in_S_such_that_e_in_s(); }
-        assert forall e | e in {e} :: exists_s_in_S_such_that_e_in_s(S, e) by {
-          reveal exists_s_in_S_such_that_e_in_s();
-          assert exists_s_in_S_such_that_e_in_s(S, e);
+      assert forall elem | elem in (prev_difference + {e}) :: (exists s | s in S :: elem in s) by {
+        assert forall elem | elem in prev_difference :: exists_s_in_S_such_that_e_in_s(S, elem) by { reveal exists_s_in_S_such_that_e_in_s(); }
+        assert forall elem | elem in {e} :: exists_s_in_S_such_that_e_in_s(S, elem) by {
+          assert exists_s_in_S_such_that_e_in_s(S, e) by { reveal exists_s_in_S_such_that_e_in_s(); }
 
-          assert exists e | e in {e} :: exists_s_in_S_such_that_e_in_s(S, e);
+          assert exists elem | elem in {e} :: exists_s_in_S_such_that_e_in_s(S, elem);
           assert |{e}| == 1;
           
-          //if_only_element_has_property_set_has_property({e}, S, e);
           ghost var E:set<T> := {e};
-          assert forall e | e in {e} :: exists_s_in_S_such_that_e_in_s(S, e) by {
-            assert forall e | e in E :: exists_s_in_S_such_that_e_in_s(S, e);
-            assert E == {e};
-            assume false;
-          }
+          assert forall elem | elem in {e} :: exists_s_in_S_such_that_e_in_s(S, elem);
         }
-        assert forall e | e in (prev_difference+{e}) :: exists_s_in_S_such_that_e_in_s(S, e);
+        assert forall elem | elem in (prev_difference+{e}) :: exists_s_in_S_such_that_e_in_s(S, elem);
         reveal exists_s_in_S_such_that_e_in_s();
       }
       assert ((U-U'_) + {e}) == (U-U');
@@ -324,37 +318,14 @@ lemma SetCover_HittingSet2<T>(U:set<T>, S: set<set<T>>, k:nat)
      } 
   }
 
-/*
-lemma if_only_element_has_property_set_has_property<T>(E:set<T>, S:set<set<T>>, elem:T)
-requires |E| == 1
-//requires exists e | e in E :: exists_s_in_S_such_that_e_in_s(S, e)
-requires elem in E
-requires exists_s_in_S_such_that_e_in_s(S, elem)
-ensures forall e | e in E :: exists_s_in_S_such_that_e_in_s(S, e)
-{
-  var e' :| e' in E;
-  assert e' == elem by {
-    assert |E| == 1;
-    assert e' in E;
-    assume false;
-  }
-  assert E - {e'} == {} by {
-    assert |E| == 1;
-    assert e' in E;
-    assume false;
-  }
-  // ...
-  assume false;
-}
-*/
-
-
 
 ghost predicate {:opaque} exists_s_in_S_such_that_e_in_s<T>(S:set<set<T>>, e:T) {
   (exists s | s in S :: e in s)
 }
 
+
+
+
+
 }
-
-
 
