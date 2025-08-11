@@ -213,7 +213,7 @@ ghost function nPrivate(g:map<map<Question, Answer>, int>, Q:set<Question>, priv
   if g.Keys == {} then
     0
   else
-    var c:map<Question, Answer> := Pick(g.Keys);
+    var c:map<Question, Answer> := Pick(g.Keys);      // :| c in g.Keys;
     (if c[privateQuestion] == selectedAnswer then g[c] else 0) +
     nPrivate(
       (map m:map<Question, Answer> | m in g.Keys && m != c :: g[m]),
@@ -229,7 +229,7 @@ ghost function nFit(f:map<map<Question, Answer>, bool>, g:map<map<Question, Answ
   if g.Keys == {} then
     0
   else
-    var c:map<Question, Answer> := Pick(g.Keys);
+    var c:map<Question, Answer> := Pick(g.Keys);      //:| c in g.Keys;
     (if f[c] then g[c] else 0) +
     nFit(
       (map m:map<Question, Answer> | m in f.Keys && m != c :: f[m]),
