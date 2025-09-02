@@ -18,7 +18,6 @@ requires correctQuestionsInterview(interview, k, Q)
 
 ensures reveal requires_of_the_postcondition(); postcondition(f, g, P, k, a, b, Q, A, interview, R)
 {
-  
  /* 
   if !correctSizeInterview(interview, k) || !correctQuestionsInterview(interview, k, Q) {
     assert postcondition(f, g, P, k, a, b, Q, A, interview, R) by { reveal postcondition(); }
@@ -658,7 +657,9 @@ method okFitnessMethod(f:map<map<Question, Answer>, bool>) returns (R:bool)
     }
     assert allFalse == (forall b:bool | b in f.Values :: b == false) by {
       assert forall b:bool | b in f.Values :: (exists key | key in f.Keys :: f[key] == b);
-      assert (forall key:map<Question, Answer> | key in (f.Keys - keys) :: f[key] == false) == (forall b:bool | b in f.Values :: b == false);
+      assert (forall key:map<Question, Answer> | key in (f.Keys - keys) :: f[key] == false) == (forall b:bool | b in f.Values :: b == false) by {
+        assert allFalse == (forall key:map<Question, Answer> | key in (f.Keys - keys) :: f[key] == false);
+      }
     }
   }
 }
@@ -1190,7 +1191,10 @@ ensures R == (R_ && (forall candidate:map<Question, Answer> | candidate in (cand
     okFitness(f') && okPrivate(g', P, a, b, Q)
   )
   by {
-    assert {candidate} == (candidates_ - candidates);
+
+    assert {candidate} == (candidates_ - candidates) by {
+      assert candidates == candidates_ - {candidate};
+    }
 
     assert (forall candidate:map<Question, Answer> | candidate in (candidates_ - candidates) ::
     (

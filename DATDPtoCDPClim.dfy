@@ -181,7 +181,6 @@ lemma {:induction false} DATDPintermediateImpliesCDPCLim(C: set<map<Question, An
     }
     assert CDPCLim(f, quantity(C, I), {}, k, 0.0, 1.0, I) by { reveal CDPCLim(); }
   }
-  assert CDPCLim(f, quantity(C, I), {}, k, 0.0, 1.0, I) by { reveal CDPCLim(); }
 }
 
 
