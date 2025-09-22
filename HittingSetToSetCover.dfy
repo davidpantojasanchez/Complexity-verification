@@ -29,7 +29,6 @@ function HittingSet_to_SetCover(U: set<int>, S: set<set<int>>, k: nat) : (r:(set
   ensures isCover(r.0, r.1) // existe un subconjunto de sets tal que su union es igual al universo
 {
   var newS: set<set<set<int>>> := (set u | u in U :: (set s | s in S && u in s));
-  
   if ({} in S) then (S, (set s | s in S :: {s}), 0)//que devuelva falso siempre 
   else
    tisCover(U,S);
