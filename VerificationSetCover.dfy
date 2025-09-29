@@ -32,7 +32,20 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
         var s :| s in S';
         S' := S' - {s};
 
-        if (u in s) {
+        //if (u in s) {
+        //  sets_in_S_that_contain_u := sets_in_S_that_contain_u + {s};
+        //}
+        var s_contains_u:bool := false;
+        var s' := s;
+        while (s' != {}) {
+          var e :| e in s';
+          s' := s' - {e};
+
+          if (e == u) {
+            s_contains_u := true;
+          }
+        }
+        if (s_contains_u) {
           sets_in_S_that_contain_u := sets_in_S_that_contain_u + {s};
         }
 
@@ -40,8 +53,16 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
 
       newS := newS + {sets_in_S_that_contain_u};
     }
+    //assert newS == (set u | u in U :: (set s | s in S && u in s));
 
 
+    
+    /*
+    if ({} in S) then (S, (set s | s in S :: {s}), 0)
+    else
+    tisCover(U,S);
+    (S, newS, k)
+    */
     var S_contains_empty:bool := false;
     var S' := S;
     while (S' != {}) {
@@ -52,14 +73,18 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
         S_contains_empty := true;
       }
     }
-    /*
-    if ({} in S) then (S, (set s | s in S :: {s}), 0)
-    else
-    tisCover(U,S);
-    (S, newS, k)
-    */
     if (S_contains_empty) {
+      
+      var S' := S;
+      while (S' != {})
+      {
+        var s :| s in S';
+        S' := S' - {s};
+        newS := newS + {{s}};
+      }
 
+      return (S, newS, 0);
+      
     }
     else {
       return (S, newS, k);
