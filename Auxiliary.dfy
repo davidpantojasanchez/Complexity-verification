@@ -1,6 +1,4 @@
 
-module Auxiliary {
-
 // Tipos de datos, funciones y predicados auxiliares
 
 // "Question" representa a las preguntas de CDPC o a los tests de D-ATDP
@@ -270,9 +268,6 @@ lemma mult_preserves_order(a:int, b:int, a':int, b':int)
   requires 0 <= b <= b'
   ensures a*b <= a'*b'
 {
-}
-
-
 }
 
 

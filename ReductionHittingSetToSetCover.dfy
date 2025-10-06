@@ -1,27 +1,7 @@
 //Created by: Clara Segura
-include "Auxiliary.dfy"
-include "Problems.dfy"
+include "HittingSet.dfy"
+include "SetCover.dfy"
 
-abstract module ReductionSetCover {
-  import opened Problems
-  import opened Auxiliary
-
-lemma tisCover(U: set<int>, S: set<set<int>>) 
-requires forall s | s in S :: s <= U
-requires {} !in S
- ensures 
-   var newS: set<set<set<int>>> := (set u | u in U :: (set s | s in S && u in s));
-   isCover(S,newS)
-{ var newS: set<set<set<int>>> := (set u | u in U :: (set s | s in S && u in s));
-  forall e | e in S ensures (exists s | s in newS :: e in s)
-  {    assert e != {};
-       assert exists n :: n in e; 
-       var n :| n in e;
-       assert e in (set s | s in S && n in s);
-       assert (set s | s in S && n in s) in newS;
-    }
-    
-}
 
 function HittingSet_to_SetCover(U: set<int>, S: set<set<int>>, k: nat) : (r:(set<set<int>>, set<set<set<int>>>, int))
   requires forall s | s in S ::  s <= U // los sets son subsets del universo
@@ -35,6 +15,22 @@ function HittingSet_to_SetCover(U: set<int>, S: set<set<int>>, k: nat) : (r:(set
    (S, newS, k)
 }
 
+lemma tisCover(U: set<int>, S: set<set<int>>) 
+  requires forall s | s in S :: s <= U
+  requires {} !in S
+ ensures 
+   var newS: set<set<set<int>>> := (set u | u in U :: (set s | s in S && u in s));
+   isCover(S,newS)
+{ var newS: set<set<set<int>>> := (set u | u in U :: (set s | s in S && u in s));
+  forall e | e in S ensures (exists s | s in newS :: e in s)
+  {    assert e != {};
+       assert exists n :: n in e; 
+       var n :| n in e;
+       assert e in (set s | s in S && n in s);
+       assert (set s | s in S && n in s) in newS;
+    }
+    
+}
 
 lemma {:induction C} cardinal_of_sets1(U: set<int>, S:set<set<int>>, C:set<int>,CS:set<set<set<int>>>)
 requires C <= U 
@@ -220,4 +216,4 @@ lemma HittingSet_SetCover2(U:set<int>, S: set<set<int>>, k:nat)
   }
 }
 
-}
+

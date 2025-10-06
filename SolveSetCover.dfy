@@ -1,0 +1,194 @@
+include "HittingSet.dfy"
+include "SetCover.dfy"
+include "Types.dfy"
+
+
+method solveSetCover<T>(U:set<T>, S:set<set<T>>, k:nat) returns (b:bool)
+ensures b == (isCover(U,S) &&  |S| <= k)
+{
+  ghost var oldU := U;
+  
+  var emptyU;
+  emptyU := |U| == 0;
+  
+  var e:T;
+  var U':set<T>;
+  U':=U;
+  assert U' == U;
+  assert U-U' == {} && |U-U'|==0;
+  
+  ghost var j := 0;
+  b :=true;
+
+  while !emptyU && b
+   decreases (if !emptyU then 1 else 0)+|U'|
+   invariant emptyU == (U' == {})
+   invariant U' <= U
+   invariant b == isCover(U-U',S)
+
+   invariant j == (|U| - |U'|)
+  {
+    U', b, emptyU, j := body_loop_outer<T>(U, S, k, U', j);
+  }
+  
+  var size;
+  size := |S|;
+
+  assert b == isCover(U,S) by {
+    assert b == isCover(U-U',S);
+
+    if U' == {} {
+      assert b == isCover(U - U',S);
+      assert U - U' == U;
+      assert b == isCover(U,S);
+    }
+    else {
+      assert !(!emptyU && b);
+      assert emptyU || !b;
+      assert emptyU == (U' == {});
+      assert !(U' == {});
+      assert !emptyU;
+      assert !isCover(U-U',S);
+    }
+
+  }
+
+  ghost var b' := b;
+  assert emptyU && b ==> U-U' == U && isCover(U,S);
+  b := emptyU && b && (size <= k);
+  assert b == (emptyU && isCover(U,S) && size <= k);
+
+  assert b == (isCover(U,S) &&  |S| <= k);
+}
+
+
+
+
+method body_loop_inner<T>(U:set<T>, S:set<set<T>>, k:nat, S'_:set<set<T>>, e:T, ghost i_:nat)
+returns (S':set<set<T>>, empty:bool, found:bool, ghost i:nat)
+  
+  requires S'_ != {}
+  requires S'_ <= S
+  requires i_ == (|S| - |S'_|)
+  requires (forall s| s in S-S'_:: e !in s)
+
+  ensures S'<= S
+  ensures empty == (S' == {}) 
+  ensures !found ==> (forall s| s in S-S':: e !in s)
+  ensures found ==> exists s:set<T> :: s in S && e in s
+  ensures i == (|S| - |S'|)
+  ensures i == i_+1
+
+  ensures (!empty && !found) ==> (|S'| < |S'_|)
+{
+  S' := S'_;
+  var s;
+  s :| s in S';
+  ghost var prev_S' := S';
+  S' := S' - {s};
+  found := e in s;
+  empty := |S'| == 0;
+
+  i := i_ + 1;
+}
+
+
+
+method body_loop_outer<T>(U:set<T>, S:set<set<T>>, k:nat, U'_:set<T>, ghost j_:nat) returns (U':set<T>, b:bool, emptyU:bool, ghost j:nat)
+/*
+while !emptyU && b
+decreases (if !emptyU then 1 else 0)+|U'|
+invariant emptyU == (U' == {})
+invariant U' <= U
+invariant b == isCover(U-U',S)
+
+invariant j == (|U| - |U'|)
+invariant counter <= counter_in + 2*poly(U,S) + j*(4*poly(U,S) + poly(U,S)*(4*poly(U,S)))
+*/
+requires U'_ <= U
+requires j_ == (|U| - |U'_|)
+requires U'_ != {}
+requires isCover(U-U'_,S)
+
+ensures (!emptyU) ==> (|U'| < |U'_|)
+ensures emptyU == (U' == {})
+ensures U' <= U
+ensures b == isCover(U-U',S)
+ensures j == (|U| - |U'|)
+ensures j == j_ + 1
+
+{
+  U' := U'_;
+
+  var e:T;
+  e :| e in U';
+  U' := U' - {e};
+  var empty,S'; S':=S;
+  empty := |S| == 0;
+  var found := false;
+  ghost var i := 0;
+
+  while !empty && !found
+    decreases (if !empty && !found then 1 else 0)+|S'|
+    invariant empty == (S' == {}) 
+    invariant U' == U'_-{e}
+    invariant S'<= S
+    invariant !found ==> (forall s| s in S-S':: e !in s)
+    invariant found ==> exists s:set<T> :: s in S && e in s
+    
+    invariant i == (|S| - |S'|)
+  {
+    ghost var i_start_body := i;
+    S', empty, found, i := body_loop_inner(U, S, k, S', e, i);
+
+    assert S'<= S;
+    assert empty == (S' == {});
+    assert !found ==> (forall s| s in S-S':: e !in s);
+    assert found ==> exists s:set<T> :: s in S && e in s;
+    assert i == (|S| - |S'|);
+  }
+
+  b := found;
+  assert b == isCover(U-U',S) by {
+    assert isCover(U-U'_,S);
+    if found {
+      ghost var prev_difference := (U-U'_);
+      assert forall elem | elem in (prev_difference + {e}) :: (exists s | s in S :: elem in s) by {
+        assert forall elem | elem in prev_difference :: exists_s_in_S_such_that_e_in_s(S, elem) by { reveal exists_s_in_S_such_that_e_in_s(); }
+        assert forall elem | elem in {e} :: exists_s_in_S_such_that_e_in_s(S, elem) by {
+          assert exists_s_in_S_such_that_e_in_s(S, e) by { reveal exists_s_in_S_such_that_e_in_s(); }
+
+          assert exists elem | elem in {e} :: exists_s_in_S_such_that_e_in_s(S, elem);
+          assert |{e}| == 1;
+          
+          ghost var E:set<T> := {e};
+          assert forall elem | elem in {e} :: exists_s_in_S_such_that_e_in_s(S, elem);
+        }
+        assert forall elem | elem in (prev_difference+{e}) :: exists_s_in_S_such_that_e_in_s(S, elem);
+        reveal exists_s_in_S_such_that_e_in_s();
+      }
+      assert ((U-U'_) + {e}) == (U-U');
+      assert isCover(U-U',S);
+    }
+    else {
+      assert !b;
+      assert !(exists s | s in S :: e in s);
+      assert !(forall e | e in ((U-U'_) + {e}) :: (exists s | s in S :: e in s));
+      assert !isCover(((U-U'_) + {e}),S);
+      assert ((U-U'_) + {e}) == (U-U');
+      assert !isCover(U-U',S);
+    }
+  }
+  emptyU := |U'| == 0;
+  j := j_ + 1;
+}
+
+
+
+
+
+ghost predicate {:opaque} exists_s_in_S_such_that_e_in_s<T>(S:set<set<T>>, e:T) {
+  (exists s | s in S :: e in s)
+}
+
+

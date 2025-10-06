@@ -1,6 +1,4 @@
-include "Auxiliary.dfy"
 
-module TypeMod {
 
 const sizeT:nat := 1
 
@@ -548,7 +546,6 @@ method {:axiom} MakeMap<A(==), B(==)>(s:map<A, B>, ghost sizeT:nat, ghost counte
 
 
 
-}
 
 
 
