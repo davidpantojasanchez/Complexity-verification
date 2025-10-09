@@ -15,8 +15,7 @@ ensures b == (I <= S && isCover(U, I) && |I| <= k)
   {
     b1, U' := verifySetCover_outer_loop(U, S, k, I, U');
   }
-
-  assert b1 ==> U' == {} &&  U-U' == U;
+  assert b1 ==> U-U' == U;
   b := b1 && I <= S && |I| <= k ;
 }
 
@@ -42,7 +41,6 @@ ensures b1 == isCover(U - U'', I)
     invariant I' <= I
     invariant b2 == (exists i' | i' in I - I' :: u in i')
   {
-    ghost var prevI' := I';
     b2, I' := verifySetCover_inner_loop(U, S, k, I, I', u);
   }
   b1 := b2;

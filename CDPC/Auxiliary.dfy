@@ -263,6 +263,7 @@ function quantity(C:set<map<Question, Answer>>, I:set<Question>) : (g:map<map<Qu
 }
 
 
+// Quitar, está en SetLemmas
 lemma mult_preserves_order(a:int, b:int, a':int, b':int)
   requires 0 <= a <= a'
   requires 0 <= b <= b'
