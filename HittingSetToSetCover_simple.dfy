@@ -64,13 +64,18 @@ ensures |U''| == |U'| - 1
 // Invariant out
 ensures U'' <= U
 ensures newS' == (set u | u in (U - U'') :: (set s | s in S && u in s))
+// Counter
+
 {
   counter := counter_in;
   var u :| u in U';
+  counter := counter + 1;
   U'' := U' - {u};
+  counter := counter + |U|;
 
   var sets_in_S_that_contain_u:set<set<int>> := {};
   var S' := S;
+  counter := counter + |S|;
   while (S' != {})
     decreases |S'|
     invariant S' <= S
@@ -80,6 +85,7 @@ ensures newS' == (set u | u in (U - U'') :: (set s | s in S && u in s))
   }
 
   newS' := newS + {sets_in_S_that_contain_u};
+  counter := counter + |S|*|U|*|U|;
 
   assert newS' == (set v | v in (U - U'') :: (set s | s in S && v in s)) by {
     assert newS' == (set v | v in (U - U') :: (set s | s in S && v in s)) + {sets_in_S_that_contain_u};
