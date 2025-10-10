@@ -56,7 +56,7 @@ requires U' != {}
 requires U' <= U
 requires newS == (set u | u in (U - U') :: (set s | s in S && u in s))
 // Decreases
-ensures |U''| < |U'|
+ensures |U''| == |U'| - 1
 // Invariant out
 ensures U'' <= U
 ensures newS' == (set u | u in (U - U'') :: (set s | s in S && u in s))
@@ -94,7 +94,7 @@ requires S' != {}
 requires S' <= S
 requires sets_in_S_that_contain_u == (set s | s in (S - S') && u in s)
 // Decreases
-ensures |S''| < |S'|
+ensures |S''| == |S'| - 1
 // Invariant out
 ensures S'' <= S
 ensures sets_in_S_that_contain_u' == (set s | s in (S - S'') && u in s)
@@ -129,7 +129,7 @@ requires s' != {}
 requires s' <= s
 requires s_contains_u == (u in (s - s'))
 // Decreases
-ensures |s''| < |s'|
+ensures |s''| == |s'| - 1
 // Invariant out
 ensures s'' <= s
 ensures s_contains_u' == (u in (s - s''))
@@ -152,7 +152,7 @@ requires S' != {}
 requires S' <= S
 requires S_contains_empty == ({} in (S - S'))
 // Decreases
-ensures |S''| < |S'|
+ensures |S''| == |S'| - 1
 // Invariant out
 ensures S'' <= S
 ensures S_contains_empty'== ({} in (S - S''))
@@ -174,7 +174,7 @@ requires S' != {}
 requires S' <= S
 requires newS == (set s | s in (S - S') :: {s})
 // Decreases
-ensures |S''| < |S'|
+ensures |S''| == |S'| - 1
 // Invariant out
 ensures S'' <= S
 ensures newS' == (set s | s in (S - S'') :: {s})
