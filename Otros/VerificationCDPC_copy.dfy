@@ -949,7 +949,7 @@ lemma basic_math_2(counter_in:nat, poly:nat, i:nat, i':nat)
     assert 7*i' == 7*(i-1);
   }
 
-lemma smallerSetLessCardinality<T>(A:set<T>, B:set<T>)
+lemma smallerSetLessCardinality<T>(A:set<T>, B:set<T>)  // repetido
   requires A <= B
   ensures |A| <= |B|
   {
