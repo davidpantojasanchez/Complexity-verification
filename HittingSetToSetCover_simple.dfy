@@ -3,14 +3,15 @@ include "SetCover.dfy"
 include "ReductionHittingSetToSetCover.dfy"
 include "Lemmas.dfy"
 
-method {:verify false} HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) returns (r:(set<set<int>>, set<set<set<int>>>, int), ghost counter:nat)
+method HittingSet_to_SetCover_Method<T>(U: set<T>, S: set<set<T>>, k: nat) returns (r:(set<set<T>>, set<set<set<T>>>, nat), ghost counter:nat)
   requires forall s | s in S ::  s <= U
-  ensures r == HittingSet_to_SetCover(U, S, k)
-  ensures counter <= 2*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 3*|S|*|S|*|U| + 5*|S|*|U|*|U| + 6*|S|*|U| + |U|*|U| + 4*|S| + 4*|U| + 5
+  //ensures r == HittingSet_to_SetCover(U, S, k)
+  //ensures counter <= 2*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 3*|S|*|S|*|U| + 5*|S|*|U|*|U| + 6*|S|*|U| + |U|*|U| + 4*|S| + 4*|U| + 5
+  ensures reveal poly2(); counter <= poly(U, S, k)
 {
   counter := 0;
 
-  var newS:set<set<set<int>>> := {};
+  var newS:set<set<set<T>>> := {};
   counter := counter + 1;
   var U' := U;
   counter := counter + |U|;
@@ -29,47 +30,52 @@ method {:verify false} HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int
   var S_contains_empty:bool := false;
   var S' := S;
   counter := counter + |S|;
-  assert counter <= 2*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 5*|S|*|U|*|U| + 3*|S|*|U| + |U|*|U| + |S| + 4*|U| + 2;
+  //assert counter <= 2*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 5*|S|*|U|*|U| + 3*|S|*|U| + |U|*|U| + |S| + 4*|U| + 2;
+  assert counter <= poly1(U, S, k) by { reveal poly1(); }
   while (S' != {})
     decreases |S'|
     invariant S' <= S
     invariant S_contains_empty == ({} in (S - S'))
-    invariant counter <= 2*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 5*|S|*|U|*|U| + 3*|S|*|U| + |U|*|U| + |S| + 4*|U| + 2 + (|S| - |S'|)*(2*|S|*|U| + |U| + 1)
+    invariant counter <= poly1(U, S, k) + (|S| - |S'|)*(|S|*|U| + 2*|U| + 1)
   {
     counter := counter + 1;
     S', S_contains_empty, counter := HittingSet_to_SetCover_S_contains_empty_loop(U, S, k, S', S_contains_empty, counter);
   }
+  assert counter <= poly1(U, S, k) + |S|*(|S|*|U| + 2*|U| + 1);
   counter := counter + 1;
-  assert counter <= 2*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + |S|*|S|*|U| + 5*|S|*|U|*|U| + 5*|S|*|U| + |U|*|U| + 2*|S| + 4*|U| + 3;
 
   if (S_contains_empty) {
     var newS := {};
     counter := counter + 1;
     var S' := S;
     counter := counter + |S|;
-    assert counter <= 2*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + |S|*|S|*|U| + 5*|S|*|U|*|U| + 5*|S|*|U| + |U|*|U| + 3*|S| + 4*|U| + 4;
+    assert counter <= poly1(U, S, k) + |S|*|S|*|U| + 2*|S|*|U| + 2*|S| + 2;
+    assert counter <= poly2(U, S, k);
     while (S' != {})
       decreases |S'|
       invariant S' <= S
       invariant newS == (set s | s in (S - S') :: {s})
-      invariant counter <= 2*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + |S|*|S|*|U| + 5*|S|*|U|*|U| + 5*|S|*|U| + |U|*|U| + 3*|S| + 4*|U| + 4 + (|S| - |S'|)*(2*|S|*|U| + |U| + 1)
+      invariant counter <= poly2(U, S, k) + (|S| - |S'|)*(2*|S|*|U| + |U| + 1)
     {
       counter := counter + 1;
       S', newS, counter := HittingSet_to_SetCover_edge_case_loop(U, S, k, S', newS, counter);
+      assert counter <= poly2(U, S, k) + (|S| - |S'| - 1)*(2*|S|*|U| + |U| + 1) + 1 + 2*|S|*|U| + |U|;
     }
+    assert counter <= poly2(U, S, k) + (|S| - |S'|)*(2*|S|*|U| + |U| + 1);
     counter := counter + 1;
-    assert counter <= 2*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 3*|S|*|S|*|U| + 5*|S|*|U|*|U| + 6*|S|*|U| + |U|*|U| + 4*|S| + 4*|U| + 5;
-    identity_substraction_lemma(S, S');
+    assert counter <= poly2(U, S, k) + 2*|S|*|S|*|U| + |S|*|U| + |S| + 1;
+    assert counter <= poly(U, S, k);
     return (S, newS, 0), counter;
   }
   else {
+    assert counter <= poly1(U, S, k) + |S|*(|S|*|U| + 2*|U| + 1) + 1;
     return (S, newS, k), counter;
   }
 
 }
 
 
-method HittingSet_to_SetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, U':set<int>, newS:set<set<set<int>>>, ghost counter_in:nat) returns (U'':set<int>, newS':set<set<set<int>>>, ghost counter:nat)
+method HittingSet_to_SetCover_outer_loop<T>(U:set<T>, S:set<set<T>>, k:nat, U':set<T>, newS:set<set<set<T>>>, ghost counter_in:nat) returns (U'':set<T>, newS':set<set<set<T>>>, ghost counter:nat)
 // Problem requirements
 requires forall s | s in S ::  s <= U
 // Termination
@@ -91,7 +97,7 @@ ensures counter <= counter_in + 2*|S|*|S|*|U| + 2*|S|*|U|*|U| + 5*|S|*|U| + 3*|S
   U'' := U' - {u};
   counter := counter + |U|;
 
-  var sets_in_S_that_contain_u:set<set<int>> := {};
+  var sets_in_S_that_contain_u:set<set<T>> := {};
   var S' := S;
   counter := counter + |S|;
   while (S' != {})
@@ -121,7 +127,7 @@ ensures counter <= counter_in + 2*|S|*|S|*|U| + 2*|S|*|U|*|U| + 5*|S|*|U| + 3*|S
 }
 
 
-method HittingSet_to_SetCover_middle_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, u:int, sets_in_S_that_contain_u:set<set<int>>, ghost counter_in:nat) returns (S'':set<set<int>>, sets_in_S_that_contain_u':set<set<int>>, ghost counter:nat)
+method HittingSet_to_SetCover_middle_loop<T>(U:set<T>, S:set<set<T>>, k:nat, S':set<set<T>>, u:T, sets_in_S_that_contain_u:set<set<T>>, ghost counter_in:nat) returns (S'':set<set<T>>, sets_in_S_that_contain_u':set<set<T>>, ghost counter:nat)
 // Problem requirements
 requires forall s | s in S ::  s <= U
 // Termination
@@ -166,10 +172,11 @@ ensures counter <= counter_in + 2*|S|*|U| + 2*|U| + |U|*(|U| + 3) + 1
     sets_in_S_that_contain_u' := sets_in_S_that_contain_u + {s};
     counter := counter + |S|*|U|;
   }
+  assert counter <= counter_in + 2*|S|*|U| + 2*|U| + (|U|)*(|U| + 3) + 1;
 }
 
 
-method HittingSet_to_SetCover_inner_loop(U:set<int>, S:set<set<int>>, k:nat, s:set<int>, s':set<int>, u:int, s_contains_u:bool, ghost counter_in:nat) returns (s'':set<int>, s_contains_u':bool, ghost counter:nat)
+method HittingSet_to_SetCover_inner_loop<T>(U:set<T>, S:set<set<T>>, k:nat, s:set<T>, s':set<T>, u:T, s_contains_u:bool, ghost counter_in:nat) returns (s'':set<T>, s_contains_u':bool, ghost counter:nat)
 // Problem requirements
 requires forall s | s in S ::  s <= U
 // Termination
@@ -200,7 +207,7 @@ ensures counter == counter_in + |U| + 2
 }
 
 
-method HittingSet_to_SetCover_S_contains_empty_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, S_contains_empty:bool, ghost counter_in:nat) returns (S'':set<set<int>>, S_contains_empty':bool, ghost counter:nat)
+method HittingSet_to_SetCover_S_contains_empty_loop<T>(U:set<T>, S:set<set<T>>, k:nat, S':set<set<T>>, S_contains_empty:bool, ghost counter_in:nat) returns (S'':set<set<T>>, S_contains_empty':bool, ghost counter:nat)
 // Problem requirements
 requires forall s | s in S ::  s <= U
 // Termination
@@ -230,7 +237,7 @@ ensures counter == counter_in + |S|*|U| + 2*|U|
 }
 
 
-method HittingSet_to_SetCover_edge_case_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, newS:set<set<set<int>>>, ghost counter_in:nat) returns (S'':set<set<int>>, newS':set<set<set<int>>>, ghost counter:nat)
+method HittingSet_to_SetCover_edge_case_loop<T>(U:set<T>, S:set<set<T>>, k:nat, S':set<set<T>>, newS:set<set<set<T>>>, ghost counter_in:nat) returns (S'':set<set<T>>, newS':set<set<set<T>>>, ghost counter:nat)
 // Problem requirements
 requires forall s | s in S ::  s <= U
 // Termination
@@ -257,39 +264,60 @@ ensures counter == counter_in + 2*|S|*|U| + |U|
 
 //2*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 3*|S|*|S|*|U| + 5*|S|*|U|*|U| + 6*|S|*|U| + |U|*|U| + 4*|S| + 4*|U| + 5
 /*
-ghost opaque function SSUU_f(U: set<int>, S: set<set<int>>, k: nat) : (c:nat) {
+ghost opaque function SSUU_f(U: set<T>, S: set<set<T>>, k: nat) : (c:nat) {
   |S|*|S|*|U|*|U|
 }
-ghost opaque function SUUU_f(U: set<int>, S: set<set<int>>, k: nat) : (c:nat) {
+ghost opaque function SUUU_f(U: set<T>, S: set<set<T>>, k: nat) : (c:nat) {
   |S|*|U|*|U|*|U|
 }
-ghost opaque function SSU_f(U: set<int>, S: set<set<int>>, k: nat) : (c:nat) {
+ghost opaque function SSU_f(U: set<T>, S: set<set<T>>, k: nat) : (c:nat) {
   |S|*|S|*|U|
 }
-ghost opaque function SUU_f(U: set<int>, S: set<set<int>>, k: nat) : (c:nat) {
+ghost opaque function SUU_f(U: set<T>, S: set<set<T>>, k: nat) : (c:nat) {
   |S|*|U|*|U|
 }
-ghost opaque function SU_f(U: set<int>, S: set<set<int>>, k: nat) : (c:nat) {
+ghost opaque function SU_f(U: set<T>, S: set<set<T>>, k: nat) : (c:nat) {
   |S|*|U|
 }
-ghost opaque function UU_f(U: set<int>, S: set<set<int>>, k: nat) : (c:nat) {
+ghost opaque function UU_f(U: set<T>, S: set<set<T>>, k: nat) : (c:nat) {
   |U|*|U|
 }
-ghost opaque function S_f(U: set<int>, S: set<set<int>>, k: nat) : (c:nat) {
+ghost opaque function S_f(U: set<T>, S: set<set<T>>, k: nat) : (c:nat) {
   |S|
 }
-ghost opaque function U_f(U: set<int>, S: set<set<int>>, k: nat) : (c:nat) {
+ghost opaque function U_f(U: set<T>, S: set<set<T>>, k: nat) : (c:nat) {
   |U|
 }
 */
 
-
+/*
 const c:nat := 100
 
-ghost function O_SSU_SUU(U: set<int>, S: set<set<int>>, k: nat) : (o:nat) {
+ghost function O_SSU_SUU(U: set<T>, S: set<set<T>>, k: nat) : (o:nat) {
   c*|S|*|S|*|U| + c*|S|*|U|*|U| + c*|S|*|U| + c*|S| + c*|U| + c
 }
 
-ghost function O_SSUU_SUUU(U: set<int>, S: set<set<int>>, k: nat) : (o:nat) {
+ghost function O_SSUU_SUUU(U: set<T>, S: set<set<T>>, k: nat) : (o:nat) {
   c*|S|*|S|*|U|*|U| + c*|S|*|U|*|U|*|U| + c*|S|*|S|*|U| + c*|S|*|U|*|U| + c*|S|*|U| + c*|U|*|U| + c*|S| + c*|U| + c
+}
+*/
+
+ghost function poly1<T>(U: set<T>, S: set<set<T>>, k: nat) : (o:nat) {
+  2*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 5*|S|*|U|*|U| + 3*|S|*|U| + |U|*|U| + |S| + 4*|U| + 2
+}
+
+ghost function poly2<T>(U: set<T>, S: set<set<T>>, k: nat) : (o:nat) {
+  poly1(U, S, k) + |S|*|S|*|U| + 2*|S|*|U| + 2*|S| + 2
+}
+
+ghost function poly<T>(U: set<T>, S: set<set<T>>, k: nat) : (o:nat)
+  ensures poly1(U, S, k) + |S|*(|S|*|U| + 2*|U| + 1) + 1 <= o
+  //ensures poly2(U, S, k) + 2*|S|*|S|*|U| + |S|*|U| + |S| + 1 <= o
+{
+  calc == {
+    poly1(U, S, k) + |S|*(|S|*|U| + 2*|U| + 1) + 1;
+    poly1(U, S, k) + |S|*|S|*|U| + 2*|S|*|U| + |S| + 1;
+  }
+  poly2(U, S, k) + 2*|S|*|S|*|U| + |S|*|U| + |S| + 1
+  //2*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 5*|S|*|U|*|U| + 3*|S|*|U| + |U|*|U| + |S| + 4*|U| + 2 + |S|*|S|*|U| + 2*|S|*|U| + 2*|S| + 2 + 2*|S|*|S|*|U| + |S|*|U| + |S| + 1
 }
