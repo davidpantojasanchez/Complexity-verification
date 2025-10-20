@@ -1,9 +1,9 @@
 include "HittingSet.dfy"
 include "SetCover.dfy"
-include "Types.dfy"
+include "../Auxiliary/Set.dfy"
 
 
-method solveSetCover<T>(U:set<T>, S:set<set<T>>, k:nat) returns (b:bool)
+method solveSetCover(U:set<int>, S:set<set<int>>, k:nat) returns (b:bool)
 ensures b == (isCover(U,S) &&  |S| <= k)
 {
   ghost var oldU := U;
@@ -11,8 +11,8 @@ ensures b == (isCover(U,S) &&  |S| <= k)
   var emptyU;
   emptyU := |U| == 0;
   
-  var e:T;
-  var U':set<T>;
+  var e:int;
+  var U':set<int>;
   U':=U;
   assert U' == U;
   assert U-U' == {} && |U-U'|==0;
@@ -28,7 +28,7 @@ ensures b == (isCover(U,S) &&  |S| <= k)
 
    invariant j == (|U| - |U'|)
   {
-    U', b, emptyU, j := body_loop_outer<T>(U, S, k, U', j);
+    U', b, emptyU, j := body_loop_outer(U, S, k, U', j);
   }
   
   var size;
@@ -64,8 +64,8 @@ ensures b == (isCover(U,S) &&  |S| <= k)
 
 
 
-method body_loop_inner<T>(U:set<T>, S:set<set<T>>, k:nat, S'_:set<set<T>>, e:T, ghost i_:nat)
-returns (S':set<set<T>>, empty:bool, found:bool, ghost i:nat)
+method body_loop_inner(U:set<int>, S:set<set<int>>, k:nat, S'_:set<set<int>>, e:int, ghost i_:nat)
+returns (S':set<set<int>>, empty:bool, found:bool, ghost i:nat)
   
   requires S'_ != {}
   requires S'_ <= S
@@ -75,7 +75,7 @@ returns (S':set<set<T>>, empty:bool, found:bool, ghost i:nat)
   ensures S'<= S
   ensures empty == (S' == {}) 
   ensures !found ==> (forall s| s in S-S':: e !in s)
-  ensures found ==> exists s:set<T> :: s in S && e in s
+  ensures found ==> exists s:set<int> :: s in S && e in s
   ensures i == (|S| - |S'|)
   ensures i == i_+1
 
@@ -94,7 +94,7 @@ returns (S':set<set<T>>, empty:bool, found:bool, ghost i:nat)
 
 
 
-method body_loop_outer<T>(U:set<T>, S:set<set<T>>, k:nat, U'_:set<T>, ghost j_:nat) returns (U':set<T>, b:bool, emptyU:bool, ghost j:nat)
+method body_loop_outer(U:set<int>, S:set<set<int>>, k:nat, U'_:set<int>, ghost j_:nat) returns (U':set<int>, b:bool, emptyU:bool, ghost j:nat)
 /*
 while !emptyU && b
 decreases (if !emptyU then 1 else 0)+|U'|
@@ -120,7 +120,7 @@ ensures j == j_ + 1
 {
   U' := U'_;
 
-  var e:T;
+  var e:int;
   e :| e in U';
   U' := U' - {e};
   var empty,S'; S':=S;
@@ -134,7 +134,7 @@ ensures j == j_ + 1
     invariant U' == U'_-{e}
     invariant S'<= S
     invariant !found ==> (forall s| s in S-S':: e !in s)
-    invariant found ==> exists s:set<T> :: s in S && e in s
+    invariant found ==> exists s:set<int> :: s in S && e in s
     
     invariant i == (|S| - |S'|)
   {
@@ -144,7 +144,7 @@ ensures j == j_ + 1
     assert S'<= S;
     assert empty == (S' == {});
     assert !found ==> (forall s| s in S-S':: e !in s);
-    assert found ==> exists s:set<T> :: s in S && e in s;
+    assert found ==> exists s:set<int> :: s in S && e in s;
     assert i == (|S| - |S'|);
   }
 
@@ -161,7 +161,7 @@ ensures j == j_ + 1
           assert exists elem | elem in {e} :: exists_s_in_S_such_that_e_in_s(S, elem);
           assert |{e}| == 1;
           
-          ghost var E:set<T> := {e};
+          ghost var E:set<int> := {e};
           assert forall elem | elem in {e} :: exists_s_in_S_such_that_e_in_s(S, elem);
         }
         assert forall elem | elem in (prev_difference+{e}) :: exists_s_in_S_such_that_e_in_s(S, elem);
@@ -187,7 +187,7 @@ ensures j == j_ + 1
 
 
 
-ghost predicate {:opaque} exists_s_in_S_such_that_e_in_s<T>(S:set<set<T>>, e:T) {
+ghost predicate {:opaque} exists_s_in_S_such_that_e_in_s(S:set<set<int>>, e:int) {
   (exists s | s in S :: e in s)
 }
 

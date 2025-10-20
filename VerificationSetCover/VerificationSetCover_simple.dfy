@@ -1,8 +1,8 @@
-include "SetCover.dfy"
-include "Lemmas.dfy"
+include "../Problems/SetCover.dfy"
+include "../Auxiliary/Lemmas.dfy"
 
 
-method verifySetCover<T>(U:set<T>, S:set<set<T>>, k:nat, I:set<set<T>>) returns (b:bool, ghost counter:nat)   
+method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) returns (b:bool, ghost counter:nat)   
 requires forall s | s in S :: s <= U
 ensures b == (I <= S && isCover(U, I) && |I| <= k)
 ensures counter <= poly(U, S, k)
@@ -13,7 +13,7 @@ ensures counter <= poly(U, S, k)
   var b1:= true;
   
   counter := counter + 1;
-  if (k < |I|) {              // ?
+  if (k < |I|) {
     return false, counter;
   }
 
@@ -21,28 +21,21 @@ ensures counter <= poly(U, S, k)
     decreases |U'|
     invariant U' <= U 
     invariant b1 == isCover(U-U',I)
-    invariant counter <= |U| + 1 + (|U| - |U'|)*(1 + |S|*|U| + |U| + 2 + |I|*(|S|*|U| + 2*|U| + 1))
+    invariant counter <= |U| + 1 + (|U| - |U'|)*(poly_outer_loop(U, S, k, I) + 1)
   {
     counter := counter + 1;
     b1, U', counter := verifySetCover_outer_loop(U, S, k, I, U', counter);
   }
   counter := counter + 1;
-  /*
-  assert counter <= |U| + 2 + |U| + |S|*|U|*|U| + |U|*|U| + 2*|U| + |I|*|U|*(|S|*|U| + 2*|U| + 1) by {
-    assert counter <= |U| + 2 + (|U| - |U'|)*(1 + |S|*|U| + |U| + 2 + |I|*(|S|*|U| + 2*|U| + 1));
-    assert counter <= |U| + 2 + (|U|)*(1 + |S|*|U| + |U| + 2 + |I|*(|S|*|U| + 2*|U| + 1));
-  }
-  */
-  assert counter <= (k + 1)*|S|*|U|*|U| + (2*k + 1)*|U|*|U| + (4 + k)*|U| + 2 by {
-    assert counter <= |U| + 2 + (|U| - |U'|)*(1 + |S|*|U| + |U| + 2 + |I|*(|S|*|U| + 2*|U| + 1));
-    counter_simplification(U, S, k, I, U');
-  }
-
+  //assert counter <= (k + 1)*|S|*|U|*|U| + (2*k + 1)*|U|*|U| + (4 + k)*|U| + 2 by {
+  //  assert counter <= |U| + 2 + (|U| - |U'|)*(poly_outer_loop(U, S, k, I) + 1);
+  counter_simplification(U, S, k, I, U');
+  //}
   assert b1 ==> U-U' == U;
   b := b1 && I <= S && |I| <= k;
 }
 
-lemma counter_simplification<T>(U:set<T>, S:set<set<T>>, k:nat, I:set<set<T>>, U':set<T>)
+lemma counter_simplification(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, U':set<int>)
 requires forall s | s in S :: s <= U
 requires |I| <= k
 requires U' <= U
@@ -65,8 +58,7 @@ ensures |U| + 2 + (|U| - |U'|)*(1 + |S|*|U| + |U| + 2 + |I|*(|S|*|U| + 2*|U| + 1
   }
 }
 
-
-method verifySetCover_outer_loop<T>(U:set<T>, S:set<set<T>>, k:nat, I:set<set<T>>, U':set<T>, ghost counter_in:nat) returns (b1:bool, U'':set<T>, ghost counter:nat)
+method verifySetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, U':set<int>, ghost counter_in:nat) returns (b1:bool, U'':set<int>, ghost counter:nat)
 // Termination
 requires U' != {}
 // Invariant in
@@ -78,7 +70,7 @@ ensures |U''| == |U'| - 1
 ensures U'' <= U
 ensures b1 == isCover(U - U'', I)
 // Counter
-ensures counter <= counter_in + |S|*|U| + |U| + 2 + |I|*(|S|*|U| + 2*|U| + 1)
+ensures counter <= counter_in + poly_outer_loop(U, S, k, I)
 {
   counter := counter_in;
   var u :| u in U';
@@ -92,7 +84,7 @@ ensures counter <= counter_in + |S|*|U| + |U| + 2 + |I|*(|S|*|U| + 2*|U| + 1)
     decreases |I'|
     invariant I' <= I
     invariant b2 == (exists i' | i' in I - I' :: u in i')
-    invariant counter == counter_in + |S|*|U| + |U| + 1 + (|I|-|I'|)*(|S|*|U| + 2*|U| + 1)
+    invariant counter == counter_in + |S|*|U| + |U| + 1 + (|I|-|I'|)*(poly_inner_loop(U, S, k) + 1)
   {
     counter := counter + 1;
     b2, I', counter := verifySetCover_inner_loop(U, S, k, I, I', u, counter);
@@ -103,7 +95,7 @@ ensures counter <= counter_in + |S|*|U| + |U| + 2 + |I|*(|S|*|U| + 2*|U| + 1)
 }
 
 
-method verifySetCover_inner_loop<T>(U:set<T>, S:set<set<T>>, k:nat, I:set<set<T>>, I':set<set<T>>, u:T, ghost counter_in:nat) returns (b2:bool, I'':set<set<T>>, ghost counter:nat)
+method verifySetCover_inner_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, I':set<set<int>>, u:int, ghost counter_in:nat) returns (b2:bool, I'':set<set<int>>, ghost counter:nat)
 // Termination
 requires I' != {}
 // Invariant in
@@ -115,7 +107,7 @@ ensures |I''| == |I'| - 1
 ensures I'' <= I
 ensures b2 == (exists i' | i' in I - I'' :: u in i')
 // Counter
-ensures counter == counter_in + |S|*|U| + 2*|U|
+ensures counter == counter_in + poly_inner_loop(U, S, k)
 {
   counter := counter_in;
   var i :| i in I';
@@ -126,6 +118,15 @@ ensures counter == counter_in + |S|*|U| + 2*|U|
   counter := counter + |S|*|U|;
 }
 
-ghost function poly<T>(U: set<T>, S: set<set<T>>, k: nat) : (o:nat) {
+ghost function poly_inner_loop(U: set<int>, S: set<set<int>>, k: nat) : (o:nat) {
+  |S|*|U| + 2*|U|
+}
+
+ghost function poly_outer_loop(U: set<int>, S: set<set<int>>, k: nat, I:set<set<int>>) : (o:nat)
+{
+  |S|*|U| + |U| + 2 + |I|*(|S|*|U| + 2*|U| + 1)
+}
+
+ghost function poly(U: set<int>, S: set<set<int>>, k: nat) : (o:nat) {
   (k + 1)*|S|*|U|*|U| + (2*k + 1)*|U|*|U| + (4 + k)*|U| + 2
 }

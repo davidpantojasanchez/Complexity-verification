@@ -1,7 +1,7 @@
-include "SetCover.dfy"
+include "../Problems/SetCover.dfy"
 
 
-method verifySetCover<T>(U:set<T>, S:set<set<T>>, k:nat, I:set<set<T>>) returns (b:bool)   
+method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) returns (b:bool)   
 requires forall s | s in S :: s <= U
 ensures b == (I <= S && isCover(U, I) && |I| <= k)
 {
@@ -20,7 +20,7 @@ ensures b == (I <= S && isCover(U, I) && |I| <= k)
 }
 
 
-method verifySetCover_outer_loop<T>(U:set<T>, S:set<set<T>>, k:nat, I:set<set<T>>, U':set<T>) returns (b1:bool, U'':set<T>)
+method verifySetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, U':set<int>) returns (b1:bool, U'':set<int>)
 // Termination
 requires U' != {}
 // Invariant in
@@ -48,7 +48,7 @@ ensures b1 == isCover(U - U'', I)
 }
 
 
-method verifySetCover_inner_loop<T>(U:set<T>, S:set<set<T>>, k:nat, I:set<set<T>>, I':set<set<T>>, u:T) returns (b2:bool, I'':set<set<T>>)
+method verifySetCover_inner_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, I':set<set<int>>, u:int) returns (b2:bool, I'':set<set<int>>)
 // Termination
 requires I' != {}
 // Invariant in

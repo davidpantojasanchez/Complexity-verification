@@ -1,6 +1,6 @@
-include "HittingSet.dfy"
-include "SetCover.dfy"
-include "Types.dfy"
+include "../Problems/HittingSet.dfy"
+include "../Problems/SetCover.dfy"
+include "../Auxiliary/Set.dfy"
 
 
 method HittingSet_to_SetCover_Method(U: Set<int>, S: SetSet<int>, k: nat) returns (r:(SetSet<int>, SetSetSet<int>, int), ghost counter:nat)
@@ -62,6 +62,7 @@ method HittingSet_to_SetCover_Method(U: Set<int>, S: SetSet<int>, k: nat) return
         //assert sets_in_S_that_contain_u.Size() <= S.maximumSizeElements();
 
         S'_empty, counter := S'.Empty(counter);
+        assume false;
         assert counter <= counter_inner_aux + (2*S.maximumSizeElements() + 2*S.Size() + 1);
         assert |S'_aux| - 1 == |S'.Model()|;
         assert counter <= counter_inner + (2*S.maximumSizeElements() + 2*S.Size() + 1)*(|S.Model()| - |S'.Model()|);

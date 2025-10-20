@@ -1,7 +1,7 @@
-include "HittingSet.dfy"
-include "SetCover.dfy"
-include "ReductionHittingSetToSetCover.dfy"
-include "Lemmas.dfy"
+include "../Problems/HittingSet.dfy"
+include "../Problems/SetCover.dfy"
+include "../Reductions/ReductionHittingSetToSetCover.dfy"
+include "../Auxiliary/Lemmas.dfy"
 
 
 method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) returns (r:(set<set<int>>, set<set<set<int>>>, int))

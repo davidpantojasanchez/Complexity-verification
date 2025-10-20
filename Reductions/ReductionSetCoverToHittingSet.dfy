@@ -1,6 +1,6 @@
 
-include "HittingSet.dfy"
-include "SetCover.dfy"
+include "../Problems/HittingSet.dfy"
+include "../Problems/SetCover.dfy"
 
 
 function SetCover_to_HittingSet<T>(U: set<T>, S: set<set<T>>, k: nat) : (r:(set<set<T>>, set<set<set<T>>>, int))

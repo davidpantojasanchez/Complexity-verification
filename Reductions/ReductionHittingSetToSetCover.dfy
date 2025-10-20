@@ -1,6 +1,6 @@
 //Created by: Clara Segura
-include "HittingSet.dfy"
-include "SetCover.dfy"
+include "../Problems/HittingSet.dfy"
+include "../Problems/SetCover.dfy"
 
 
 function HittingSet_to_SetCover(U: set<int>, S: set<set<int>>, k: nat) : (r:(set<set<int>>, set<set<set<int>>>, int))
