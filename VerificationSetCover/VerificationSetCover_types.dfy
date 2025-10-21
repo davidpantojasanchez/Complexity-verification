@@ -40,7 +40,7 @@ ensures counter <= poly(U, S, k, I)
     // Types
     invariant in_universe_Set(U', U)
     invariant in_universe_SetSet(I, S)
-    invariant correct_Set(U')
+    invariant U'.Valid()
     // Regular invariants
     invariant b == isCover(U.Model() - U'.Model() , I.Model())
     // Counter
@@ -56,8 +56,8 @@ ensures counter <= poly(U, S, k, I)
 
 
 method isSubset(S1:SetSet<int>, S2:SetSet<int>, ghost counter_in:nat) returns (b:bool, ghost counter:nat)
-requires correct_SetSet(S1)
-requires correct_SetSet(S2)
+requires S1.Valid()
+requires S2.Valid()
 ensures b == (S1.Model() <= S2.Model())
 ensures counter <= counter_in + poly_isSubset(S1, S2)
 {
@@ -73,7 +73,7 @@ ensures counter <= counter_in + poly_isSubset(S1, S2)
   decreases |S1'.Model()|
   invariant S1'_empty == (S1'.Model() == {})
   // Types
-  invariant correct_SetSet(S1')
+  invariant S1'.Valid()
   invariant in_universe_SetSet(S1', S1)
   // Regular invariants
   invariant b == ((S1.Model() - S1'.Model()) <= S2.Model())
@@ -90,14 +90,14 @@ method isSubset_loop(S1:SetSet<int>, S2:SetSet<int>, S1':SetSet<int>, ghost coun
 requires S1'.Model() != {}
 // Types in
 requires in_universe_SetSet(S1', S1)
-requires correct_SetSet(S2)
+requires S2.Valid()
 // Invariant in
 requires b == ((S1.Model() - S1'.Model()) <= S2.Model())
 // Termination out
 ensures |S1''.Model()| == |S1'.Model()| - 1
 ensures S1'_empty == (S1''.Model() == {})
 // Types out
-ensures correct_SetSet(S1'')
+ensures S1''.Valid()
 ensures in_universe_SetSet(S1'', S1)
 // Invariant out
 ensures b' == ((S1.Model() - S1''.Model()) <= S2.Model())
@@ -124,10 +124,10 @@ method verifySetCover_outer_loop(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>
 // Termination in
 requires U'.Model() != {}
 // Types in
-requires correct_Set(U)
-requires correct_Set(U')
-requires correct_SetSet(S)
-requires correct_SetSet(I)
+requires U.Valid()
+requires U'.Valid()
+requires S.Valid()
+requires I.Valid()
 requires in_universe_Set(U', U)
 requires in_universe_SetSet(I, S)
 // Invariant in
@@ -136,7 +136,7 @@ requires isCover(U.Model() - U'.Model(), I.Model())
 ensures |U''.Model()| == |U'.Model()| - 1
 ensures U''_empty == (U''.Model() == {})
 // Types out
-ensures correct_Set(U'')
+ensures U''.Valid()
 ensures in_universe_Set(U'', U)
 // Invariant out
 ensures b1 == isCover(U.Model() - U''.Model(), I.Model())
@@ -158,12 +158,13 @@ ensures counter <= counter_in + poly_outer_loop(U, S, k)
   var I'_empty:bool;
   I'_empty, counter := I'.Empty(counter);
   assert counter <= counter_in + 2*constant + U.Size() + S.Size();
+  
   while (!I'_empty && !b2)
     // Termination
     decreases |I'.Model()|
     invariant I'_empty == (I'.Model() == {})
     // Types
-    invariant correct_SetSet(I')
+    invariant I'.Valid()
     invariant in_universe_SetSet(I, S)
     invariant in_universe_SetSet(I', I)
     // Regular invariants
@@ -180,6 +181,7 @@ ensures counter <= counter_in + poly_outer_loop(U, S, k)
   assert U.Model() - U''.Model() == U.Model() - U'.Model() + {u};
   assert counter <= counter_in + 3*constant + U.Size() + S.Size() + (|S.Model()|)*(poly_inner_loop(U, S, k) + constant) by {
     assert counter <= counter_in + 3*constant + U.Size() + S.Size() + (|I.Model()|)*(poly_inner_loop(U, S, k) + constant);
+    assert in_universe_SetSet(I, S);
   }
   assert counter <= counter_in + poly_outer_loop(U, S, k);
 }
@@ -190,7 +192,7 @@ method verifySetCover_inner_loop(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>
 // Termination in
 requires I'.Model() != {}
 // Types in
-requires correct_Set(U)
+requires U.Valid()
 requires in_universe_SetSet(I, S)
 requires in_universe_SetSet(I', I)
 // Invariant in
@@ -199,7 +201,7 @@ requires !(exists i' | i' in I.Model() - I'.Model() :: u in i')
 ensures |I''.Model()| == |I'.Model()| - 1
 ensures I''_empty == (I''.Model() == {})
 // Types out
-ensures correct_SetSet(I'')
+ensures I''.Valid()
 ensures in_universe_SetSet(I'', I)
 // Invariant out
 ensures b2 == (exists i' | i' in I.Model() - I''.Model() :: u in i')

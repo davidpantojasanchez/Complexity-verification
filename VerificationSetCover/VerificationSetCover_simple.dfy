@@ -10,52 +10,26 @@ ensures counter <= poly(U, S, k)
   counter := 0;
   var U' := U;
   counter := counter + |U|;
-  var b1:= true;
+  b:= true;
   
   counter := counter + 1;
-  if (k < |I|) {
+  if (!(I <= S && |I| <= k)) {
     return false, counter;
   }
 
-  while (U' != {} && b1)
+  while (U' != {} && b)
     decreases |U'|
     invariant U' <= U 
-    invariant b1 == isCover(U-U',I)
+    invariant b == isCover(U-U',I)
     invariant counter <= |U| + 1 + (|U| - |U'|)*(poly_outer_loop(U, S, k, I) + 1)
   {
     counter := counter + 1;
-    b1, U', counter := verifySetCover_outer_loop(U, S, k, I, U', counter);
+    b, U', counter := verifySetCover_outer_loop(U, S, k, I, U', counter);
   }
   counter := counter + 1;
-  //assert counter <= (k + 1)*|S|*|U|*|U| + (2*k + 1)*|U|*|U| + (4 + k)*|U| + 2 by {
-  //  assert counter <= |U| + 2 + (|U| - |U'|)*(poly_outer_loop(U, S, k, I) + 1);
   counter_simplification(U, S, k, I, U');
-  //}
-  assert b1 ==> U-U' == U;
-  b := b1 && I <= S && |I| <= k;
-}
-
-lemma counter_simplification(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, U':set<int>)
-requires forall s | s in S :: s <= U
-requires |I| <= k
-requires U' <= U
-ensures |U| + 2 + (|U| - |U'|)*(1 + |S|*|U| + |U| + 2 + |I|*(|S|*|U| + 2*|U| + 1)) <=
-        (k + 1)*|S|*|U|*|U| + (2*k + 1)*|U|*|U| + (4 + k)*|U| + 2
-{
-  assert (1 + k)*|S|*|U|*|U| == (k + 1)*|S|*|U|*|U|;
-  assert |I|*|U|*(|S|*|U| + 2*|U| + 1) <= k*|U|*(|S|*|U| + 2*|U| + 1) by {
-    assert |I|*|U| <= k*|U|;
-  }
-  calc <= {
-    |U| + 2 + (|U| - |U'|)*(1 + |S|*|U| + |U| + 2 + |I|*(|S|*|U| + 2*|U| + 1));
-    |U| + 2 + (|U|)*(1 + |S|*|U| + |U| + 2 + |I|*(|S|*|U| + 2*|U| + 1));
-    |U| + 2 + |U| + |S|*|U|*|U| + |U|*|U| + 2*|U| + |I|*|U|*(|S|*|U| + 2*|U| + 1);
-    4*|U| + |S|*|U|*|U| + |U|*|U| + |I|*|U|*(|S|*|U| + 2*|U| + 1) + 2;
-    4*|U| + |S|*|U|*|U| + |U|*|U| + k*|U|*(|S|*|U| + 2*|U| + 1) + 2;
-    4*|U| + |S|*|U|*|U| + |U|*|U| + (k*|U|*|S|*|U| + k*|U|*2*|U| + k*|U|*1) + 2;
-    4*|U| + |S|*|U|*|U| + |U|*|U| + k*|S|*|U|*|U| + 2*k*|U|*|U| + k*|U| + 2;
-    (k + 1)*|S|*|U|*|U| + (2*k + 1)*|U|*|U| + (4 + k)*|U| + 2;
-  }
+  assert b ==> U-U' == U;
+  b := b;
 }
 
 method verifySetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, U':set<int>, ghost counter_in:nat) returns (b1:bool, U'':set<int>, ghost counter:nat)
@@ -116,6 +90,29 @@ ensures counter == counter_in + poly_inner_loop(U, S, k)
   counter := counter + |U|;
   I'' := I' - {i};
   counter := counter + |S|*|U|;
+}
+
+lemma counter_simplification(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, U':set<int>)
+requires forall s | s in S :: s <= U
+requires |I| <= k
+requires U' <= U
+ensures |U| + 2 + (|U| - |U'|)*(1 + |S|*|U| + |U| + 2 + |I|*(|S|*|U| + 2*|U| + 1)) <=
+        (k + 1)*|S|*|U|*|U| + (2*k + 1)*|U|*|U| + (4 + k)*|U| + 2
+{
+  assert (1 + k)*|S|*|U|*|U| == (k + 1)*|S|*|U|*|U|;
+  assert |I|*|U|*(|S|*|U| + 2*|U| + 1) <= k*|U|*(|S|*|U| + 2*|U| + 1) by {
+    assert |I|*|U| <= k*|U|;
+  }
+  calc <= {
+    |U| + 2 + (|U| - |U'|)*(1 + |S|*|U| + |U| + 2 + |I|*(|S|*|U| + 2*|U| + 1));
+    |U| + 2 + (|U|)*(1 + |S|*|U| + |U| + 2 + |I|*(|S|*|U| + 2*|U| + 1));
+    |U| + 2 + |U| + |S|*|U|*|U| + |U|*|U| + 2*|U| + |I|*|U|*(|S|*|U| + 2*|U| + 1);
+    4*|U| + |S|*|U|*|U| + |U|*|U| + |I|*|U|*(|S|*|U| + 2*|U| + 1) + 2;
+    4*|U| + |S|*|U|*|U| + |U|*|U| + k*|U|*(|S|*|U| + 2*|U| + 1) + 2;
+    4*|U| + |S|*|U|*|U| + |U|*|U| + (k*|U|*|S|*|U| + k*|U|*2*|U| + k*|U|*1) + 2;
+    4*|U| + |S|*|U|*|U| + |U|*|U| + k*|S|*|U|*|U| + 2*k*|U|*|U| + k*|U| + 2;
+    (k + 1)*|S|*|U|*|U| + (2*k + 1)*|U|*|U| + (4 + k)*|U| + 2;
+  }
 }
 
 ghost function poly_inner_loop(U: set<int>, S: set<set<int>>, k: nat) : (o:nat) {
