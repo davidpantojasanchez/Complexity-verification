@@ -1,12 +1,15 @@
 include "Set.dfy"
 
 
-lemma mult_preserves_order(a:int, b:int, a':int, b':int)  // Creo que ya no se usa
+lemma mult_preserves_order(a:int, b:int, a':int, b':int)
   requires 0 <= a <= a'
   requires 0 <= b <= b'
   ensures a*b <= a'*b'
-{
-}
+{}
+
+lemma associativity(a:int, b:int, c:int)
+  ensures (a*b)*c == a*(b*c)
+{}
 
 
 lemma identity_substraction_lemma<T>(S:set<T>, E:set<T>)

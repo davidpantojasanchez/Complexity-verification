@@ -3,6 +3,7 @@ include "../Problems/SetCover.dfy"
 
 method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) returns (b:bool)   
 requires forall s | s in S :: s <= U
+requires forall s | s in I :: s <= U                  // ???
 ensures b == (I <= S && isCover(U, I) && |I| <= k)
 {
   var U' := U;
