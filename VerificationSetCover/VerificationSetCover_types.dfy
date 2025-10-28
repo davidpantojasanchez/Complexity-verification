@@ -9,21 +9,21 @@ requires forall s | s in S.Model() :: s <= U.Model()
 requires init_Set(U)
 requires init_SetSet(S)
 requires init_SetSet(I)
-requires S.maximumSizeElements() <= |U.Model()|
-requires I.maximumSizeElements() <= |U.Model()|         // ????
+requires S.maximumSizeElements() <= U.Cardinality()
+requires I.maximumSizeElements() <= U.Cardinality()         // ????
 
-ensures b == (I.Model() <= S.Model() && isCover(U.Model(), I.Model()) && |I.Model()| <= k)
+ensures b == (I.Model() <= S.Model() && isCover(U.Model(), I.Model()) && I.Cardinality() <= k)
 ensures counter <= poly(U, S, k, I)
 {
   counter := 0;
 
   var I_cardinality:int;
-  I_cardinality, counter := I.Cardinality(counter);
+  I_cardinality, counter := I.nElements(counter);
   var I_seq_S:bool;
   I_seq_S, counter := isSubset(I, S, counter);
 
   if (!(I_seq_S && I_cardinality <= k)) {
-    assert counter <= poly_isSubset(I, S) + constant;
+    b := false;
     return false, counter;
   }
 
@@ -36,7 +36,7 @@ ensures counter <= poly(U, S, k, I)
   assert counter <= poly_isSubset(I, S) + U.Size() + 2*constant;
   while (!U'_empty && b)
     // Termination
-    decreases |U'.Model()|
+    decreases U'.Cardinality()
     invariant U'_empty == (U'.Model() == {})
     // Types
     invariant in_universe_Set(U', U)
@@ -45,7 +45,7 @@ ensures counter <= poly(U, S, k, I)
     // Regular invariants
     invariant b == isCover(U.Model() - U'.Model() , I.Model())
     // Counter
-    invariant counter <= poly_isSubset(I, S) + U.Size() + 2*constant + (|U.Model()| - |U'.Model()|)*poly_outer_loop(U, S, k)
+    invariant counter <= poly_isSubset(I, S) + U.Size() + 2*constant + (U.Cardinality() - U'.Cardinality())*poly_outer_loop(U, S, k)
   {
     b, U', U'_empty, counter := verifySetCover_outer_loop(U, S, k, I, U', counter);
   }
@@ -69,7 +69,7 @@ ensures counter <= counter_in + poly_isSubset(S1, S2)
   
   while (!S1'_empty)
   // Termination
-  decreases |S1'.Model()|
+  decreases S1'.Cardinality()
   invariant S1'_empty == (S1'.Model() == {})
   // Types
   invariant S1'.Valid()
@@ -77,7 +77,7 @@ ensures counter <= counter_in + poly_isSubset(S1, S2)
   // Regular invariants
   invariant b == ((S1.Model() - S1'.Model()) <= S2.Model())
   // Counter
-  invariant counter <= counter_in + S1.Size() + constant + (|S1.Model()| - |S1'.Model()|)*(poly_isSubset_loop(S1, S2))
+  invariant counter <= counter_in + S1.Size() + constant + (S1.Cardinality() - S1'.Cardinality())*(poly_isSubset_loop(S1, S2))
   {
     S1', S1'_empty, b, counter := isSubset_loop(S1, S2, S1', counter, b);
   }
@@ -93,7 +93,7 @@ requires S2.Valid()
 // Invariant in
 requires b == ((S1.Model() - S1'.Model()) <= S2.Model())
 // Termination out
-ensures |S1''.Model()| == |S1'.Model()| - 1
+ensures S1''.Cardinality() == S1'.Cardinality() - 1
 ensures S1'_empty == (S1''.Model() == {})
 // Types out
 ensures S1''.Valid()
@@ -132,7 +132,7 @@ requires in_universe_SetSet(I, S)
 // Invariant in
 requires isCover(U.Model() - U'.Model(), I.Model())
 // Termination out
-ensures |U''.Model()| == |U'.Model()| - 1
+ensures U''.Cardinality() == U'.Cardinality() - 1
 ensures U''_empty == (U''.Model() == {})
 // Types out
 ensures U''.Valid()
@@ -160,7 +160,7 @@ ensures counter <= counter_in + poly_outer_loop(U, S, k)
   
   while (!I'_empty && !b2)
     // Termination
-    decreases |I'.Model()|
+    decreases I'.Cardinality()
     invariant I'_empty == (I'.Model() == {})
     // Types
     invariant I'.Valid()
@@ -169,7 +169,7 @@ ensures counter <= counter_in + poly_outer_loop(U, S, k)
     // Regular invariants
     invariant b2 == (exists i' | i' in I.Model() - I'.Model() :: u in i')
     // Counter
-    invariant counter <= counter_in + 2*constant + U.Size() + S.Size() + (|I.Model()|-|I'.Model()|)*(poly_inner_loop(U, S, k) + constant)
+    invariant counter <= counter_in + 2*constant + U.Size() + S.Size() + (I.Cardinality()-I'.Cardinality())*(poly_inner_loop(U, S, k) + constant)
   {
     b2, I', I'_empty, counter := verifySetCover_inner_loop(U, S, k, I, I', u, counter);
   }
@@ -178,9 +178,10 @@ ensures counter <= counter_in + poly_outer_loop(U, S, k)
   U''_empty, counter := U''.Empty(counter);
 
   assert U.Model() - U''.Model() == U.Model() - U'.Model() + {u};
-  assert counter <= counter_in + 3*constant + U.Size() + S.Size() + (|S.Model()|)*(poly_inner_loop(U, S, k) + constant) by {
-    assert counter <= counter_in + 3*constant + U.Size() + S.Size() + (|I.Model()|)*(poly_inner_loop(U, S, k) + constant);
-    assert in_universe_SetSet(I, S);
+  assert counter <= counter_in + 3*constant + U.Size() + S.Size() + (S.Cardinality())*(poly_inner_loop(U, S, k) + constant) by {
+    assert counter <= counter_in + 3*constant + U.Size() + S.Size() + (I.Cardinality())*(poly_inner_loop(U, S, k) + constant);
+    in_universe_lemma_SetSet(I, S);
+    mult_preserves_order(I.Cardinality(), (poly_inner_loop(U, S, k) + constant), S.Cardinality(), (poly_inner_loop(U, S, k) + constant));
   }
   assert counter <= counter_in + poly_outer_loop(U, S, k);
 }
@@ -197,7 +198,7 @@ requires in_universe_SetSet(I', I)
 // Invariant in
 requires !(exists i' | i' in I.Model() - I'.Model() :: u in i')
 // Termination out
-ensures |I''.Model()| == |I'.Model()| - 1
+ensures I''.Cardinality() == I'.Cardinality() - 1
 ensures I''_empty == (I''.Model() == {})
 // Types out
 ensures I''.Valid()
@@ -224,16 +225,16 @@ requires in_universe_Set(U', U)
 requires U.Valid()
 requires S.Valid()
 requires I.Valid()
-ensures poly_isSubset(I, S) + U.Size() + 2*constant + (|U.Model()| - |U'.Model()|)*poly_outer_loop(U, S, k) <= poly(U, S, k, I)
+ensures poly_isSubset(I, S) + U.Size() + 2*constant + (U.Cardinality() - U'.Cardinality())*poly_outer_loop(U, S, k) <= poly(U, S, k, I)
 {
   counter_simplification_aux_1(U, S, k, I, U');
-  assert  poly_isSubset(I, S) + U.Size() + 2*constant + (|U.Model()| - |U'.Model()|)*poly_outer_loop(U, S, k)
+  assert  poly_isSubset(I, S) + U.Size() + 2*constant + (U.Cardinality() - U'.Cardinality())*poly_outer_loop(U, S, k)
           <=
-          I.Size()*|I.Model()| + I.Size() + |I.Model()|*S.Size() + |I.Model()|*I.maximumSizeElements() + |I.Model()| + |U.Model()|*|S.Model()|*S.Size() +
-          2*|U.Model()|*|S.Model()|*S.maximumSizeElements() + |U.Model()|*U.Size() + |U.Model()|*S.Size() + 2*|U.Model()|*|S.Model()| + U.Size() + 3*|U.Model()| + 3*constant;
+          I.Size()*I.Cardinality() + I.Size() + I.Cardinality()*S.Size() + I.Cardinality()*I.maximumSizeElements() + I.Cardinality() + U.Cardinality()*S.Cardinality()*S.Size() +
+          2*U.Cardinality()*S.Cardinality()*S.maximumSizeElements() + U.Cardinality()*U.Size() + U.Cardinality()*S.Size() + 2*U.Cardinality()*S.Cardinality() + U.Size() + 3*U.Cardinality() + 3*constant;
   counter_simplification_aux_2(U, S, k, I);
-  assert  I.Size()*|I.Model()| + I.Size() + |I.Model()|*S.Size() + |I.Model()|*I.maximumSizeElements() + |I.Model()| + |U.Model()|*|S.Model()|*S.Size() +
-          2*|U.Model()|*|S.Model()|*S.maximumSizeElements() + |U.Model()|*U.Size() + |U.Model()|*S.Size() + 2*|U.Model()|*|S.Model()| + U.Size() + 3*|U.Model()| + 3*constant
+  assert  I.Size()*I.Cardinality() + I.Size() + I.Cardinality()*S.Size() + I.Cardinality()*I.maximumSizeElements() + I.Cardinality() + U.Cardinality()*S.Cardinality()*S.Size() +
+          2*U.Cardinality()*S.Cardinality()*S.maximumSizeElements() + U.Cardinality()*U.Size() + U.Cardinality()*S.Size() + 2*U.Cardinality()*S.Cardinality() + U.Size() + 3*U.Cardinality() + 3*constant
           <=
           poly(U, S, k, I);
 }
@@ -242,57 +243,57 @@ requires in_universe_Set(U', U)
 requires U.Valid()
 requires S.Valid()
 requires I.Valid()
-ensures poly_isSubset(I, S) + U.Size() + 2*constant + (|U.Model()| - |U'.Model()|)*poly_outer_loop(U, S, k)
+ensures poly_isSubset(I, S) + U.Size() + 2*constant + (U.Cardinality() - U'.Cardinality())*poly_outer_loop(U, S, k)
         <=
-        I.Size()*|I.Model()| + I.Size() + |I.Model()|*S.Size() + |I.Model()|*I.maximumSizeElements() + |I.Model()| + |U.Model()|*|S.Model()|*S.Size() +
-        2*|U.Model()|*|S.Model()|*S.maximumSizeElements() + |U.Model()|*U.Size() + |U.Model()|*S.Size() + 2*|U.Model()|*|S.Model()| + U.Size() + 3*|U.Model()| + 3*constant
+        I.Size()*I.Cardinality() + I.Size() + I.Cardinality()*S.Size() + I.Cardinality()*I.maximumSizeElements() + I.Cardinality() + U.Cardinality()*S.Cardinality()*S.Size() +
+        2*U.Cardinality()*S.Cardinality()*S.maximumSizeElements() + U.Cardinality()*U.Size() + U.Cardinality()*S.Size() + 2*U.Cardinality()*S.Cardinality() + U.Size() + 3*U.Cardinality() + 3*constant
 {
   if_smaller_then_less_cardinality(U'.Model(), U.Model());
-  mult_preserves_order((|U.Model()| - |U'.Model()|), poly_outer_loop(U, S, k), |U.Model()|, poly_outer_loop(U, S, k));
+  mult_preserves_order((U.Cardinality() - U'.Cardinality()), poly_outer_loop(U, S, k), U.Cardinality(), poly_outer_loop(U, S, k));
   
-  assert poly_outer_loop(U, S, k) == (3*constant + U.Size() + S.Size() + |S.Model()|*poly_inner_loop(U, S, k) + constant*|S.Model()|);
+  assert poly_outer_loop(U, S, k) == (3*constant + U.Size() + S.Size() + S.Cardinality()*poly_inner_loop(U, S, k) + constant*S.Cardinality());
   assert poly_inner_loop(U, S, k) == S.Size() + 2*S.maximumSizeElements() + constant;
-  assert poly_isSubset(I, S) == (|I.Model()| + constant)*I.Size() + |I.Model()|*S.Size() + |I.Model()|*I.maximumSizeElements() + |I.Model()| + constant;
+  assert poly_isSubset(I, S) == (I.Cardinality() + constant)*I.Size() + I.Cardinality()*S.Size() + I.Cardinality()*I.maximumSizeElements() + I.Cardinality() + constant;
   
   calc <= {
-    poly_isSubset(I, S) + U.Size() + 2*constant + |U.Model()|*poly_outer_loop(U, S, k);
-    poly_isSubset(I, S) + U.Size() + 2*constant + |U.Model()|*(3*constant + U.Size() + S.Size() + |S.Model()|*poly_inner_loop(U, S, k) + constant*|S.Model()|);
-    poly_isSubset(I, S) + U.Size() + 2 + 3*|U.Model()| + |U.Model()|*U.Size() + |U.Model()|*S.Size() + |U.Model()|*|S.Model()|*poly_inner_loop(U, S, k) + |U.Model()|*|S.Model()|;
-    poly_isSubset(I, S) + U.Size() + 2 + 3*|U.Model()| + |U.Model()|*U.Size() + |U.Model()|*S.Size() + |U.Model()|*|S.Model()|*(S.Size() + 2*S.maximumSizeElements() + constant) + |U.Model()|*|S.Model()|;
-    poly_isSubset(I, S) + U.Size() + 2 + 3*|U.Model()| + |U.Model()|*U.Size() + |U.Model()|*S.Size() + |U.Model()|*|S.Model()|*S.Size() + 2*|U.Model()|*|S.Model()|*S.maximumSizeElements() + |U.Model()|*|S.Model()| + |U.Model()|*|S.Model()|;
-    poly_isSubset(I, S) + |U.Model()|*|S.Model()|*S.Size() + 2*|U.Model()|*|S.Model()|*S.maximumSizeElements() + |U.Model()|*U.Size() + |U.Model()|*S.Size() + 2*|U.Model()|*|S.Model()| + U.Size() + 3*|U.Model()| + 2*constant;
-    (|I.Model()| + constant)*I.Size() + |I.Model()|*S.Size() + |I.Model()|*I.maximumSizeElements() + |I.Model()| + |U.Model()|*|S.Model()|*S.Size() +
-    2*|U.Model()|*|S.Model()|*S.maximumSizeElements() + |U.Model()|*U.Size() + |U.Model()|*S.Size() + 2*|U.Model()|*|S.Model()| + U.Size() + 3*|U.Model()| + 3*constant;
+    poly_isSubset(I, S) + U.Size() + 2*constant + U.Cardinality()*poly_outer_loop(U, S, k);
+    poly_isSubset(I, S) + U.Size() + 2*constant + U.Cardinality()*(3*constant + U.Size() + S.Size() + S.Cardinality()*poly_inner_loop(U, S, k) + constant*S.Cardinality());
+    poly_isSubset(I, S) + U.Size() + 2 + 3*U.Cardinality() + U.Cardinality()*U.Size() + U.Cardinality()*S.Size() + U.Cardinality()*S.Cardinality()*poly_inner_loop(U, S, k) + U.Cardinality()*S.Cardinality();
+    poly_isSubset(I, S) + U.Size() + 2 + 3*U.Cardinality() + U.Cardinality()*U.Size() + U.Cardinality()*S.Size() + U.Cardinality()*S.Cardinality()*(S.Size() + 2*S.maximumSizeElements() + constant) + U.Cardinality()*S.Cardinality();
+    poly_isSubset(I, S) + U.Size() + 2 + 3*U.Cardinality() + U.Cardinality()*U.Size() + U.Cardinality()*S.Size() + U.Cardinality()*S.Cardinality()*S.Size() + 2*U.Cardinality()*S.Cardinality()*S.maximumSizeElements() + U.Cardinality()*S.Cardinality() + U.Cardinality()*S.Cardinality();
+    poly_isSubset(I, S) + U.Cardinality()*S.Cardinality()*S.Size() + 2*U.Cardinality()*S.Cardinality()*S.maximumSizeElements() + U.Cardinality()*U.Size() + U.Cardinality()*S.Size() + 2*U.Cardinality()*S.Cardinality() + U.Size() + 3*U.Cardinality() + 2*constant;
+    (I.Cardinality() + constant)*I.Size() + I.Cardinality()*S.Size() + I.Cardinality()*I.maximumSizeElements() + I.Cardinality() + U.Cardinality()*S.Cardinality()*S.Size() +
+    2*U.Cardinality()*S.Cardinality()*S.maximumSizeElements() + U.Cardinality()*U.Size() + U.Cardinality()*S.Size() + 2*U.Cardinality()*S.Cardinality() + U.Size() + 3*U.Cardinality() + 3*constant;
     
-    I.Size()*|I.Model()| + I.Size() + |I.Model()|*S.Size() + |I.Model()|*I.maximumSizeElements() + |I.Model()| + |U.Model()|*|S.Model()|*S.Size() +
-    2*|U.Model()|*|S.Model()|*S.maximumSizeElements() + |U.Model()|*U.Size() + |U.Model()|*S.Size() + 2*|U.Model()|*|S.Model()| + U.Size() + 3*|U.Model()| + 3*constant;
+    I.Size()*I.Cardinality() + I.Size() + I.Cardinality()*S.Size() + I.Cardinality()*I.maximumSizeElements() + I.Cardinality() + U.Cardinality()*S.Cardinality()*S.Size() +
+    2*U.Cardinality()*S.Cardinality()*S.maximumSizeElements() + U.Cardinality()*U.Size() + U.Cardinality()*S.Size() + 2*U.Cardinality()*S.Cardinality() + U.Size() + 3*U.Cardinality() + 3*constant;
   }
 }
 lemma counter_simplification_aux_2(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>)
 requires U.Valid()
 requires S.Valid()
 requires I.Valid()
-ensures I.Size()*|I.Model()| + I.Size() + |I.Model()|*S.Size() + |I.Model()|*I.maximumSizeElements() + |I.Model()| + |U.Model()|*|S.Model()|*S.Size() +
-    2*|U.Model()|*|S.Model()|*S.maximumSizeElements() + |U.Model()|*U.Size() + |U.Model()|*S.Size() + 2*|U.Model()|*|S.Model()| + U.Size() + 3*|U.Model()| + 3*constant
+ensures I.Size()*I.Cardinality() + I.Size() + I.Cardinality()*S.Size() + I.Cardinality()*I.maximumSizeElements() + I.Cardinality() + U.Cardinality()*S.Cardinality()*S.Size() +
+    2*U.Cardinality()*S.Cardinality()*S.maximumSizeElements() + U.Cardinality()*U.Size() + U.Cardinality()*S.Size() + 2*U.Cardinality()*S.Cardinality() + U.Size() + 3*U.Cardinality() + 3*constant
     <=
     poly(U, S, k, I)
 {
-  mult_preserves_order(|I.Model()|, I.maximumSizeElements(), |I.Universe()|, I.maximumSizeElements());
-  mult_preserves_order(|S.Model()|, S.maximumSizeElements(), |S.Universe()|, S.maximumSizeElements());
-  mult_preserves_order(2*|U.Model()|, |S.Model()|*S.maximumSizeElements(), 2*|U.Model()|, S.Size());
-  associativity(2*|U.Model()|, |S.Model()|, S.maximumSizeElements());
+  mult_preserves_order(I.Cardinality(), I.maximumSizeElements(), |I.Universe()|, I.maximumSizeElements());
+  mult_preserves_order(S.Cardinality(), S.maximumSizeElements(), |S.Universe()|, S.maximumSizeElements());
+  mult_preserves_order(2*U.Cardinality(), S.Cardinality()*S.maximumSizeElements(), 2*U.Cardinality(), S.Size());
+  associativity(2*U.Cardinality(), S.Cardinality(), S.maximumSizeElements());
   calc <= {
     
-    I.Size()*|I.Model()| + I.Size() + |I.Model()|*S.Size() + |I.Model()|*I.maximumSizeElements() + |I.Model()| + |U.Model()|*|S.Model()|*S.Size() +
-    2*|U.Model()|*|S.Model()|*S.maximumSizeElements() + |U.Model()|*U.Size() + |U.Model()|*S.Size() + 2*|U.Model()|*|S.Model()| + U.Size() + 3*|U.Model()| + 3*constant;
+    I.Size()*I.Cardinality() + I.Size() + I.Cardinality()*S.Size() + I.Cardinality()*I.maximumSizeElements() + I.Cardinality() + U.Cardinality()*S.Cardinality()*S.Size() +
+    2*U.Cardinality()*S.Cardinality()*S.maximumSizeElements() + U.Cardinality()*U.Size() + U.Cardinality()*S.Size() + 2*U.Cardinality()*S.Cardinality() + U.Size() + 3*U.Cardinality() + 3*constant;
     
-    I.Size()*|I.Model()| + I.Size() + |I.Model()|*S.Size() + I.Size() + |I.Model()| + |U.Model()|*|S.Model()|*S.Size() +
-    2*|U.Model()|*(|S.Model()|*S.maximumSizeElements()) + |U.Model()|*U.Size() + |U.Model()|*S.Size() + 2*|U.Model()|*|S.Model()| + U.Size() + 3*|U.Model()| + 3*constant;
+    I.Size()*I.Cardinality() + I.Size() + I.Cardinality()*S.Size() + I.Size() + I.Cardinality() + U.Cardinality()*S.Cardinality()*S.Size() +
+    2*U.Cardinality()*(S.Cardinality()*S.maximumSizeElements()) + U.Cardinality()*U.Size() + U.Cardinality()*S.Size() + 2*U.Cardinality()*S.Cardinality() + U.Size() + 3*U.Cardinality() + 3*constant;
     
-    I.Size()*|I.Model()| + I.Size() + |I.Model()|*S.Size() + I.Size() + |I.Model()| + |U.Model()|*|S.Model()|*S.Size() +
-    2*|U.Model()|*S.Size() + |U.Model()|*U.Size() + |U.Model()|*S.Size() + 2*|U.Model()|*|S.Model()| + U.Size() + 3*|U.Model()| + 3*constant;
+    I.Size()*I.Cardinality() + I.Size() + I.Cardinality()*S.Size() + I.Size() + I.Cardinality() + U.Cardinality()*S.Cardinality()*S.Size() +
+    2*U.Cardinality()*S.Size() + U.Cardinality()*U.Size() + U.Cardinality()*S.Size() + 2*U.Cardinality()*S.Cardinality() + U.Size() + 3*U.Cardinality() + 3*constant;
     
-    S.Size()*|U.Model()|*|S.Model()| + I.Size()*|I.Model()| + S.Size()*|I.Model()| + 3*S.Size()*|U.Model()| + U.Size()*|U.Model()| + 2*|U.Model()|*|S.Model()| + 2*I.Size() + U.Size() + |I.Model()| + 3*|U.Model()| + 3*constant;
+    S.Size()*U.Cardinality()*S.Cardinality() + I.Size()*I.Cardinality() + S.Size()*I.Cardinality() + 3*S.Size()*U.Cardinality() + U.Size()*U.Cardinality() + 2*U.Cardinality()*S.Cardinality() + 2*I.Size() + U.Size() + I.Cardinality() + 3*U.Cardinality() + 3*constant;
   }
 }
 
@@ -303,7 +304,7 @@ ghost function poly_inner_loop(U:Set<int>, S:SetSet<int>, k:nat) : (o:nat)
 }
 ghost function poly_outer_loop(U:Set<int>, S:SetSet<int>, k:nat) : (o:nat)
 {
-  3*constant + U.Size() + S.Size() + |S.Model()|*poly_inner_loop(U, S, k) + constant*|S.Model()|
+  3*constant + U.Size() + S.Size() + S.Cardinality()*poly_inner_loop(U, S, k) + constant*S.Cardinality()
 }
 ghost function poly_isSubset_loop(S1:SetSet<int>, S2:SetSet<int>) : (o:nat)
 {
@@ -311,13 +312,19 @@ ghost function poly_isSubset_loop(S1:SetSet<int>, S2:SetSet<int>) : (o:nat)
 }
 ghost function poly_isSubset(S1:SetSet<int>, S2:SetSet<int>) : (o:nat)
 {
-  (|S1.Model()| + constant)*S1.Size() + |S1.Model()|*S2.Size() + |S1.Model()|*S1.maximumSizeElements() + |S1.Model()| + constant
+  (S1.Cardinality() + constant)*S1.Size() + S1.Cardinality()*S2.Size() + S1.Cardinality()*S1.maximumSizeElements() + S1.Cardinality() + constant
 }
 
 ghost function poly(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>) : (o:nat)
 requires U.Valid()
 requires S.Valid()
 requires I.Valid()
+ensures poly_isSubset(I, S) + constant <= o
 {
-  S.Size()*|U.Model()|*|S.Model()| + I.Size()*|I.Model()| + S.Size()*|I.Model()| + 3*S.Size()*|U.Model()| + U.Size()*|U.Model()| + 2*|U.Model()|*|S.Model()| + 2*I.Size() + U.Size() + |I.Model()| + 3*|U.Model()| + 3*constant
+  calc <= {
+    poly_isSubset(I, S) + constant;
+    (I.Cardinality() + constant)*I.Size() + I.Cardinality()*S.Size() + I.Cardinality()*I.maximumSizeElements() + I.Cardinality() + 2*constant;
+    I.Size()*I.Cardinality() + I.Size() + I.Cardinality()*S.Size() + I.Cardinality()*I.maximumSizeElements() + I.Cardinality() + 2*constant;
+  }
+  S.Size()*U.Cardinality()*S.Cardinality() + I.Size()*I.Cardinality() + S.Size()*I.Cardinality() + 3*S.Size()*U.Cardinality() + U.Size()*U.Cardinality() + 2*U.Cardinality()*S.Cardinality() + 2*I.Size() + U.Size() + I.Cardinality() + 3*U.Cardinality() + 3*constant
 }

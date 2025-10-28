@@ -11,10 +11,8 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
 {
   counter := 0;
 
-  var newS:set<set<set<int>>> := {};
-  counter := counter + 1;
-  var U' := U;
-  counter := counter + |U|;
+  var newS:set<set<set<int>>> := {}; counter := counter + 1;
+  var U' := U; counter := counter + |U|;
   while (U' != {})
     decreases |U'|
     invariant U' <= U
@@ -28,8 +26,7 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
   identity_substraction_lemma(U, U');
 
   var S_contains_empty:bool := false;
-  var S' := S;
-  counter := counter + |S|;
+  var S' := S; counter := counter + |S|*|U|;
   assert counter <= poly_aux_1(U, S, k);
   while (S' != {})
     decreases |S'|
@@ -40,14 +37,11 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
     counter := counter + 1;
     S', S_contains_empty, counter := HittingSet_to_SetCover_S_contains_empty_loop(U, S, k, S', S_contains_empty, counter);
   }
-  assert counter <= poly_aux_1(U, S, k) + |S|*(poly_contains_empty_loop(U, S, k) + 1);
   counter := counter + 1;
 
   if (S_contains_empty) {
-    var newS := {};
-    counter := counter + 1;
-    var S' := S;
-    counter := counter;
+    var newS := {}; counter := counter + 1;
+    var S' := S; counter := counter + |S|*|U|;
     assert counter <= poly_aux_2(U, S, k);
     while (S' != {})
       decreases |S'|
@@ -108,7 +102,7 @@ ensures counter <= counter_in + poly_outer_loop(U, S, k)
   newS' := newS + {sets_in_S_that_contain_u};
   counter := counter + |S|*|U|*|U|;
 
-  assert counter <= counter_in + 2*|S|*|S|*|U| + 2*|S|*|U|*|U| + 5*|S|*|U| + 3*|S| + |U| + 2;
+  assert counter <= counter_in + 3*|S|*|S|*|U| + 2*|S|*|U|*|U| + 4*|S|*|U| + 3*|S| + |U| + 2;
 
   assert newS' == (set v | v in (U - U'') :: (set s | s in S && v in s)) by {
     assert newS' == (set v | v in (U - U') :: (set s | s in S && v in s)) + {sets_in_S_that_contain_u};
@@ -139,6 +133,7 @@ ensures counter <= counter_in + poly_middle_loop(U, S, k)
 {
   counter := counter_in;
   sets_in_S_that_contain_u' := sets_in_S_that_contain_u;
+  counter := counter + |S|*|U|;
 
   var s :| s in S';
   counter := counter + |U|;
@@ -152,7 +147,7 @@ ensures counter <= counter_in + poly_middle_loop(U, S, k)
     decreases |s'|
     invariant s' <= s
     invariant s_contains_u == (u in (s - s'))
-    invariant counter == counter_in + |S|*|U| + 2*|U| + (|s| - |s'|)*(|U| + 3)
+    invariant counter == counter_in + 2*|S|*|U| + 2*|U| + (|s| - |s'|)*(poly_inner_loop(U, S, k) + 1)
   {
     counter := counter + 1;
     s', s_contains_u, counter := HittingSet_to_SetCover_inner_loop(U, S, k, s, s', u, s_contains_u, counter);
@@ -167,7 +162,6 @@ ensures counter <= counter_in + poly_middle_loop(U, S, k)
     sets_in_S_that_contain_u' := sets_in_S_that_contain_u + {s};
     counter := counter + |S|*|U|;
   }
-  assert counter <= counter_in + |S|*|U| + poly_aux_3(U, S, k);
   assert counter <= counter_in + poly_middle_loop(U, S, k);
 }
 
@@ -199,7 +193,6 @@ ensures counter == counter_in + poly_inner_loop(U, S, k)
   if (e == u) {
     s_contains_u' := true;
   }
-  counter := counter + 1;
 }
 
 
@@ -229,7 +222,7 @@ ensures counter == counter_in + poly_contains_empty_loop(U, S, k)
   if (s == {}) {
     S_contains_empty' := true;
   }
-  counter := counter + |U|;
+  counter := counter + 1;
 }
 
 
@@ -247,90 +240,87 @@ ensures |S''| == |S'| - 1
 ensures S'' <= S
 ensures newS' == (set s | s in (S - S'') :: {s})
 // Counter
-ensures counter == counter_in + poly_edge_case_loop(U, S, k)     //2*|S|*|U| + |U|
+ensures counter == counter_in + poly_edge_case_loop(U, S, k)
 {
   counter := counter_in;
   var s :| s in S';
   counter := counter + |U|;
   S'' := S' - {s};
   counter := counter + |S|*|U|;
-  newS' := newS + {{s}};
+  var s_set:set<set<int>> := {s};
+  counter := counter + |U|;
+  newS' := newS + {s_set};
   counter := counter + |S|*|U|;
 }
 
-/*
-const c:nat := 100
-
-ghost function O_SSU_SUU(U: set<int>, S: set<set<int>>, k: nat) : (o:nat) {
-  c*|S|*|S|*|U| + c*|S|*|U|*|U| + c*|S|*|U| + c*|S| + c*|U| + c
-}
-
-ghost function O_SSUU_SUUU(U: set<int>, S: set<set<int>>, k: nat) : (o:nat) {
-  c*|S|*|S|*|U|*|U| + c*|S|*|U|*|U|*|U| + c*|S|*|S|*|U| + c*|S|*|U|*|U| + c*|S|*|U| + c*|U|*|U| + c*|S| + c*|U| + c
-}
-*/
-
 ghost function poly_aux_1(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
-ensures |S| + |U|*(poly_outer_loop(U, S, k) + 2) + 2 <= o
+  ensures |S|*|U| + |U|*(poly_outer_loop(U, S, k) + 2) + 2 <= o
 {
-  2*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 5*|S|*|U|*|U| + 3*|S|*|U| + |U|*|U| + |S| + 4*|U| + 2
+  /*calc <= {
+    |S|*|U| + |U|*(poly_outer_loop(U, S, k) + 2) + 2;
+    |U|*(poly_outer_loop(U, S, k) + 2) + |S|*|U| + 2;
+    (|U|*poly_outer_loop(U, S, k) + |U|*2) + |S|*|U| + 2;
+    |U|*poly_outer_loop(U, S, k) + |S|*|U| + 2*|U| + 2;
+    |U|*(3*|S|*|S|*|U| + 2*|S|*|U|*|U| + 4*|S|*|U| + 3*|S| + |U| + 2) + |S|*|U| + 2*|U| + 2;
+    (3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 4*|S|*|U|*|U| + 3*|S|*|U| + |U|*|U| + 2*|U|) + |S|*|U| + 2*|U| + 2;
+    (3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 4*|S|*|U|*|U| + 3*|S|*|U| + |U|*|U| + 2*|U|) + |S|*|U| + 2*|U| + 2;
+    3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 4*|S|*|U|*|U| + 4*|S|*|U| + |U|*|U| + 4*|U| + 2;
+  }*/
+  3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 4*|S|*|U|*|U| + 4*|S|*|U| + |U|*|U| + 4*|U| + 2
 }
-
 ghost function poly_aux_2(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
-ensures poly_aux_1(U, S, k) + |S|*(poly_contains_empty_loop(U, S, k) + 1) + |S| + 1 <= o
+  ensures poly_aux_1(U, S, k) + |S|*(poly_contains_empty_loop(U, S, k) + 1) + |S|*|U| + |S| + 1 <= o
 {
-  2*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + |S|*|S|*|U| + 5*|S|*|U|*|U| + 5*|S|*|U| + |U|*|U| + 3*|S| + 4*|U| + 4
+  /*calc <= {
+    poly_aux_1(U, S, k) + |S|*(poly_contains_empty_loop(U, S, k) + 1) + |S|*|U| + |S| + 1;
+    poly_aux_1(U, S, k) + |S|*(poly_contains_empty_loop(U, S, k) + 1) + |S|*|U| + |S| + 1;
+    (3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 4*|S|*|U|*|U| + 4*|S|*|U| + |U|*|U| + 4*|U| + 2) + |S|*(poly_contains_empty_loop(U, S, k) + 1) + |S|*|U| + |S| + 1;
+    (3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 4*|S|*|U|*|U| + 4*|S|*|U| + |U|*|U| + 4*|U| + 2) + |S|*|S|*|U| + |S|*|U| + 2*|S| + |S|*|U| + |S| + 1;
+    3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + |S|*|S|*|U| + 4*|S|*|U|*|U| + 6*|S|*|U| + |U|*|U| + 3*|S| + 4*|U| + 3;
+  }*/
+  3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + |S|*|S|*|U| + 4*|S|*|U|*|U| + 6*|S|*|U| + |U|*|U| + 3*|S|  + 4*|U|+ 3
 }
-
 ghost function poly_aux_3(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
 {
-  |S|*|U| + 2*|U| + (|U|)*(|U| + 3) + 1
+  2*|S|*|U| + 2*|U| + (|U|)*(|U| + 2) + 1
 }
-
 ghost function poly_inner_loop(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
 {
-  |U| + 2
+  |U| + 1
 }
-
 ghost function poly_middle_loop(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
   ensures |S|*|U| + poly_aux_3(U, S, k) <= o
 {
-  2*|S|*|U| + 2*|U| + |U|*(|U| + 3) + 1
+  3*|S|*|U| + 2*|U| + |U|*(|U| + 2) + 1
 }
-
 ghost function poly_outer_loop(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
 {
-  2*|S|*|S|*|U| + 2*|S|*|U|*|U| + 5*|S|*|U| + 3*|S| + |U| + 2
+  3*|S|*|S|*|U| + 2*|S|*|U|*|U| + 4*|S|*|U| + 3*|S| + |U| + 2
 }
-
 ghost function poly_contains_empty_loop(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
 {
-  |S|*|U| + 2*|U|
+  |S|*|U| + |U| + 1
 }
-
 ghost function poly_edge_case_loop(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
 {
-  2*|S|*|U| + |U|
+  2*|S|*|U| + 2*|U|
 }
 
 ghost function poly(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
   ensures poly_aux_2(U, S, k) + |S|*(poly_edge_case_loop(U, S, k) + 1) + 1 <= o
 {
-  calc == {
+  /*calc == {
     poly_aux_2(U, S, k) + |S|*(poly_edge_case_loop(U, S, k) + 1) + 1;
-    poly_aux_2(U, S, k) + |S|*(2*|S|*|U| + |U| + 1) + 1;
-    poly_aux_2(U, S, k) + 2*|S|*|S|*|U| + |S|*|U| + |S| + 1;
-    poly_aux_2(U, S, k) + 2*|S|*|S|*|U| + |S|*|U| + |S| + 1;
-    (2*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + |S|*|S|*|U| + 5*|S|*|U|*|U| + 5*|S|*|U| + |U|*|U| + 3*|S| + 4*|U| + 4) + 2*|S|*|S|*|U| + |S|*|U| + |S| + 1;
-    2*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 3*|S|*|S|*|U| + 5*|S|*|U|*|U| + 6*|S|*|U| + |U|*|U| + 4*|S| + 4*|U| + 5;
-  }
-
-  2*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 3*|S|*|S|*|U| + 5*|S|*|U|*|U| + 6*|S|*|U| + |U|*|U| + 4*|S| + 4*|U| + 5
-
+    poly_aux_2(U, S, k) + |S|*(2*|S|*|U| + 2*|U| + 1) + 1;
+    poly_aux_2(U, S, k) + 2*|S|*|S|*|U| + 2*|S|*|U| + |S| + 1;
+    poly_aux_2(U, S, k) + 2*|S|*|S|*|U| + 2*|S|*|U| + |S| + 1;
+    (3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + |S|*|S|*|U| + 4*|S|*|U|*|U| + 6*|S|*|U| + |U|*|U| + 3*|S| + 4*|U| + 3) + 2*|S|*|S|*|U| + 2*|S|*|U| + |S| + 1;
+    3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 3*|S|*|S|*|U| + 4*|S|*|U|*|U| + 8*|S|*|U| + |U|*|U| + 4*|S| + 4*|U| + 4;
+  }*/
+  3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 3*|S|*|S|*|U| + 4*|S|*|U|*|U| + 8*|S|*|U| + |U|*|U| + 4*|S| + 4*|U| + 4
 }
 
 lemma aux_lemma_1(U: set<int>, S: set<set<int>>, k: nat, s: set<int>, s': set<int>)
 requires 0 <= |s'| <= |s| <= |U|
 ensures (|s| - |s'|)*(|U| + 3) <= (|U|)*(|U| + 3)
-{
-}
+{}

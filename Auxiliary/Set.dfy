@@ -1,3 +1,4 @@
+
 const constant:nat := 1
 
 
@@ -10,11 +11,15 @@ type Set< T(==) > {
   ghost function Valid():bool
   {
     (Model() <= Universe()) &&
-    (|Model()| <= |Universe()|)
+    (Cardinality() <= |Universe()|)
   }
 
   ghost function Size():nat
-    {|Universe()|*constant}
+  { Cardinality()*constant }
+
+  ghost function Cardinality():(c:nat)
+  ensures 0 <= c
+  { |Model()| }
 
   method {:axiom} Pick(ghost counter_in:nat) returns (e:T, ghost counter_out:nat)
     requires Valid()
@@ -28,9 +33,9 @@ type Set< T(==) > {
     ensures b == (Model() == {})
     ensures counter_out == counter_in + constant
   
-  method {:axiom} Cardinality(ghost counter_in:nat) returns (size:int, ghost counter_out:nat)
+  method {:axiom} nElements(ghost counter_in:nat) returns (size:int, ghost counter_out:nat)
     requires Valid()
-    ensures size == |Model()|
+    ensures size == Cardinality()
     ensures counter_out == counter_in + constant
   
   method {:axiom} Contains(e:T, ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
@@ -43,8 +48,8 @@ type Set< T(==) > {
     ensures R.Valid()
     ensures R.Universe() == Universe() + {e}
     ensures R.Model() == Model() + {e}
-    ensures if e in Model() then |R.Model()| == |Model()|
-            else |R.Model()| == |Model()| + 1
+    ensures if e in Model() then |R.Model()| == Cardinality()
+            else |R.Model()| == Cardinality() + 1
     ensures counter_out == counter_in + Size()
 
   method {:axiom} Remove(e:T, ghost counter_in:nat) returns (R:Set<T>, ghost counter_out:nat)
@@ -52,8 +57,8 @@ type Set< T(==) > {
     ensures R.Valid()
     ensures R.Universe() == Universe()
     ensures  R.Model() == Model() - {e}
-    ensures if e !in Model() then |R.Model()| == |Model()|
-            else |R.Model()| == |Model()| - 1
+    ensures if e !in Model() then |R.Model()| == Cardinality()
+            else |R.Model()| == Cardinality() - 1
     ensures counter_out == counter_in + Size()
   
   method {:axiom} Copy(ghost counter_in:nat) returns (R:Set<T>, ghost counter_out:nat)
@@ -76,7 +81,7 @@ type SetSet< T(==) > {
   ghost function Valid():bool
   {
     (Model() <= Universe()) &&
-    (|Model()| <= |Universe()|)
+    (Cardinality() <= |Universe()|)
   }
 
   ghost function {:axiom} maximumSizeElements():nat
@@ -84,7 +89,11 @@ type SetSet< T(==) > {
     ensures exists s :: s in Universe() && maximumSizeElements() == |s|*constant
 
   ghost function Size():nat
-    {|Universe()|*maximumSizeElements()}
+  { Cardinality()*maximumSizeElements() }
+
+  ghost function Cardinality():(c:nat)
+  ensures 0 <= c
+  { |Model()| }
 
   method {:axiom} Pick(ghost counter_in:nat) returns (e:Set<T>, ghost counter_out:nat)
     requires Valid()
@@ -99,9 +108,9 @@ type SetSet< T(==) > {
     ensures b == (Model() == {})
     ensures counter_out == counter_in + constant
   
-  method {:axiom} Cardinality(ghost counter_in:nat) returns (size: int, ghost counter_out:nat)
+  method {:axiom} nElements(ghost counter_in:nat) returns (size: int, ghost counter_out:nat)
     requires Valid()
-    ensures size == |Model()|
+    ensures size == Cardinality()
     ensures counter_out == counter_in + constant
   
   method {:axiom} Contains(e:Set<T>, ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
@@ -115,8 +124,8 @@ type SetSet< T(==) > {
     ensures R.maximumSizeElements() == maximumSizeElements()
     ensures R.Universe() == Universe() + {e.Model()}
     ensures R.Model() == Model() + {e.Model()}
-    ensures if e.Model() in Model() then |R.Model()| == |Model()|
-            else |R.Model()| == |Model()| + constant
+    ensures if e.Model() in Model() then |R.Model()| == Cardinality()
+            else |R.Model()| == Cardinality() + constant
     ensures counter_out == counter_in + Size()
 
   method {:axiom} Remove(e:Set<T>, ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
@@ -125,8 +134,8 @@ type SetSet< T(==) > {
     ensures R.Universe() == Universe()
     ensures R.maximumSizeElements() == maximumSizeElements()
     ensures R.Model() == Model() - {e.Model()}
-    ensures if e.Model() !in Model() then |R.Model()| == |Model()|
-            else |R.Model()| == |Model()| - 1
+    ensures if e.Model() !in Model() then |R.Model()| == Cardinality()
+            else |R.Model()| == Cardinality() - 1
     ensures counter_out == counter_in + Size()
 
   method {:axiom} Copy(ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
@@ -149,7 +158,7 @@ type SetSetSet< T(==) > {
   ghost function Valid():bool
   {
     (Model() <= Universe()) &&
-    (|Model()| <= |Universe()|)
+    (Cardinality() <= |Universe()|)
   }
 
   ghost function {:axiom} maximumSizeElements():nat
@@ -162,7 +171,11 @@ type SetSetSet< T(==) > {
 
 
   ghost function Size():nat
-    {|Universe()|*maximumSizeElements()}
+  { Cardinality()*maximumSizeElements() }
+
+  ghost function Cardinality():(c:nat)
+  ensures 0 <= c
+  { |Model()| }
 
   method {:axiom} Pick(ghost counter_in:nat) returns (e:SetSet<T>, ghost counter_out:nat)
     requires Valid()
@@ -177,9 +190,9 @@ type SetSetSet< T(==) > {
     ensures b == (Model() == {})
     ensures counter_out == counter_in + constant
   
-  method {:axiom} Cardinality(ghost counter_in:nat) returns (size: int, ghost counter_out:nat)
+  method {:axiom} nElements(ghost counter_in:nat) returns (size: int, ghost counter_out:nat)
     requires Valid()
-    ensures  size == |Model()|
+    ensures  size == Cardinality()
     ensures counter_out == counter_in + constant
   
   method {:axiom} Contains(e:SetSet<T>, ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
@@ -193,8 +206,8 @@ type SetSetSet< T(==) > {
     ensures R.Universe() == Universe() + {e.Model()}
     ensures R.maximumSizeElements() == maximumSizeElements()
     ensures  R.Model() == Model() + {e.Model()}
-    ensures if e.Model() in Model() then |R.Model()| == |Model()|
-            else |R.Model()| == |Model()| + constant
+    ensures if e.Model() in Model() then |R.Model()| == Cardinality()
+            else |R.Model()| == Cardinality() + constant
     ensures if e.Model() in Universe() then |R.Universe()| == |Universe()|
             else |R.Universe()| == |Universe()| + constant
     ensures counter_out == counter_in + Size()
@@ -205,8 +218,8 @@ type SetSetSet< T(==) > {
     ensures R.Universe() == Universe()
     ensures R.maximumSizeElements() == maximumSizeElements()
     ensures  R.Model() == Model() - {e.Model()}
-    ensures if e.Model() !in Model() then |R.Model()| == |Model()|
-            else |R.Model()| == |Model()| - 1
+    ensures if e.Model() !in Model() then |R.Model()| == Cardinality()
+            else |R.Model()| == Cardinality() - 1
     ensures counter_out == counter_in + Size()
 
   method {:axiom} Copy(ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
@@ -260,7 +273,8 @@ ghost predicate init_SetSetSet(S:SetSetSet) {
     (S.Model() == S.Universe())
 }
 
-ghost predicate in_universe_Set(S:Set, U:Set) {
+ghost predicate in_universe_Set(S:Set, U:Set)
+{
   S.Valid() &&
   U.Valid() &&
   (S.Universe() <= U.Model())
