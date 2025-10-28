@@ -95,6 +95,7 @@ ensures newS'.Model() == (set u | u in (U.Model() - U''.Model()) :: (set s | s i
 //ensures counter <= counter_in + poly_outer_loop(U, S, k)
 {
   counter := counter_in;
+  in_universe_lemma_Set(U', U);
   var u:int; u, counter := U'.Pick(counter);
   U'', counter := U'.Remove(u, counter);
 
@@ -114,12 +115,14 @@ ensures newS'.Model() == (set u | u in (U.Model() - U''.Model()) :: (set s | s i
     invariant forall s | s in S.Model() ::  s <= U.Model()
     invariant sets_in_S_that_contain_u.Model() == (set s | s in (S.Model() - S'.Model()) && u in s)
     // Counter
-
+    invariant counter <= counter_in + S.Size() + U.Size() + 3*constant + (S.Cardinality() - S'.Cardinality())*(poly_middle_loop(U, S, k))
   {
     S', sets_in_S_that_contain_u, S'_empty, counter := HittingSet_to_SetCover_middle_loop(U, S, k, S', u, sets_in_S_that_contain_u, counter);
   }
   newS', counter := newS.Add(sets_in_S_that_contain_u, counter);
   U''_empty, counter := U''.Empty(counter);
+  assert counter <= counter_in + S.Size() + U.Size() + 4*constant + S.Cardinality()*(poly_middle_loop(U, S, k)) + newS.Size();  // newS.Size() == U.Cardinality()*S.Size()
+
 
   assert newS'.Model() == (set v | v in (U.Model() - U''.Model()) :: (set s | s in S.Model() && v in s)) by {
     assert newS'.Model() == (set v | v in (U.Model() - U'.Model()) :: (set s | s in S.Model() && v in s)) + {sets_in_S_that_contain_u.Model()};
