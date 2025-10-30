@@ -1,3 +1,5 @@
+include "../Auxiliary/Lemmas.dfy"
+
 
 const constant:nat := 1
 
@@ -48,8 +50,8 @@ type Set< T(==) > {
     ensures R.Valid()
     ensures R.Universe() == Universe() + {e}
     ensures R.Model() == Model() + {e}
-    ensures if e in Model() then |R.Model()| == Cardinality()
-            else |R.Model()| == Cardinality() + 1
+    ensures if e in Model() then R.Cardinality() == Cardinality()
+            else R.Cardinality() == Cardinality() + 1
     ensures counter_out == counter_in + Size()
 
   method {:axiom} Remove(e:T, ghost counter_in:nat) returns (R:Set<T>, ghost counter_out:nat)
@@ -57,8 +59,8 @@ type Set< T(==) > {
     ensures R.Valid()
     ensures R.Universe() == Universe()
     ensures  R.Model() == Model() - {e}
-    ensures if e !in Model() then |R.Model()| == Cardinality()
-            else |R.Model()| == Cardinality() - 1
+    ensures if e !in Model() then R.Cardinality() == Cardinality()
+            else R.Cardinality() == Cardinality() - 1
     ensures counter_out == counter_in + Size()
   
   method {:axiom} Copy(ghost counter_in:nat) returns (R:Set<T>, ghost counter_out:nat)
@@ -121,11 +123,14 @@ type SetSet< T(==) > {
   method {:axiom} Add(e:Set<T>, ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
-    ensures R.maximumSizeElements() == maximumSizeElements()
     ensures R.Universe() == Universe() + {e.Model()}
     ensures R.Model() == Model() + {e.Model()}
-    ensures if e.Model() in Model() then |R.Model()| == Cardinality()
-            else |R.Model()| == Cardinality() + constant
+    ensures if e.Model() in Model()
+            then R.Cardinality() == Cardinality()
+            else R.Cardinality() == Cardinality() + constant
+    ensures if e.Size() <= maximumSizeElements()
+            then R.maximumSizeElements() == maximumSizeElements()
+            else R.maximumSizeElements() == e.Size()
     ensures counter_out == counter_in + Size()
 
   method {:axiom} Remove(e:Set<T>, ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
@@ -134,8 +139,8 @@ type SetSet< T(==) > {
     ensures R.Universe() == Universe()
     ensures R.maximumSizeElements() == maximumSizeElements()
     ensures R.Model() == Model() - {e.Model()}
-    ensures if e.Model() !in Model() then |R.Model()| == Cardinality()
-            else |R.Model()| == Cardinality() - 1
+    ensures if e.Model() !in Model() then R.Cardinality() == Cardinality()
+            else R.Cardinality() == Cardinality() - 1
     ensures counter_out == counter_in + Size()
 
   method {:axiom} Copy(ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
@@ -206,10 +211,15 @@ type SetSetSet< T(==) > {
     ensures R.Universe() == Universe() + {e.Model()}
     ensures R.maximumSizeElements() == maximumSizeElements()
     ensures  R.Model() == Model() + {e.Model()}
-    ensures if e.Model() in Model() then |R.Model()| == Cardinality()
-            else |R.Model()| == Cardinality() + constant
-    ensures if e.Model() in Universe() then |R.Universe()| == |Universe()|
+    ensures if e.Model() in Model()
+            then R.Cardinality() == Cardinality()
+            else R.Cardinality() == Cardinality() + constant
+    ensures if e.Model() in Universe()
+            then |R.Universe()| == |Universe()|
             else |R.Universe()| == |Universe()| + constant
+    ensures if e.Size() <= maximumSizeElements()
+            then R.maximumSizeElements() == maximumSizeElements()
+            else R.maximumSizeElements() == e.Size()
     ensures counter_out == counter_in + Size()
 
   method {:axiom} Remove(e:SetSet<T>, ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
@@ -218,8 +228,8 @@ type SetSetSet< T(==) > {
     ensures R.Universe() == Universe()
     ensures R.maximumSizeElements() == maximumSizeElements()
     ensures  R.Model() == Model() - {e.Model()}
-    ensures if e.Model() !in Model() then |R.Model()| == Cardinality()
-            else |R.Model()| == Cardinality() - 1
+    ensures if e.Model() !in Model() then R.Cardinality() == Cardinality()
+            else R.Cardinality() == Cardinality() - 1
     ensures counter_out == counter_in + Size()
 
   method {:axiom} Copy(ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
@@ -233,28 +243,51 @@ type SetSetSet< T(==) > {
 
 }
 
+/*
+ghost function difference_Set(S:Set, S':Set):(r:nat)
+requires in_universe_Set(S', S)
+ensures r <= S.Cardinality()
+{
+  if_smaller_then_less_cardinality(S'.Model(), S.Model());
+  S.Cardinality() - S'.Cardinality()
+}
+ghost function difference_SetSet(S:SetSet, S':SetSet):(r:nat)
+requires in_universe_SetSet(S', S)
+ensures r <= S.Cardinality()
+{
+  if_smaller_then_less_cardinality(S'.Model(), S.Model());
+  S.Cardinality() - S'.Cardinality()
+}
+ghost function difference_SetSetSet(S:SetSetSet, S':SetSetSet):(r:nat)
+requires in_universe_SetSetSet(S', S)
+ensures r <= S.Cardinality()
+{
+  if_smaller_then_less_cardinality(S'.Model(), S.Model());
+  S.Cardinality() - S'.Cardinality()
+}
+*/
 
 
-method {:axiom} NewSet<T(==)>(ghost counter_in:nat) returns (R:Set<T>, ghost counter_out:nat)
+method {:axiom} New_Set<T(==)>(ghost counter_in:nat) returns (R:Set<T>, ghost counter_out:nat)
   ensures counter_out == counter_in +1
   ensures R.Model() == {}
-method {:axiom} NewSetSet<T(==)>(ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
+method {:axiom} New_SetSet<T(==)>(ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
   ensures counter_out == counter_in +1
   ensures R.Model() == {}
-method {:axiom} NewSetSetSet<T(==)>(ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
+method {:axiom} New_SetSetSet<T(==)>(ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
   ensures counter_out == counter_in +1
   ensures R.Model() == {}
 
-method {:axiom} NewSet_params<T(==)>(ghost U:set<T>, ghost counter_in:nat) returns (R:Set<T>, ghost counter_out:nat)
+method {:axiom} New_Set_params<T(==)>(ghost U:set<T>, ghost counter_in:nat) returns (R:Set<T>, ghost counter_out:nat)
   ensures counter_out == counter_in +1
   ensures R.Model() == {}
   ensures R.Universe() == U
-method {:axiom} NewSetSet_params<T(==)>(ghost U:set<set<T>>, ghost maximumSizeElements:nat, ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
+method {:axiom} New_SetSet_params<T(==)>(ghost U:set<set<T>>, ghost maximumSizeElements:nat, ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
   ensures counter_out == counter_in +1
   ensures R.Model() == {}
   ensures R.Universe() == U
   ensures R.maximumSizeElements() == maximumSizeElements
-method {:axiom} NewSetSetSet_params<T(==)>(ghost U:set<set<set<T>>>, ghost maximumSizeElements:nat, ghost maximumSizeElements':nat, ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
+method {:axiom} New_SetSetSet_params<T(==)>(ghost U:set<set<set<T>>>, ghost maximumSizeElements:nat, ghost maximumSizeElements':nat, ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
   ensures counter_out == counter_in +1
   ensures R.Model() == {}
   ensures R.Universe() == U

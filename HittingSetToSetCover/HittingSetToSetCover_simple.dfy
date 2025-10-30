@@ -23,8 +23,10 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
     U', newS, counter := HittingSet_to_SetCover_outer_loop(U, S, k, U', newS, counter);
   }
   counter := counter + 1;
-  identity_substraction_lemma(U, U');
+  //identity_substraction_lemma(U, U');
 
+  var S_contains_empty:bool := {} in S; counter := counter + |S|*|U|;
+  /*
   var S_contains_empty:bool := false;
   var S' := S; counter := counter + |S|*|U|;
   assert counter <= poly_aux_1(U, S, k);
@@ -38,28 +40,29 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
     S', S_contains_empty, counter := HittingSet_to_SetCover_S_contains_empty_loop(U, S, k, S', S_contains_empty, counter);
   }
   counter := counter + 1;
+  */
 
+  assert counter <= |S|*|U| + |U|*(poly_outer_loop(U, S, k) + 2) + 2;
   if (S_contains_empty) {
     var newS := {}; counter := counter + 1;
     var S' := S; counter := counter + |S|*|U|;
-    assert counter <= poly_aux_2(U, S, k);
     while (S' != {})
       decreases |S'|
       invariant S' <= S
       invariant newS == (set s | s in (S - S') :: {s})
-      invariant counter <= poly_aux_2(U, S, k) + (|S| - |S'|)*(poly_edge_case_loop(U, S, k) + 1)
+      invariant counter <= 2*|S|*|U| + |U|*(poly_outer_loop(U, S, k) + 2) + 3 + (|S| - |S'|)*(poly_edge_case_loop(U, S, k) + 1)
     {
       counter := counter + 1;
       S', newS, counter := HittingSet_to_SetCover_edge_case_loop(U, S, k, S', newS, counter);
     }
     counter := counter + 1;
+    assert counter <= 2*|S|*|U| + |U|*(poly_outer_loop(U, S, k) + 2) + 4 + |S|*(poly_edge_case_loop(U, S, k) + 1);
     assert counter <= poly(U, S, k);
     return (S, newS, 0), counter;
   }
   else {
     return (S, newS, k), counter;
   }
-
 }
 
 
@@ -306,6 +309,7 @@ ghost function poly_edge_case_loop(U: set<int>, S: set<set<int>>, k: nat) : (o:n
   2*|S|*|U| + 2*|U|
 }
 
+/*
 ghost function poly(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
   ensures poly_aux_2(U, S, k) + |S|*(poly_edge_case_loop(U, S, k) + 1) + 1 <= o
 {
@@ -318,6 +322,21 @@ ghost function poly(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
     3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 3*|S|*|S|*|U| + 4*|S|*|U|*|U| + 8*|S|*|U| + |U|*|U| + 4*|S| + 4*|U| + 4;
   }*/
   3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 3*|S|*|S|*|U| + 4*|S|*|U|*|U| + 8*|S|*|U| + |U|*|U| + 4*|S| + 4*|U| + 4
+}
+*/
+ghost function poly(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
+  ensures 2*|S|*|U| + |U|*(poly_outer_loop(U, S, k) + 2) + 4 + |S|*(poly_edge_case_loop(U, S, k) + 1) <= o
+  ensures |S|*|U| + |U|*(poly_outer_loop(U, S, k) + 2) + 2 <= o
+{
+  /*calc == {
+    2*|S|*|U| + |U|*(poly_outer_loop(U, S, k) + 2) + 4 + |S|*(poly_edge_case_loop(U, S, k) + 1);
+    2*|S|*|U| + |U|*(poly_outer_loop(U, S, k) + 2) + 4 + |S|*(2*|S|*|U| + 2*|U| + 1);
+    |U|*(poly_outer_loop(U, S, k) + 2) + 2*|S|*|S|*|U| + 4*|S|*|U| + |S| + 4;
+    |U|*(3*|S|*|S|*|U| + 2*|S|*|U|*|U| + 4*|S|*|U| + 3*|S| + |U| + 4) + 2*|S|*|S|*|U| + 4*|S|*|U| + |S| + 4;
+    (3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 4*|S|*|U|*|U| + 3*|S|*|U| + |U|*|U| + 4*|U|) + 2*|S|*|S|*|U| + 4*|S|*|U| + |S| + 4;
+    3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 2*|S|*|S|*|U| + 4*|S|*|U|*|U| + 7*|S|*|U| + |U|*|U| + |S| + 4*|U| + 4;
+  }*/
+  3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 2*|S|*|S|*|U| + 4*|S|*|U|*|U| + 7*|S|*|U| + |U|*|U| + |S| + 4*|U| + 4
 }
 
 lemma aux_lemma_1(U: set<int>, S: set<set<int>>, k: nat, s: set<int>, s': set<int>)

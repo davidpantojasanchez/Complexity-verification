@@ -12,7 +12,7 @@ lemma associativity(a:int, b:int, c:int)
 {}
 
 
-lemma identity_substraction_lemma<T>(S:set<T>, E:set<T>)
+lemma identity_substraction_lemma<T>(S:set<T>, E:set<T>)    // not used
 requires E == {}
 ensures S - E == S
 {}
