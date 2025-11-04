@@ -138,7 +138,9 @@ ensures counter <= counter_in + poly_outer_loop(U, S, k)
     S', sets_in_S_that_contain_u, S'_empty, counter := HittingSet_to_SetCover_middle_loop(U, S, k, S', u, sets_in_S_that_contain_u, counter);
     counter_simplification_aux_1(U, S, k, S'_prev, S');
   }
+  in_universe_lemma_SetSet(sets_in_S_that_contain_u, S);
   newS', counter := newS.Add(sets_in_S_that_contain_u, counter);
+
   U''_empty, counter := U''.Empty(counter);
   mult_preserves_order(newS.Cardinality(), newS.maximumSizeElements(), U.Cardinality(), S.Size());
   assert newS'.Model() == (set v | v in (U.Model() - U''.Model()) :: (set s | s in S.Model() && v in s)) by {
@@ -160,6 +162,7 @@ requires U.Valid()
 requires in_universe_SetSet(S', S)
 requires in_universe_SetSet(sets_in_S_that_contain_u, S)
 requires S.maximumSizeElements() <= U.Size()
+ensures sets_in_S_that_contain_u.Size() <= S.Size()
 // Invariant in
 requires sets_in_S_that_contain_u.Model() == (set s | s in (S.Model() - S'.Model()) && u in s)
 // Termination out
@@ -298,7 +301,7 @@ ensures counter <= counter_in + poly_edge_case_loop(U, S, k)
   counter := counter_in;
   var s:Set<int>; s, counter := S'.Pick(counter);
   S'', counter := S'.Remove(s, counter);
-  var s_set:SetSet<int>; s_set, counter := New_SetSet(counter);
+  var s_set:SetSet<int>; s_set, counter := New_SetSet_params(S.Model(), S.maximumSizeElements(), counter);
   s_set, counter := s_set.Add(s, counter);
   newS', counter := newS.Add(s_set, counter);
   S''_empty, counter := S''.Empty(counter);

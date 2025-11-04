@@ -10,7 +10,7 @@ requires init_Set(U)
 requires init_SetSet(S)
 requires init_SetSet(I)
 requires S.maximumSizeElements() <= U.Cardinality()
-requires I.maximumSizeElements() <= U.Cardinality()         // ????
+requires I.maximumSizeElements() <= U.Cardinality()
 
 ensures b == (I.Model() <= S.Model() && isCover(U.Model(), I.Model()) && I.Cardinality() <= k)
 ensures counter <= poly(U, S, k, I)
