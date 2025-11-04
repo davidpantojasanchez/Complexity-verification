@@ -49,11 +49,7 @@ ensures |S.Universe()| <= |U.Universe()|
 { 
   if_smaller_then_less_cardinality(S.Model(), U.Model());
   if_smaller_then_less_cardinality(S.Universe(), U.Universe());
-
-  assert S.Cardinality() <= U.Cardinality();
-  assert S.maximumSizeElements() <= U.maximumSizeElements();
   mult_preserves_order(S.Cardinality(),S.maximumSizeElements(),U.Cardinality(), U.maximumSizeElements());
-  assert S.Size() <= U.Size();
 }
 
 lemma in_universe_lemma_SetSetSet(S:SetSetSet, U:SetSetSet)
