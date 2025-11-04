@@ -6,7 +6,7 @@ include "../Auxiliary/Lemmas.dfy"
 
 method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) returns (r:(set<set<int>>, set<set<set<int>>>, nat), ghost counter:nat)
   requires forall s | s in S ::  s <= U
-  //ensures r == HittingSet_to_SetCover(U, S, k)
+  ensures r == HittingSet_to_SetCover(U, S, k)
   ensures counter <= poly(U, S, k)
 {
   counter := 0;
@@ -23,7 +23,7 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
     U', newS, counter := HittingSet_to_SetCover_outer_loop(U, S, k, U', newS, counter);
   }
   counter := counter + 1;
-  //identity_substraction_lemma(U, U');
+  identity_substraction_lemma(U, U');
 
   var S_contains_empty:bool := {} in S; counter := counter + |S|*|U|;
   /*
@@ -58,6 +58,8 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
     counter := counter + 1;
     assert counter <= 2*|S|*|U| + |U|*(poly_outer_loop(U, S, k) + 2) + 4 + |S|*(poly_edge_case_loop(U, S, k) + 1);
     assert counter <= poly(U, S, k);
+
+    identity_substraction_lemma(S, S');
     return (S, newS, 0), counter;
   }
   else {
