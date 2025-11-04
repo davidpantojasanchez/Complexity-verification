@@ -5,6 +5,10 @@ include "../Auxiliary/Lemmas.dfy"
 method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) returns (b:bool, ghost counter:nat)   
 requires forall s | s in S :: s <= U 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+requires forall s | s in I :: s <= U
+>>>>>>> Stashed changes
 =======
 requires forall s | s in I :: s <= U
 >>>>>>> Stashed changes
