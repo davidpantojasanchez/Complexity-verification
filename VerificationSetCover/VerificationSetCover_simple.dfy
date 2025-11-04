@@ -4,7 +4,6 @@ include "../Auxiliary/Lemmas.dfy"
 
 method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) returns (b:bool, ghost counter:nat)   
 requires forall s | s in S :: s <= U 
-requires forall s | s in I :: s <= U                  // ???
 ensures b == (I <= S && isCover(U, I) && |I| <= k)
 ensures counter <= poly(U, S, k, I)
 {
@@ -18,7 +17,6 @@ ensures counter <= poly(U, S, k, I)
   if (!(I_seq_S && |I| <= k)) {
     return false, counter;
   }
-
   while (U' != {} && b)
     decreases |U'|
     invariant U' <= U 
@@ -34,7 +32,6 @@ ensures counter <= poly(U, S, k, I)
 }
 
 method isSubset(U:set<int>, S1:set<set<int>>, S2:set<set<int>>, ghost counter_in:nat) returns (b:bool, ghost counter:nat)
-requires forall s |s in S1 :: s <= U
 requires forall s |s in S2 :: s <= U
 ensures b == (S1 <= S2)
 ensures counter <= counter_in + poly_isSubset(U, S1, S2)
