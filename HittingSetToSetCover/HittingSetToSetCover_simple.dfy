@@ -108,12 +108,15 @@ ensures counter <= counter_in + poly_outer_loop(U, S, k)
   assert counter <= counter_in + 3*|S|*|S|*|U| + 2*|S|*|U|*|U| + 4*|S|*|U| + 3*|S| + |U| + 2;
 
   assert newS' == (set v | v in (U - U'') :: (set s | s in S && v in s)) by {
-    assert newS' == (set v | v in (U - U') :: (set s | s in S && v in s)) + {sets_in_S_that_contain_u};
-    assert newS' == (set v | v in (U - U') :: (set s | s in S && v in s)) + {(set s | s in (S - S') && u in s)};
-    assert (S - S') == S;
-    assert newS' == (set v | v in (U - U') + {u} :: (set s | s in S && v in s));
-    assert (U - U'') == (U - U') + {u};
-  }
+  calc {
+      newS';
+      (set v | v in (U - U') :: (set s | s in S && v in s)) + {sets_in_S_that_contain_u};
+      (set v | v in (U - U') :: (set s | s in S && v in s)) + {(set s | s in (S - S') && u in s)};
+       {assert (S - S') == S;}
+      (set v | v in (U - U') + {u} :: (set s | s in S && v in s));
+      {assert (U - U'') == (U - U') + {u};}
+      (set v | v in (U - U'') :: (set s | s in S && v in s));
+    }  }
   
 }
 
