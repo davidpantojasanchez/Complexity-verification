@@ -95,18 +95,17 @@ ensures counter <= counter_in + poly_outer_loop(U, S, k, I)
   U'' := U' - {u}; counter := counter + |U|;
 
   var I' := I; counter := counter + |S|*|U|;
-  var b2:= false;
-  while (I' != {} && !b2)
+   b1:= false;
+  while (I' != {} && !b1)
     decreases |I'|
     invariant I' <= I
-    invariant b2 == (exists i' | i' in I - I' :: u in i')
+    invariant b1 == (exists i' | i' in I - I' :: u in i')
     invariant counter == counter_in + |S|*|U| + |U| + 1 + (|I|-|I'|)*(poly_inner_loop(U, S, k) + 1)
   {
     counter := counter + 1;
-    b2, I', counter := verifySetCover_inner_loop(U, S, k, I, I', u, counter);
+    b1, I', counter := verifySetCover_inner_loop(U, S, k, I, I', u, counter);
   }
   counter := counter + 1;
-  b1 := b2;
   assert U - U'' == U - U' + {u};
 }
 
