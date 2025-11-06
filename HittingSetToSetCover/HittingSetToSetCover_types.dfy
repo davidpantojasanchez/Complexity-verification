@@ -5,10 +5,11 @@ include "../Auxiliary/Lemmas.dfy"
 
 
 method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns (r:(SetSet<int>, SetSetSet<int>, nat), ghost counter:nat)
-  //ensures r == HittingSet_to_SetCover(U, S, k)
+  requires forall s | s in S.Model() ::  s <= U.Model()
   requires init_Set(U)
   requires init_SetSet(S)
   requires S.maximumSizeElements() <= U.Size()
+  ensures (r.0.Model(),r.1.Model(),r.2) == HittingSet_to_SetCover(U.Model(), S.Model(), k)
   ensures counter <= poly(U, S, k)
 {
   counter := 0;
@@ -32,7 +33,9 @@ method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns 
   {
     U', newS, U'_empty, counter := HittingSet_to_SetCover_outer_loop(U, S, k, U', newS, counter);
   }
-  //identity_substraction_lemma(U.Model(), U'.Model());
+  identity_substraction_lemma(U.Model(), U'.Model());
+  assert newS.Model() == (set u | u in U.Model() :: (set s | s in S.Model() && u in s));
+ 
   var empty_set:Set<int>; empty_set, counter := New_Set(counter);
   var S_contains_empty:bool; S_contains_empty, counter := S.Contains(empty_set, counter);
   /*
@@ -78,11 +81,19 @@ method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns 
       }
     }
     //assert counter <= poly_aux_1(U, S, k) + S.Cardinality()*(poly_edge_case_loop(U, S, k));
-    return (S, newS, 0), counter;
+    assert newS.Model() == (set s | s in S.Model() :: {s});
+    assert (S.Model(), newS.Model(), 0) == HittingSet_to_SetCover(U.Model(), S.Model(), k);
+    r := (S,newS,0);
+    //return (S, newS, 0), counter;
   }
   else {
-    return (S, newS, k), counter;
+    assert newS.Model() == (set u | u in U.Model() :: (set s | s in S.Model() && u in s));
+    assert (S.Model(), newS.Model(), k) == HittingSet_to_SetCover(U.Model(), S.Model(), k);
+    r := (S,newS,k);
+    //return (S, newS, k), counter;
   }
+  assert (r.0.Model(),r.1.Model(),r.2) == HittingSet_to_SetCover(U.Model(), S.Model(), k);
+  return r,counter;
   
 }
 
