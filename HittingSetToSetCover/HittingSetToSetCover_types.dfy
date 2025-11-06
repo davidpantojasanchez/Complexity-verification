@@ -38,17 +38,6 @@ method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns 
  
   var empty_set:Set<int>; empty_set, counter := New_Set(counter);
   var S_contains_empty:bool; S_contains_empty, counter := S.Contains(empty_set, counter);
-  /*
-  var S_contains_empty:bool := false;
-  while (S' != {})
-    decreases |S'|
-    invariant S' <= S
-    invariant S_contains_empty == ({} in (S - S'))
-    invariant counter <= poly_aux_1(U, S, k) + (|S| - |S'|)*(poly_contains_empty_loop(U, S, k) + 1)
-  {
-    S', S_contains_empty, counter := HittingSet_to_SetCover_S_contains_empty_loop(U, S, k, S', S_contains_empty, counter);
-  }
-  */
   if (S_contains_empty) {
     var newS:SetSetSet<int>; newS, counter := New_SetSetSet_params((set s | s in S.Model() :: {s}), S.maximumSizeElements(), U.Size(), counter);
     var S':SetSet<int>; S', counter := S.Copy(counter);
@@ -255,6 +244,7 @@ ensures counter <= counter_in + poly_inner_loop(U, S, k)
   s''_empty, counter := s''.Empty(counter);
 }
 
+/*
 method HittingSet_to_SetCover_S_contains_empty_loop(U:Set<int>, S:SetSet<int>, k:nat, S':SetSet<int>, S_contains_empty:bool, ghost counter_in:nat) returns (S'':SetSet<int>, S_contains_empty':bool, ghost counter:nat)
 // Termination in
 requires S'.Model() != {}
@@ -281,6 +271,7 @@ ensures counter <= counter_in + poly_contains_empty_loop(U, S, k)
   var s_empty:bool; s_empty, counter := s.Empty(counter);
   S_contains_empty' := S_contains_empty || s_empty;
 }
+*/
 
 method HittingSet_to_SetCover_edge_case_loop(U:Set<int>, S:SetSet<int>, k:nat, S':SetSet<int>, newS:SetSetSet<int>, ghost counter_in:nat) returns (S'':SetSet<int>, newS':SetSetSet<int>, S''_empty:bool, ghost counter:nat)
 // Termination in

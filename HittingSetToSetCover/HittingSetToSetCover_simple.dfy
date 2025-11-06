@@ -26,23 +26,7 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
   identity_substraction_lemma(U, U');
 
   var S_contains_empty:bool := {} in S; counter := counter + |S|*|U|;
-  /*
-  var S_contains_empty:bool := false;
-  var S' := S; counter := counter + |S|*|U|;
-  assert counter <= poly_aux_1(U, S, k);
-  while (S' != {})
-    decreases |S'|
-    invariant S' <= S
-    invariant S_contains_empty == ({} in (S - S'))
-    invariant counter <= poly_aux_1(U, S, k) + (|S| - |S'|)*(poly_contains_empty_loop(U, S, k) + 1)
-  {
-    counter := counter + 1;
-    S', S_contains_empty, counter := HittingSet_to_SetCover_S_contains_empty_loop(U, S, k, S', S_contains_empty, counter);
-  }
-  counter := counter + 1;
-  */
 
-  assert counter <= |S|*|U| + |U|*(poly_outer_loop(U, S, k) + 2) + 2;
   if (S_contains_empty) {
     var newS := {}; counter := counter + 1;
     var S' := S; counter := counter + |S|*|U|;
@@ -56,9 +40,6 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
       S', newS, counter := HittingSet_to_SetCover_edge_case_loop(U, S, k, S', newS, counter);
     }
     counter := counter + 1;
-    assert counter <= 2*|S|*|U| + |U|*(poly_outer_loop(U, S, k) + 2) + 4 + |S|*(poly_edge_case_loop(U, S, k) + 1);
-    assert counter <= poly(U, S, k);
-
     identity_substraction_lemma(S, S');
     return (S, newS, 0), counter;
   }
@@ -103,12 +84,10 @@ ensures counter <= counter_in + poly_outer_loop(U, S, k)
     S', sets_in_S_that_contain_u, counter := HittingSet_to_SetCover_middle_loop(U, S, k, S', u, sets_in_S_that_contain_u, counter);
   }
   counter := counter + 1;
-
   newS' := newS + {sets_in_S_that_contain_u};
   counter := counter + |S|*|U|*|U|;
 
   assert counter <= counter_in + 3*|S|*|S|*|U| + 2*|S|*|U|*|U| + 4*|S|*|U| + 3*|S| + |U| + 2;
-
   assert newS' == (set v | v in (U - U'') :: (set s | s in S && v in s)) by {
   calc {
       newS';
@@ -170,7 +149,6 @@ ensures counter <= counter_in + poly_middle_loop(U, S, k)
     sets_in_S_that_contain_u' := sets_in_S_that_contain_u + {s};
     counter := counter + |S|*|U|;
   }
-  assert counter <= counter_in + poly_middle_loop(U, S, k);
 }
 
 

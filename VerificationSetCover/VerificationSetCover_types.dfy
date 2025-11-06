@@ -32,8 +32,7 @@ ensures counter <= poly(U, S, k, I)
   b := true;
   var U'_empty:bool;
   U'_empty, counter := U'.Empty(counter);
-
-  assert counter <= poly_isSubset(I, S) + U.Size() + 2*constant;
+  
   while (!U'_empty && b)
     // Termination
     decreases U'.Cardinality()
@@ -183,7 +182,6 @@ ensures counter <= counter_in + poly_outer_loop(U, S, k)
     in_universe_lemma_SetSet(I, S);
     mult_preserves_order(I.Cardinality(), (poly_inner_loop(U, S, k) + constant), S.Cardinality(), (poly_inner_loop(U, S, k) + constant));
   }
-  assert counter <= counter_in + poly_outer_loop(U, S, k);
 }
 
 
