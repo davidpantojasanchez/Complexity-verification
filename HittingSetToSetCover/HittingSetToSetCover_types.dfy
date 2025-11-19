@@ -16,7 +16,7 @@ method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns 
   var newS:SetSetSet<int>; newS, counter := New_SetSetSet_params((set u | u in U.Model() :: (set s | s in S.Model() && u in s)), S.Size(), U.Size(), counter);
   var U':Set<int>; U', counter := U.Copy(counter);
   var U'_empty:bool; U'_empty, counter := U'.Empty(counter);
-  assert counter == U.Size() + 2*constant;
+  assert counter == U.Size() + 2;
   while (!U'_empty)
     // Termination
     decreases U'.Cardinality()
@@ -29,10 +29,11 @@ method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns 
     // Regular invariants
     invariant newS.Model() == (set u | u in (U.Model() - U'.Model()) :: (set s | s in S.Model() && u in s))
     // Counter
-    invariant counter <= U.Size() + 2*constant + (U.Cardinality() - U'.Cardinality())*poly_outer_loop(U, S, k)
+    invariant counter <= U.Size() + 2 + (U.Cardinality() - U'.Cardinality())*poly_outer_loop(U, S, k)
   {
     U', newS, U'_empty, counter := HittingSet_to_SetCover_outer_loop(U, S, k, U', newS, counter);
   }
+  assert counter <= U.Size() + 2 + U.Cardinality()*poly_outer_loop(U, S, k);
   identity_substraction_lemma(U.Model(), U'.Model());
   assert newS.Model() == (set u | u in U.Model() :: (set s | s in S.Model() && u in s));
  
@@ -69,7 +70,6 @@ method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns 
         (S.Cardinality() - S'.Cardinality())*(poly_edge_case_loop(U, S, k));
       }
     }
-    //assert counter <= poly_aux_1(U, S, k) + S.Cardinality()*(poly_edge_case_loop(U, S, k));
     assert newS.Model() == (set s | s in S.Model() :: {s});
     assert (S.Model(), newS.Model(), 0) == HittingSet_to_SetCover(U.Model(), S.Model(), k);
     r := (S,newS,0);
@@ -79,7 +79,6 @@ method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns 
     assert newS.Model() == (set u | u in U.Model() :: (set s | s in S.Model() && u in s));
     assert (S.Model(), newS.Model(), k) == HittingSet_to_SetCover(U.Model(), S.Model(), k);
     r := (S,newS,k);
-    //return (S, newS, k), counter;
   }
   assert (r.0.Model(),r.1.Model(),r.2) == HittingSet_to_SetCover(U.Model(), S.Model(), k);
   return r,counter;
@@ -132,7 +131,7 @@ ensures counter <= counter_in + poly_outer_loop(U, S, k)
     // Regular invariants
     invariant sets_in_S_that_contain_u.Model() == (set s | s in (S.Model() - S'.Model()) && u in s)
     // Counter
-    invariant counter <= counter_in + S.Size() + U.Size() + 3*constant + (S.Cardinality() - S'.Cardinality())*(poly_middle_loop(U, S, k))
+    invariant counter <= counter_in + S.Size() + U.Size() + 3 + (S.Cardinality() - S'.Cardinality())*(poly_middle_loop(U, S, k))
   {
     ghost var S'_prev := S';
     S', sets_in_S_that_contain_u, S'_empty, counter := HittingSet_to_SetCover_middle_loop(U, S, k, S', u, sets_in_S_that_contain_u, counter);
@@ -199,7 +198,7 @@ ensures counter <= counter_in + poly_middle_loop(U, S, k)
     // Regular invariants
     invariant s_contains_u == (u in (s.Model() - s'.Model()))
     // Counter
-    invariant counter <= counter_in + 2*S.Size() + 2*U.Size() + constant + (s.Cardinality() - s'.Cardinality())*poly_inner_loop(U, S, k)
+    invariant counter <= counter_in + 2*S.Size() + 2*U.Size() + 1 + (s.Cardinality() - s'.Cardinality())*poly_inner_loop(U, S, k)
   {
     s', s_contains_u, s'_empty, counter := HittingSet_to_SetCover_inner_loop(U, S, k, s, s', u, s_contains_u, counter);
   }
@@ -208,7 +207,7 @@ ensures counter <= counter_in + poly_middle_loop(U, S, k)
     sets_in_S_that_contain_u', counter := sets_in_S_that_contain_u.Add(s, counter);
   }
   S''_empty, counter := S''.Empty(counter);
-  assert counter <= counter_in + 3*S.Size() + 2*U.Size() + 2*constant + U.Size()*poly_inner_loop(U, S, k);
+  assert counter <= counter_in + 3*S.Size() + 2*U.Size() + 2 + U.Size()*poly_inner_loop(U, S, k);
 }
 
 method HittingSet_to_SetCover_inner_loop(U:Set<int>, S:SetSet<int>, k:nat, s:Set<int>, s':Set<int>, u:int, s_contains_u:bool, ghost counter_in:nat) returns (s'':Set<int>, s_contains_u':bool, s''_empty:bool, ghost counter:nat)
@@ -312,68 +311,68 @@ ensures counter <= counter_in + poly_edge_case_loop(U, S, k)
 
 lemma counter_simplification_aux_1(U: Set<int>, S: SetSet<int>, k: nat, S'_prev: SetSet<int>, S': SetSet<int>)
 requires S'_prev.Cardinality() == S'.Cardinality() + 1
-ensures S.Size() + U.Size() + 3*constant + (S.Cardinality() - S'_prev.Cardinality())*(poly_middle_loop(U, S, k)) + poly_middle_loop(U, S, k) == S.Size() + U.Size() + 3*constant + (S.Cardinality() - S'.Cardinality())*(poly_middle_loop(U, S, k))
+ensures S.Size() + U.Size() + 3 + (S.Cardinality() - S'_prev.Cardinality())*(poly_middle_loop(U, S, k)) + poly_middle_loop(U, S, k) == S.Size() + U.Size() + 3 + (S.Cardinality() - S'.Cardinality())*(poly_middle_loop(U, S, k))
 {}
 
 
 ghost function poly_aux_1(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
-  ensures 2*S.Size() + U.Size() + 5*constant + U.Size()*poly_outer_loop(U, S, k) <= o
+  ensures 2*S.Size() + U.Size() + 5 + U.Size()*poly_outer_loop(U, S, k) <= o
 {
   /*calc == {
-    2*S.Size() + U.Size() + 5*constant + U.Size()*poly_outer_loop(U, S, k);
-    2*S.Size() + U.Size() + 5*constant + U.Size()*(U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*S.Cardinality() + S.Size()*U.Cardinality() + 4*U.Size()*S.Cardinality() + S.Size() + U.Size() + 2*S.Cardinality() + 4*constant);
-    2*S.Size() + U.Size() + 5*constant + (U.Size()*U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size()*U.Cardinality() + 4*U.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size() + U.Size()*U.Size() + 2*U.Size()*S.Cardinality() + 4*U.Size()*constant);
-    U.Size()*U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size()*U.Cardinality() + 4*U.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size() + U.Size()*U.Size() + 2*U.Size()*S.Cardinality() + 2*S.Size() + 5*U.Size() + 5*constant;
+    2*S.Size() + U.Size() + 5 + U.Size()*poly_outer_loop(U, S, k);
+    2*S.Size() + U.Size() + 5 + U.Size()*(U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*S.Cardinality() + S.Size()*U.Cardinality() + 4*U.Size()*S.Cardinality() + S.Size() + U.Size() + 2*S.Cardinality() + 4);
+    2*S.Size() + U.Size() + 5 + (U.Size()*U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size()*U.Cardinality() + 4*U.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size() + U.Size()*U.Size() + 2*U.Size()*S.Cardinality() + 4*U.Size());
+    U.Size()*U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size()*U.Cardinality() + 4*U.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size() + U.Size()*U.Size() + 2*U.Size()*S.Cardinality() + 2*S.Size() + 5*U.Size() + 5;
   }*/
-  U.Size()*U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size()*U.Cardinality() + 4*U.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size() + U.Size()*U.Size() + 2*U.Size()*S.Cardinality() + 2*S.Size() + 5*U.Size() + 5*constant
+  U.Size()*U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size()*U.Cardinality() + 4*U.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size() + U.Size()*U.Size() + 2*U.Size()*S.Cardinality() + 2*S.Size() + 5*U.Size() + 5
 }
 ghost function poly_inner_loop(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
 {
-  U.Size() + 2*constant
+  U.Size() + 2
 }
 ghost function poly_middle_loop(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
-  ensures 3*S.Size() + 2*U.Size() + 2*constant + U.Size()*poly_inner_loop(U, S, k) <= o
+  ensures 3*S.Size() + 2*U.Size() + 2 + U.Size()*poly_inner_loop(U, S, k) <= o
 {
   /*calc <= {
-    3*S.Size() + 2*U.Size() + 2*constant + U.Size()*poly_inner_loop(U, S, k);
-    3*S.Size() + 2*U.Size() + 2*constant + U.Size()*(U.Size() + 2*constant);
-    3*S.Size() + 2*U.Size() + 2*constant + U.Size()*U.Size() + 2*U.Size();
-    U.Size()*U.Size() + 3*S.Size() + 4*U.Size() + constant;
+    3*S.Size() + 2*U.Size() + 2 + U.Size()*poly_inner_loop(U, S, k);
+    3*S.Size() + 2*U.Size() + 2 + U.Size()*(U.Size() + 2);
+    3*S.Size() + 2*U.Size() + 2 + U.Size()*U.Size() + 2*U.Size();
+    U.Size()*U.Size() + 3*S.Size() + 4*U.Size() + 1;
   }*/
-  U.Size()*U.Size() + 3*S.Size() + 4*U.Size() + 2*constant
+  U.Size()*U.Size() + 3*S.Size() + 4*U.Size() + 2
 }
 ghost function poly_outer_loop(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
-  ensures S.Size() + U.Size() + 4*constant + S.Cardinality()*(poly_middle_loop(U, S, k)) + S.Size()*U.Cardinality() <= o
+  ensures S.Size() + U.Size() + 4 + S.Cardinality()*(poly_middle_loop(U, S, k)) + S.Size()*U.Cardinality() <= o
 {
   /*calc <= {
-    S.Size() + U.Size() + 4*constant + S.Cardinality()*(poly_middle_loop(U, S, k)) + S.Size()*U.Cardinality();
-    S.Size()*U.Cardinality() + S.Size() + U.Size() + 4*constant + S.Cardinality()*(poly_middle_loop(U, S, k));
-    S.Size()*U.Cardinality() + S.Size() + U.Size() + 4*constant + S.Cardinality()*(U.Size()*U.Size() + 3*S.Size() + 4*U.Size() + 2*constant);
-    S.Size()*U.Cardinality() + S.Size() + U.Size() + 4*constant + (U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*S.Cardinality() + 4*U.Size()*S.Cardinality() + 2*S.Cardinality());
-    U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*S.Cardinality() + S.Size()*U.Cardinality() + 4*U.Size()*S.Cardinality() + S.Size() + U.Size() + 2*S.Cardinality() + 4*constant;
+    S.Size() + U.Size() + 4 + S.Cardinality()*(poly_middle_loop(U, S, k)) + S.Size()*U.Cardinality();
+    S.Size()*U.Cardinality() + S.Size() + U.Size() + 4 + S.Cardinality()*(poly_middle_loop(U, S, k));
+    S.Size()*U.Cardinality() + S.Size() + U.Size() + 4 + S.Cardinality()*(U.Size()*U.Size() + 3*S.Size() + 4*U.Size() + 2);
+    S.Size()*U.Cardinality() + S.Size() + U.Size() + 4 + (U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*S.Cardinality() + 4*U.Size()*S.Cardinality() + 2*S.Cardinality());
+    U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*S.Cardinality() + S.Size()*U.Cardinality() + 4*U.Size()*S.Cardinality() + S.Size() + U.Size() + 2*S.Cardinality() + 4;
   }*/
-  U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*S.Cardinality() + S.Size()*U.Cardinality() + 4*U.Size()*S.Cardinality() + S.Size() + U.Size() + 2*S.Cardinality() + 4*constant
+  U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*S.Cardinality() + S.Size()*U.Cardinality() + 4*U.Size()*S.Cardinality() + S.Size() + U.Size() + 2*S.Cardinality() + 4
 }
 ghost function poly_contains_empty_loop(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
 {
-  S.Size() + U.Size() + constant
+  S.Size() + U.Size() + 1
 }
 ghost function poly_edge_case_loop(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
 {
-  2*S.Size() + 2*U.Size() + 2*constant
+  2*S.Size() + 2*U.Size() + 2
 }
 
 ghost function poly(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
   ensures poly_aux_1(U, S, k) + S.Cardinality()*(poly_edge_case_loop(U, S, k)) <= o           // If S contains empty
-  ensures S.Size() + U.Size() + 3*constant + U.Cardinality()*poly_outer_loop(U, S, k) <= o    // Otherwise
+  ensures S.Size() + U.Size() + 3 + U.Cardinality()*poly_outer_loop(U, S, k) <= o             // Otherwise
 {
-  /*calc == {
+  calc == {
     poly_aux_1(U, S, k) + S.Cardinality()*(poly_edge_case_loop(U, S, k));
-    poly_aux_1(U, S, k) + S.Cardinality()*(2*S.Size() + 2*U.Size() + 2*constant);
+    poly_aux_1(U, S, k) + S.Cardinality()*(2*S.Size() + 2*U.Size() + 2);
     poly_aux_1(U, S, k) + (2*S.Size()*S.Cardinality() + 2*U.Size()*S.Cardinality() + 2*S.Cardinality());
-    U.Size()*U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size()*U.Cardinality() + 4*U.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size() + U.Size()*U.Size() + 2*U.Size()*S.Cardinality() + 2*S.Size() + 5*U.Size() + 5*constant +
+    U.Size()*U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size()*U.Cardinality() + 4*U.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size() + U.Size()*U.Size() + 2*U.Size()*S.Cardinality() + 2*S.Size() + 5*U.Size() + 5 +
       (2*S.Size()*S.Cardinality() + 2*U.Size()*S.Cardinality() + 2*S.Cardinality());
-    U.Size()*U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size()*U.Cardinality() + 4*U.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size() + U.Size()*U.Size() + 2*S.Size()*S.Cardinality() + 4*U.Size()*S.Cardinality() + 2*S.Size() + 5*U.Size() + 2*S.Cardinality() + 5*constant;
-  }*/
-  U.Size()*U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size()*U.Cardinality() + 4*U.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size() + U.Size()*U.Size() + 2*S.Size()*S.Cardinality() + 4*U.Size()*S.Cardinality() + 2*S.Size() + 5*U.Size() + 2*S.Cardinality() + 5*constant
+    U.Size()*U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size()*U.Cardinality() + 4*U.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size() + U.Size()*U.Size() + 2*S.Size()*S.Cardinality() + 4*U.Size()*S.Cardinality() + 2*S.Size() + 5*U.Size() + 2*S.Cardinality() + 5;
+  }
+  U.Size()*U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size()*U.Cardinality() + 4*U.Size()*U.Size()*S.Cardinality() + S.Size()*U.Size() + U.Size()*U.Size() + 2*S.Size()*S.Cardinality() + 4*U.Size()*S.Cardinality() + 2*S.Size() + 5*U.Size() + 2*S.Cardinality() + 5
 }

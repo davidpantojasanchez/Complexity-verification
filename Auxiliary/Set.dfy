@@ -1,10 +1,5 @@
 include "../Auxiliary/Lemmas.dfy"
 
-
-// Upper bound of the size of the basic type T
-const constant:nat := 1
-
-
 /*
 Basic set (its elements have constant size)
 It encapsulates the Dafny set
@@ -38,7 +33,7 @@ type Set< T(==) > {
   // Size of the set
   // Cardinality multiplied by the maximum size of the elements of the set, which in simple sets is constant
   ghost function Size():nat
-  { Cardinality()*constant }
+  { Cardinality() }
 
   // Cardinality of the set (of the set's model, not universe)
   ghost function Cardinality():(c:nat)
@@ -52,19 +47,19 @@ type Set< T(==) > {
     requires Model() != {}
     ensures e in Model()
     ensures e in Universe()
-    ensures counter_out == counter_in + constant
+    ensures counter_out == counter_in + 1
   
   // Checks if the set is empty
   method {:axiom} Empty(ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
     requires Valid()
     ensures b == (Model() == {})
-    ensures counter_out == counter_in + constant
+    ensures counter_out == counter_in + 1
   
   // Returns the number of elements of the set
   method {:axiom} nElements(ghost counter_in:nat) returns (size:int, ghost counter_out:nat)
     requires Valid()
     ensures size == Cardinality()
-    ensures counter_out == counter_in + constant
+    ensures counter_out == counter_in + 1
   
   // Checks in the set contains a given element
   method {:axiom} Contains(e:T, ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
@@ -122,8 +117,8 @@ type SetSet< T(==) > {
 
   // Upper limit of the size of the elements of the set (which are basic sets)
   ghost function {:axiom} maximumSizeElements():nat
-    ensures forall s | s in Universe() :: maximumSizeElements() >= |s|*constant
-    ensures exists s :: s in Universe() && maximumSizeElements() == |s|*constant
+    ensures forall s | s in Universe() :: maximumSizeElements() >= |s|
+    ensures exists s :: s in Universe() && maximumSizeElements() == |s|
 
   ghost function Size():nat
   { Cardinality()*maximumSizeElements() }
@@ -144,12 +139,12 @@ type SetSet< T(==) > {
   method {:axiom} Empty(ghost counter_in:nat) returns (b: bool, ghost counter_out:nat)
     requires Valid()
     ensures b == (Model() == {})
-    ensures counter_out == counter_in + constant
+    ensures counter_out == counter_in + 1
   
   method {:axiom} nElements(ghost counter_in:nat) returns (size: int, ghost counter_out:nat)
     requires Valid()
     ensures size == Cardinality()
-    ensures counter_out == counter_in + constant
+    ensures counter_out == counter_in + 1
   
   method {:axiom} Contains(e:Set<T>, ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
     requires Valid()
@@ -165,7 +160,7 @@ type SetSet< T(==) > {
     ensures R.Model() == Model() + {e.Model()}
     ensures if e.Model() in Model()
             then R.Cardinality() == Cardinality()
-            else R.Cardinality() == Cardinality() + constant
+            else R.Cardinality() == Cardinality() + 1
     ensures if e.Size() <= maximumSizeElements()
             then R.maximumSizeElements() == maximumSizeElements()
             else R.maximumSizeElements() == e.Size()
@@ -213,8 +208,8 @@ type SetSetSet< T(==) > {
 
   // Upper bound of the size of the elements of the elements of the set (which are basic sets)
   ghost function {:axiom} maximumSizeElements'():nat
-    ensures forall s | s in Universe() :: (forall s' | s' in s :: maximumSizeElements'() >= |s'|*constant)
-    ensures exists s | s in Universe() :: (exists s' | s' in s :: maximumSizeElements'() == |s'|*constant)
+    ensures forall s | s in Universe() :: (forall s' | s' in s :: maximumSizeElements'() >= |s'|)
+    ensures exists s | s in Universe() :: (exists s' | s' in s :: maximumSizeElements'() == |s'|)
 
 
   ghost function Size():nat
@@ -237,12 +232,12 @@ type SetSetSet< T(==) > {
   method {:axiom} Empty(ghost counter_in:nat) returns (b: bool, ghost counter_out:nat)
     requires Valid()
     ensures b == (Model() == {})
-    ensures counter_out == counter_in + constant
+    ensures counter_out == counter_in + 1
   
   method {:axiom} nElements(ghost counter_in:nat) returns (size: int, ghost counter_out:nat)
     requires Valid()
     ensures  size == Cardinality()
-    ensures counter_out == counter_in + constant
+    ensures counter_out == counter_in + 1
   
   method {:axiom} Contains(e:SetSet<T>, ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
     requires Valid()
@@ -257,10 +252,10 @@ type SetSetSet< T(==) > {
     ensures  R.Model() == Model() + {e.Model()}
     ensures if e.Model() in Model()
             then R.Cardinality() == Cardinality()
-            else R.Cardinality() == Cardinality() + constant
+            else R.Cardinality() == Cardinality() + 1
     ensures if e.Model() in Universe()
             then |R.Universe()| == |Universe()|
-            else |R.Universe()| == |Universe()| + constant
+            else |R.Universe()| == |Universe()| + 1
     ensures if e.Size() <= maximumSizeElements()
             then R.maximumSizeElements() == maximumSizeElements()
             else R.maximumSizeElements() == e.Size()
