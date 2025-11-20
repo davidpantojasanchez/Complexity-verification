@@ -3,7 +3,7 @@ include "../Problems/HittingSet.dfy"
 include "../Problems/SetCover.dfy"
 
 
-function HittingSet_to_SetCover(U: set<int>, S: set<set<int>>, k: nat) : (r:(set<set<int>>, set<set<set<int>>>, int))
+ghost function HittingSet_to_SetCover(U: set<int>, S: set<set<int>>, k: nat) : (r:(set<set<int>>, set<set<set<int>>>, int))
   requires forall s | s in S ::  s <= U // los sets son subsets del universo
   ensures forall s | s in r.1 :: s <= r.0 // los sets son subsets del universo
   ensures isCover(r.0, r.1) // existe un subconjunto de sets tal que su union es igual al universo
@@ -114,14 +114,14 @@ lemma HittingSet_SetCover1(U:set<int>, S: set<set<int>>, k:nat)
  }
 }
 }
-function setsElem(U:set<int>, S: set<set<int>>, e:int): (r:set<set<int>>)
+ghost function setsElem(U:set<int>, S: set<set<int>>, e:int): (r:set<set<int>>)
 requires forall s | s in S :: s <= U 
 { set s | s in S && e in s}
 
 //lemma extensionality(s1:set<set<int>>, s2:set<set<int>>)
 //ensures s1 == s2 <==> forall xs | xs in s1 :: xs in s2 && forall xs | xs in s2 :: xs in s1
 
-function minSetsElem(U:set<int>, S: set<set<int>>, e:int): (m:int)
+ghost function minSetsElem(U:set<int>, S: set<set<int>>, e:int): (m:int)
 requires forall s | s in S :: s <= U 
 requires e in U && setsElem(U,S,e) != {}
 { 
@@ -132,7 +132,7 @@ requires e in U && setsElem(U,S,e) != {}
   min(allEs)  
 }
 
-function minCSElem(U:set<int>, S:set<set<int>>,k:nat,CS: set<set<set<int>>>, xs:set<int>): (m:int)
+ghost function minCSElem(U:set<int>, S:set<set<int>>,k:nat,CS: set<set<set<int>>>, xs:set<int>): (m:int)
 requires forall s | s in S :: s <= U 
 requires xs in S 
 requires exists e :: e in U && xs in setsElem(U,S,e) && setsElem(U,S,e) in CS

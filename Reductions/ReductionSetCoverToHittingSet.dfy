@@ -3,7 +3,7 @@ include "../Problems/HittingSet.dfy"
 include "../Problems/SetCover.dfy"
 
 
-function SetCover_to_HittingSet<T>(U: set<T>, S: set<set<T>>, k: nat) : (r:(set<set<T>>, set<set<set<T>>>, int))
+ghost function SetCover_to_HittingSet<T>(U: set<T>, S: set<set<T>>, k: nat) : (r:(set<set<T>>, set<set<set<T>>>, int))
   requires forall s | s in S :: s <= U // los sets son subsets del universo
   requires isCover(U, S) // existe un subconjunto de sets tal que su union es igual al universo
   ensures forall s | s in r.1 :: s <= r.0 // los sets son subsets del universo

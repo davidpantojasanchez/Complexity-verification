@@ -17,6 +17,7 @@ method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns 
   var U':Set<int>; U', counter := U.Copy(counter);
   var U'_empty:bool; U'_empty, counter := U'.Empty(counter);
   assert counter == U.Size() + 2*constant;
+  
   while (!U'_empty)
     // Termination
     decreases U'.Cardinality()
