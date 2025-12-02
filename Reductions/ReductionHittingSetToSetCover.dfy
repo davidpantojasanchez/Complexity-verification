@@ -73,7 +73,7 @@ ensures |CS| <= |C|
 // C={1,2,3,4} con esta definicion pero debería ser {1,3} por ejemplo
 //Uno del mismo tamaño que CS
 
-function min(s:set<int>) : (x:int)
+ghost function min(s:set<int>) : (x:int)
 requires s != {}
 ensures x in s && (forall y | y in s :: x <= y)
 
