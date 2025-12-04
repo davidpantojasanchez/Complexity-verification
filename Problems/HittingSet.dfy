@@ -9,4 +9,3 @@ ghost predicate hitsSets<T>(sets:set<set<T>>, s:set<T>)
 {
   forall s1 | s1 in sets :: s * s1 != {}
 }
-
