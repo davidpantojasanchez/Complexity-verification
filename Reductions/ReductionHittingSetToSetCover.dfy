@@ -33,10 +33,10 @@ lemma tisCover(U: set<int>, S: set<set<int>>)
 }
 
 lemma {:induction C} cardinal_of_sets1(U: set<int>, S:set<set<int>>, C:set<int>,CS:set<set<set<int>>>)
-requires C <= U 
-requires CS == (set x | x in C :: (set ys | ys in S && x in ys))
-ensures |CS| <= |C|
-//EJEMPLO: C={1,2}, S={{1,2}} CS ={ {{1,2}} } 
+  requires C <= U 
+  requires CS == (set x | x in C :: (set ys | ys in S && x in ys))
+  ensures |CS| <= |C|
+  //EJEMPLO: C={1,2}, S={{1,2}} CS ={ {{1,2}} } 
 {
   if C=={} { assert |CS|==|C|==0; }
     else{ 
@@ -74,18 +74,19 @@ ensures |CS| <= |C|
 //Uno del mismo tamaño que CS
 
 ghost function min(s:set<int>) : (x:int)
-requires s != {}
-ensures x in s && (forall y | y in s :: x <= y)
+  requires s != {}
+  ensures x in s && (forall y | y in s :: x <= y)
 
 
 lemma HittingSet_SetCover(U:set<int>, S: set<set<int>>, k:nat)
   requires forall s | s in S :: s <= U // los sets son subsets del universo
   ensures var (SU,SS,Sk) := HittingSet_to_SetCover(U,S,k);
           HittingSet(U,S,k) <==> SetCover(SU,SS,Sk)
-  { var (SU,SS,Sk) := HittingSet_to_SetCover(U,S,k);
-    HittingSet_SetCover1(U,S,k);
-    HittingSet_SetCover2(U,S,k);
-  }
+{
+  var (SU,SS,Sk) := HittingSet_to_SetCover(U,S,k);
+  HittingSet_SetCover1(U,S,k);
+  HittingSet_SetCover2(U,S,k);
+}
 
 lemma HittingSet_SetCover1(U:set<int>, S: set<set<int>>, k:nat)
   requires forall s | s in S :: s <= U // los sets son subsets del universo
@@ -115,15 +116,15 @@ lemma HittingSet_SetCover1(U:set<int>, S: set<set<int>>, k:nat)
 }
 }
 ghost function setsElem(U:set<int>, S: set<set<int>>, e:int): (r:set<set<int>>)
-requires forall s | s in S :: s <= U 
+  requires forall s | s in S :: s <= U 
 { set s | s in S && e in s}
 
 //lemma extensionality(s1:set<set<int>>, s2:set<set<int>>)
 //ensures s1 == s2 <==> forall xs | xs in s1 :: xs in s2 && forall xs | xs in s2 :: xs in s1
 
 ghost function minSetsElem(U:set<int>, S: set<set<int>>, e:int): (m:int)
-requires forall s | s in S :: s <= U 
-requires e in U && setsElem(U,S,e) != {}
+  requires forall s | s in S :: s <= U 
+  requires e in U && setsElem(U,S,e) != {}
 { 
   assert e in U && setsElem(U,S,e) == setsElem(U,S,e);
   var allEs:set<int> := set e' | e' in U && setsElem(U,S,e') == setsElem(U,S,e);
@@ -133,11 +134,11 @@ requires e in U && setsElem(U,S,e) != {}
 }
 
 ghost function minCSElem(U:set<int>, S:set<set<int>>,k:nat,CS: set<set<set<int>>>, xs:set<int>): (m:int)
-requires forall s | s in S :: s <= U 
-requires xs in S 
-requires exists e :: e in U && xs in setsElem(U,S,e) && setsElem(U,S,e) in CS
-requires var (US,SS,kS) := HittingSet_to_SetCover(U,S,k);
-         CS <= SS && isCover(US, CS) && {} !in CS && |CS| <= kS
+  requires forall s | s in S :: s <= U 
+  requires xs in S 
+  requires exists e :: e in U && xs in setsElem(U,S,e) && setsElem(U,S,e) in CS
+  requires var (US,SS,kS) := HittingSet_to_SetCover(U,S,k);
+           CS <= SS && isCover(US, CS) && {} !in CS && |CS| <= kS
 { 
   var allEs:set<int> := set e' | e' in U && xs in setsElem(U,S,e') && setsElem(U,S,e') in CS;
   assert exists e :: e in U && xs in setsElem(U,S,e) && setsElem(U,S,e) in CS;
@@ -148,18 +149,19 @@ requires var (US,SS,kS) := HittingSet_to_SetCover(U,S,k);
 
 
 lemma {:induction C,CS} cardinal_of_sets2(U: set<int>, S:set<set<int>>, k:nat, C:set<int>,CS:set<set<set<int>>>)
-requires forall s | s in S :: s <= U 
-requires C <= U 
-requires CS <= (set u | u in U :: (set s | s in S && u in s)) && {} !in CS
-requires C == set e | e in U  && (set s | s in S && e in s) in CS :: minSetsElem(U,S,e)
-ensures |C| == |CS|
-{ if CS== {} {}
+  requires forall s | s in S :: s <= U 
+  requires C <= U 
+  requires CS <= (set u | u in U :: (set s | s in S && u in s)) && {} !in CS
+  requires C == set e | e in U  && (set s | s in S && e in s) in CS :: minSetsElem(U,S,e)
+  ensures |C| == |CS|
+{
+  if CS== {} {}
   else {
     var cs:| cs in CS;
     var ecs :| ecs in U && (set s | s in S && ecs in s) == cs && ecs in C ;
     assert C - {ecs} == set e | e in U  && (set s | s in S && e in s) in CS-{cs} :: minSetsElem(U,S,e);
     cardinal_of_sets2(U,S,k,C-{ecs},CS-{cs});
-    }
+  }
 }
 
 
@@ -173,7 +175,6 @@ lemma HittingSet_SetCover2(U:set<int>, S: set<set<int>>, k:nat)
   if (SetCover(US,SS,kS)) {
     var CS':set<set<set<int>>> :| CS' <= SS && isCover(US, CS') && |CS'| <= kS; // { {{1,2,3},{2,4}}, {{2,4},{3,4},{4,5}} }
     
-
     if ({} in S) { 
       //Hay que demostrar que SetCover devuelve falso
       // para (S, (set s | s in S :: {s}), 0)

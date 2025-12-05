@@ -4,16 +4,16 @@ include "../Auxiliary/Lemmas.dfy"
 
 
 method verifySetCover(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>) returns (b:bool, ghost counter:nat)   
-requires forall s | s in S.Model() :: s <= U.Model()
+  requires forall s | s in S.Model() :: s <= U.Model()
 
-requires init_Set(U)
-requires init_SetSet(S)
-requires init_SetSet(I)
-requires S.maximumSizeElements() <= U.Cardinality()
-requires I.maximumSizeElements() <= U.Cardinality()
+  requires init_Set(U)
+  requires init_SetSet(S)
+  requires init_SetSet(I)
+  requires S.maximumSizeElements() <= U.Cardinality()
+  requires I.maximumSizeElements() <= U.Cardinality()
 
-ensures b == (I.Model() <= S.Model() && isCover(U.Model(), I.Model()) && I.Cardinality() <= k)
-ensures counter <= poly(U, S, k, I)
+  ensures b == (I.Model() <= S.Model() && isCover(U.Model(), I.Model()) && I.Cardinality() <= k)
+  ensures counter <= poly(U, S, k, I)
 {
   counter := 0;
 
@@ -54,10 +54,10 @@ ensures counter <= poly(U, S, k, I)
 
 
 method isSubset(S1:SetSet<int>, S2:SetSet<int>, ghost counter_in:nat) returns (b:bool, ghost counter:nat)
-requires S1.Valid()
-requires S2.Valid()
-ensures b == (S1.Model() <= S2.Model())
-ensures counter <= counter_in + poly_isSubset(S1, S2)
+  requires S1.Valid()
+  requires S2.Valid()
+  ensures b == (S1.Model() <= S2.Model())
+  ensures counter <= counter_in + poly_isSubset(S1, S2)
 {
   counter := counter_in;
   b := true;
@@ -84,23 +84,23 @@ ensures counter <= counter_in + poly_isSubset(S1, S2)
 
 
 method isSubset_loop(S1:SetSet<int>, S2:SetSet<int>, S1':SetSet<int>, ghost counter_in:nat, b:bool) returns (S1'':SetSet<int>, S1'_empty:bool, b':bool, ghost counter:nat)
-// Termination in
-requires S1'.Model() != {}
-// Types in
-requires in_universe_SetSet(S1', S1)
-requires S2.Valid()
-// Invariant in
-requires b == ((S1.Model() - S1'.Model()) <= S2.Model())
-// Termination out
-ensures S1''.Cardinality() == S1'.Cardinality() - 1
-ensures S1'_empty == (S1''.Model() == {})
-// Types out
-ensures S1''.Valid()
-ensures in_universe_SetSet(S1'', S1)
-// Invariant out
-ensures b' == ((S1.Model() - S1''.Model()) <= S2.Model())
-// Counter
-ensures counter <= counter_in + poly_isSubset_loop(S1, S2)
+  // Termination in
+  requires S1'.Model() != {}
+  // Types in
+  requires in_universe_SetSet(S1', S1)
+  requires S2.Valid()
+  // Invariant in
+  requires b == ((S1.Model() - S1'.Model()) <= S2.Model())
+  // Termination out
+  ensures S1''.Cardinality() == S1'.Cardinality() - 1
+  ensures S1'_empty == (S1''.Model() == {})
+  // Types out
+  ensures S1''.Valid()
+  ensures in_universe_SetSet(S1'', S1)
+  // Invariant out
+  ensures b' == ((S1.Model() - S1''.Model()) <= S2.Model())
+  // Counter
+  ensures counter <= counter_in + poly_isSubset_loop(S1, S2)
 {
   in_universe_lemma_SetSet(S1', S1);
 
@@ -119,27 +119,27 @@ ensures counter <= counter_in + poly_isSubset_loop(S1, S2)
 
 
 method verifySetCover_outer_loop(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>, U':Set<int>, ghost counter_in:nat) returns (b1:bool, U'':Set<int>, U''_empty:bool, ghost counter:nat)
-// Termination in
-requires U'.Model() != {}
-// Types in
-requires U.Valid()
-requires U'.Valid()
-requires S.Valid()
-requires I.Valid()
-requires in_universe_Set(U', U)
-requires in_universe_SetSet(I, S)
-// Invariant in
-requires isCover(U.Model() - U'.Model(), I.Model())
-// Termination out
-ensures U''.Cardinality() == U'.Cardinality() - 1
-ensures U''_empty == (U''.Model() == {})
-// Types out
-ensures U''.Valid()
-ensures in_universe_Set(U'', U)
-// Invariant out
-ensures b1 == isCover(U.Model() - U''.Model(), I.Model())
-// Counter
-ensures counter <= counter_in + poly_outer_loop(U, S, k)
+  // Termination in
+  requires U'.Model() != {}
+  // Types in
+  requires U.Valid()
+  requires U'.Valid()
+  requires S.Valid()
+  requires I.Valid()
+  requires in_universe_Set(U', U)
+  requires in_universe_SetSet(I, S)
+  // Invariant in
+  requires isCover(U.Model() - U'.Model(), I.Model())
+  // Termination out
+  ensures U''.Cardinality() == U'.Cardinality() - 1
+  ensures U''_empty == (U''.Model() == {})
+  // Types out
+  ensures U''.Valid()
+  ensures in_universe_Set(U'', U)
+  // Invariant out
+  ensures b1 == isCover(U.Model() - U''.Model(), I.Model())
+  // Counter
+  ensures counter <= counter_in + poly_outer_loop(U, S, k)
 {
   in_universe_lemma_Set(U', U);
   in_universe_lemma_SetSet(I, S);
@@ -187,24 +187,24 @@ ensures counter <= counter_in + poly_outer_loop(U, S, k)
 
 
 method verifySetCover_inner_loop(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>, I':SetSet<int>, u:int, ghost counter_in:nat) returns (b2:bool, I'':SetSet<int>, I''_empty:bool, ghost counter:nat)
-// Termination in
-requires I'.Model() != {}
-// Types in
-requires U.Valid()
-requires in_universe_SetSet(I, S)
-requires in_universe_SetSet(I', I)
-// Invariant in
-requires !(exists i' | i' in I.Model() - I'.Model() :: u in i')
-// Termination out
-ensures I''.Cardinality() == I'.Cardinality() - 1
-ensures I''_empty == (I''.Model() == {})
-// Types out
-ensures I''.Valid()
-ensures in_universe_SetSet(I'', I)
-// Invariant out
-ensures b2 == (exists i' | i' in I.Model() - I''.Model() :: u in i')
-// Counter
-ensures counter <= counter_in + poly_inner_loop(U, S, k)
+  // Termination in
+  requires I'.Model() != {}
+  // Types in
+  requires U.Valid()
+  requires in_universe_SetSet(I, S)
+  requires in_universe_SetSet(I', I)
+  // Invariant in
+  requires !(exists i' | i' in I.Model() - I'.Model() :: u in i')
+  // Termination out
+  ensures I''.Cardinality() == I'.Cardinality() - 1
+  ensures I''_empty == (I''.Model() == {})
+  // Types out
+  ensures I''.Valid()
+  ensures in_universe_SetSet(I'', I)
+  // Invariant out
+  ensures b2 == (exists i' | i' in I.Model() - I''.Model() :: u in i')
+  // Counter
+  ensures counter <= counter_in + poly_inner_loop(U, S, k)
 {
   in_universe_lemma_SetSet(I', I);
   in_universe_lemma_SetSet(I, S);
@@ -219,11 +219,11 @@ ensures counter <= counter_in + poly_inner_loop(U, S, k)
 
 
 lemma counter_simplification(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>, U':Set<int>)
-requires in_universe_Set(U', U)
-requires U.Valid()
-requires S.Valid()
-requires I.Valid()
-ensures poly_isSubset(I, S) + U.Size() + 2 + (U.Cardinality() - U'.Cardinality())*poly_outer_loop(U, S, k) <= poly(U, S, k, I)
+  requires in_universe_Set(U', U)
+  requires U.Valid()
+  requires S.Valid()
+  requires I.Valid()
+  ensures poly_isSubset(I, S) + U.Size() + 2 + (U.Cardinality() - U'.Cardinality())*poly_outer_loop(U, S, k) <= poly(U, S, k, I)
 {
   counter_simplification_aux_1(U, S, k, I, U');
   assert  poly_isSubset(I, S) + U.Size() + 2 + (U.Cardinality() - U'.Cardinality())*poly_outer_loop(U, S, k)
@@ -237,14 +237,14 @@ ensures poly_isSubset(I, S) + U.Size() + 2 + (U.Cardinality() - U'.Cardinality()
           poly(U, S, k, I);
 }
 lemma counter_simplification_aux_1(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>, U':Set<int>)
-requires in_universe_Set(U', U)
-requires U.Valid()
-requires S.Valid()
-requires I.Valid()
-ensures poly_isSubset(I, S) + U.Size() + 2 + (U.Cardinality() - U'.Cardinality())*poly_outer_loop(U, S, k)
-        <=
-        I.Size()*I.Cardinality() + I.Size() + I.Cardinality()*S.Size() + I.Cardinality()*I.maximumSizeElements() + I.Cardinality() + U.Cardinality()*S.Cardinality()*S.Size() +
-        2*U.Cardinality()*S.Cardinality()*S.maximumSizeElements() + U.Cardinality()*U.Size() + U.Cardinality()*S.Size() + 2*U.Cardinality()*S.Cardinality() + U.Size() + 3*U.Cardinality() + 3
+  requires in_universe_Set(U', U)
+  requires U.Valid()
+  requires S.Valid()
+  requires I.Valid()
+  ensures poly_isSubset(I, S) + U.Size() + 2 + (U.Cardinality() - U'.Cardinality())*poly_outer_loop(U, S, k)
+          <=
+          I.Size()*I.Cardinality() + I.Size() + I.Cardinality()*S.Size() + I.Cardinality()*I.maximumSizeElements() + I.Cardinality() + U.Cardinality()*S.Cardinality()*S.Size() +
+          2*U.Cardinality()*S.Cardinality()*S.maximumSizeElements() + U.Cardinality()*U.Size() + U.Cardinality()*S.Size() + 2*U.Cardinality()*S.Cardinality() + U.Size() + 3*U.Cardinality() + 3
 {
   if_smaller_then_less_cardinality(U'.Model(), U.Model());
   mult_preserves_order((U.Cardinality() - U'.Cardinality()), poly_outer_loop(U, S, k), U.Cardinality(), poly_outer_loop(U, S, k));
@@ -268,13 +268,13 @@ ensures poly_isSubset(I, S) + U.Size() + 2 + (U.Cardinality() - U'.Cardinality()
   }
 }
 lemma counter_simplification_aux_2(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>)
-requires U.Valid()
-requires S.Valid()
-requires I.Valid()
-ensures I.Size()*I.Cardinality() + I.Size() + I.Cardinality()*S.Size() + I.Cardinality()*I.maximumSizeElements() + I.Cardinality() + U.Cardinality()*S.Cardinality()*S.Size() +
-    2*U.Cardinality()*S.Cardinality()*S.maximumSizeElements() + U.Cardinality()*U.Size() + U.Cardinality()*S.Size() + 2*U.Cardinality()*S.Cardinality() + U.Size() + 3*U.Cardinality() + 3
-    <=
-    poly(U, S, k, I)
+  requires U.Valid()
+  requires S.Valid()
+  requires I.Valid()
+  ensures I.Size()*I.Cardinality() + I.Size() + I.Cardinality()*S.Size() + I.Cardinality()*I.maximumSizeElements() + I.Cardinality() + U.Cardinality()*S.Cardinality()*S.Size() +
+          2*U.Cardinality()*S.Cardinality()*S.maximumSizeElements() + U.Cardinality()*U.Size() + U.Cardinality()*S.Size() + 2*U.Cardinality()*S.Cardinality() + U.Size() + 3*U.Cardinality() + 3
+          <=
+          poly(U, S, k, I)
 {
   mult_preserves_order(I.Cardinality(), I.maximumSizeElements(), |I.Universe()|, I.maximumSizeElements());
   mult_preserves_order(S.Cardinality(), S.maximumSizeElements(), |S.Universe()|, S.maximumSizeElements());
@@ -314,10 +314,10 @@ ghost function poly_isSubset(S1:SetSet<int>, S2:SetSet<int>) : (o:nat)
 }
 
 ghost function poly(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>) : (o:nat)
-requires U.Valid()
-requires S.Valid()
-requires I.Valid()
-ensures poly_isSubset(I, S) + 1 <= o
+  requires U.Valid()
+  requires S.Valid()
+  requires I.Valid()
+  ensures poly_isSubset(I, S) + 1 <= o
 {
   calc <= {
     poly_isSubset(I, S) + 1;

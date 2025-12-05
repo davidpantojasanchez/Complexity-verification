@@ -2,8 +2,8 @@ include "../Problems/SetCover.dfy"
 
 
 method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) returns (b:bool)   
-requires forall s | s in S :: s <= U
-ensures b == (I <= S && isCover(U, I) && |I| <= k)
+  requires forall s | s in S :: s <= U
+  ensures b == (I <= S && isCover(U, I) && |I| <= k)
 {
   var U' := U;
   var b1:= true;
@@ -18,19 +18,19 @@ ensures b == (I <= S && isCover(U, I) && |I| <= k)
   assert b1 ==> U-U' == U;
   b := b1 && I <= S && |I| <= k ;
 }
-
+  
 
 method verifySetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, U':set<int>) returns (b2:bool, U'':set<int>)
-// Termination
-requires U' != {}
-// Invariant in
-requires U' <= U
-requires isCover(U - U', I)
-// Decreases
-ensures |U''| < |U'|
-// Invariant out
-ensures U'' <= U
-ensures b2 == isCover(U - U'', I)
+  // Termination in
+  requires U' != {}
+  // Invariant in
+  requires U' <= U
+  requires isCover(U - U', I)
+  // Termination out
+  ensures |U''| < |U'|
+  // Invariant out
+  ensures U'' <= U
+  ensures b2 == isCover(U - U'', I)
 {
   var u :| u in U'; 
   U'' := U' - {u};  
@@ -48,16 +48,16 @@ ensures b2 == isCover(U - U'', I)
 
 
 method verifySetCover_inner_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, I':set<set<int>>, u:int) returns (b2:bool, I'':set<set<int>>)
-// Termination
-requires I' != {}
-// Invariant in
-requires I' <= I
-requires !(exists i' | i' in I - I' :: u in i')
-// Decreases
-ensures |I''| < |I'|
-// Invariant out
-ensures I'' <= I
-ensures b2 == (exists i' | i' in I - I'' :: u in i')
+  // Termination in
+  requires I' != {}
+  // Invariant in
+  requires I' <= I
+  requires !(exists i' | i' in I - I' :: u in i')
+  // Termination out
+  ensures |I''| < |I'|
+  // Invariant out
+  ensures I'' <= I
+  ensures b2 == (exists i' | i' in I - I'' :: u in i')
 {
   var i :| i in I';
   b2 := u in i;

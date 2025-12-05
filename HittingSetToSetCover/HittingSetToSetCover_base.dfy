@@ -50,16 +50,16 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
 
 
 method HittingSet_to_SetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, U':set<int>, newS:set<set<set<int>>>) returns (U'':set<int>, newS':set<set<set<int>>>)
-// Termination
-requires U' != {}
-// Invariant in
-requires U' <= U
-requires newS == (set u | u in (U - U') :: (set s | s in S && u in s))
-// Decreases
-ensures |U''| == |U'| - 1
-// Invariant out
-ensures U'' <= U
-ensures newS' == (set u | u in (U - U'') :: (set s | s in S && u in s))
+  // Termination in
+  requires U' != {}
+  // Invariant in
+  requires U' <= U
+  requires newS == (set u | u in (U - U') :: (set s | s in S && u in s))
+  // Termination out
+  ensures |U''| == |U'| - 1
+  // Invariant out
+  ensures U'' <= U
+  ensures newS' == (set u | u in (U - U'') :: (set s | s in S && u in s))
 {
   var u :| u in U';
   U'' := U' - {u};
@@ -91,16 +91,16 @@ ensures newS' == (set u | u in (U - U'') :: (set s | s in S && u in s))
 
 
 method HittingSet_to_SetCover_middle_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, u:int, sets_in_S_that_contain_u:set<set<int>>) returns (S'':set<set<int>>, sets_in_S_that_contain_u':set<set<int>>)
-// Termination
-requires S' != {}
-// Invariant in
-requires S' <= S
-requires sets_in_S_that_contain_u == (set s | s in (S - S') && u in s)
-// Decreases
-ensures |S''| == |S'| - 1
-// Invariant out
-ensures S'' <= S
-ensures sets_in_S_that_contain_u' == (set s | s in (S - S'') && u in s)
+  // Termination in
+  requires S' != {}
+  // Invariant in
+  requires S' <= S
+  requires sets_in_S_that_contain_u == (set s | s in (S - S') && u in s)
+  // Termination out
+  ensures |S''| == |S'| - 1
+  // Invariant out
+  ensures S'' <= S
+  ensures sets_in_S_that_contain_u' == (set s | s in (S - S'') && u in s)
 {
   sets_in_S_that_contain_u' := sets_in_S_that_contain_u;
 
@@ -126,16 +126,16 @@ ensures sets_in_S_that_contain_u' == (set s | s in (S - S'') && u in s)
 
 
 method HittingSet_to_SetCover_inner_loop(U:set<int>, S:set<set<int>>, k:nat, s:set<int>, s':set<int>, u:int, s_contains_u:bool) returns (s'':set<int>, s_contains_u':bool)
-// Termination
-requires s' != {}
-// Invariant in
-requires s' <= s
-requires s_contains_u == (u in (s - s'))
-// Decreases
-ensures |s''| == |s'| - 1
-// Invariant out
-ensures s'' <= s
-ensures s_contains_u' == (u in (s - s''))
+  // Termination in
+  requires s' != {}
+  // Invariant in
+  requires s' <= s
+  requires s_contains_u == (u in (s - s'))
+  // Termination out
+  ensures |s''| == |s'| - 1
+  // Invariant out
+  ensures s'' <= s
+  ensures s_contains_u' == (u in (s - s''))
 {
   s_contains_u' := s_contains_u;
 
@@ -149,16 +149,16 @@ ensures s_contains_u' == (u in (s - s''))
 
 
 method HittingSet_to_SetCover_S_contains_empty_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, S_contains_empty:bool) returns (S'':set<set<int>>, S_contains_empty':bool)
-// Termination
-requires S' != {}
-// Invariant in
-requires S' <= S
-requires S_contains_empty == ({} in (S - S'))
-// Decreases
-ensures |S''| == |S'| - 1
-// Invariant out
-ensures S'' <= S
-ensures S_contains_empty'== ({} in (S - S''))
+  // Termination in
+  requires S' != {}
+  // Invariant in
+  requires S' <= S
+  requires S_contains_empty == ({} in (S - S'))
+  // Termination out
+  ensures |S''| == |S'| - 1
+  // Invariant out
+  ensures S'' <= S
+  ensures S_contains_empty'== ({} in (S - S''))
 {
   S_contains_empty' := S_contains_empty;
 
@@ -171,16 +171,16 @@ ensures S_contains_empty'== ({} in (S - S''))
 
 
 method HittingSet_to_SetCover_edge_case_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, newS:set<set<set<int>>>) returns (S'':set<set<int>>, newS':set<set<set<int>>>)
-// Termination
-requires S' != {}
-// Invariant in
-requires S' <= S
-requires newS == (set s | s in (S - S') :: {s})
-// Decreases
-ensures |S''| == |S'| - 1
-// Invariant out
-ensures S'' <= S
-ensures newS' == (set s | s in (S - S'') :: {s})
+  // Termination in
+  requires S' != {}
+  // Invariant in
+  requires S' <= S
+  requires newS == (set s | s in (S - S') :: {s})
+  // Termination out
+  ensures |S''| == |S'| - 1
+  // Invariant out
+  ensures S'' <= S
+  ensures newS' == (set s | s in (S - S'') :: {s})
 {
   var s :| s in S';
   S'' := S' - {s};

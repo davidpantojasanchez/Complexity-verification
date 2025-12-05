@@ -10,3 +10,4 @@ ghost predicate isCover<T>(universe:set<T>, sets:set<set<T>>)
 {
   forall e | e in universe :: (exists s | s in sets :: e in s)
 }
+  
