@@ -323,6 +323,6 @@ ghost function poly(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
 }
 
 lemma aux_lemma_1(U: set<int>, S: set<set<int>>, k: nat, s: set<int>, s': set<int>)
-requires 0 <= |s'| <= |s| <= |U|
-ensures (|s| - |s'|)*(|U| + 3) <= (|U|)*(|U| + 3)
+  requires 0 <= |s'| <= |s| <= |U|
+  ensures (|s| - |s'|)*(|U| + 3) <= (|U|)*(|U| + 3)
 {}

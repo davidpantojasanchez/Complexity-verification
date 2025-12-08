@@ -95,7 +95,7 @@ method verifySetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<i
   U'' := U' - {u}; counter := counter + |U|;
 
   var I' := I; counter := counter + |S|*|U|;
-   b1:= false;
+  b1:= false;
   while (I' != {} && !b1)
     decreases |I'|
     invariant I' <= I
@@ -159,7 +159,7 @@ ghost function poly_inner_loop(U: set<int>, S: set<set<int>>, k: nat) : (o:nat) 
   |S|*|U| + 2*|U|
 }
 ghost function poly_outer_loop(U: set<int>, S: set<set<int>>, k: nat, I:set<set<int>>) : (o:nat)
-ensures |S|*|U| + |U| + 2 + |I|*(|S|*|U| + 2*|U| + 1) == o
+  ensures |S|*|U| + |U| + 2 + |I|*(|S|*|U| + 2*|U| + 1) == o
 {
   |I|*|S|*|U| + 2*|I|*|U| + |S|*|U| + |I| + |U| + 2
 }
