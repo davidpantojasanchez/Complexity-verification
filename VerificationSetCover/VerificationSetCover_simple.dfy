@@ -15,6 +15,7 @@ method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) retur
   
   counter := counter + 1;
   if (!(I_seq_S && |I| <= k)) {
+    assert counter <= poly_isSubset(U, I, S) + |U| + 1;
     return false, counter;
   }
   while (U' != {} && b)
@@ -27,7 +28,6 @@ method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) retur
     b, U', counter := verifySetCover_outer_loop(U, S, k, I, U', counter);
   }
   counter := counter + 1;
-  counter_simplification(U, S, k, I, U');
   assert b ==> U-U' == U;
 }
 
@@ -94,13 +94,13 @@ method verifySetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<i
   var u :| u in U'; counter := counter + 1;
   U'' := U' - {u}; counter := counter + |U|;
 
-  var I' := I; counter := counter + |S|*|U|;
+  var I' := I; counter := counter + |I|;      // |S|*|U|
   b1:= false;
   while (I' != {} && !b1)
     decreases |I'|
     invariant I' <= I
     invariant b1 == (exists i' | i' in I - I' :: u in i')
-    invariant counter == counter_in + |S|*|U| + |U| + 1 + (|I|-|I'|)*(poly_inner_loop(U, S, k) + 1)
+    invariant counter == counter_in + |I| + |U| + 1 + (|I|-|I'|)*(poly_inner_loop(U, S, k, I) + 1)
   {
     counter := counter + 1;
     b1, I', counter := verifySetCover_inner_loop(U, S, k, I, I', u, counter);
@@ -122,29 +122,12 @@ method verifySetCover_inner_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<i
   ensures I'' <= I
   ensures b2 == (exists i' | i' in I - I'' :: u in i')
   // Counter
-  ensures counter == counter_in + poly_inner_loop(U, S, k)
+  ensures counter == counter_in + poly_inner_loop(U, S, k, I)
 {
   counter := counter_in;
-  var i :| i in I'; counter := counter + |U|;
-  b2 := u in i; counter := counter + |U|;
-  I'' := I' - {i}; counter := counter + |S|*|U|;
-}
-
-lemma counter_simplification(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, U':set<int>)
-  requires forall s | s in S :: s <= U
-  requires |I| <= k
-  requires U' <= U
-  ensures |U| + poly_isSubset(U, I, S) + 2 + (|U| - |U'|)*(poly_outer_loop(U, S, k, I) + 1) <= poly(U, S, k, I)
-{
-  calc <= {
-    |U| + poly_isSubset(U, I, S) + 2 + (|U| - |U'|)*(poly_outer_loop(U, S, k, I) + 1);
-    |U| + poly_isSubset(U, I, S) + 2 + |U|*poly_outer_loop(U, S, k, I) + |U|;
-    |U| + |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |I| + 4 + |U|*poly_outer_loop(U, S, k, I) + |U|;
-    |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |I| + 2*|U| + 4 + |U|*poly_outer_loop(U, S, k, I);
-    |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |I| + 2*|U| + 4 + |U|*(|I|*|S|*|U| + 2*|I|*|U| + |S|*|U| + |I| + |U| + 2);
-    |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |I| + 2*|U| + 4 + |I|*|S|*|U|*|U| + 2*|I|*|U|*|U| + |S|*|U|*|U| + |I|*|U| + |U|*|U| + 2*|U|;
-    |I|*|S|*|U|*|U| + |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U|*|U| + |S|*|U|*|U| + 3*|I|*|U| + |U|*|U| + |I| + 4*|U| + 4;
-  }
+  var i :| i in I'; counter := counter + |I|;     // |U|
+  b2 := u in i; counter := counter + |I|;         // |U|
+  I'' := I' - {i}; counter := counter + |I|;      // |S|*|U|
 }
 
 ghost function poly_isSubset_loop(U: set<int>, S1:set<set<int>>, S2:set<set<int>>) : (o:nat)
@@ -155,15 +138,35 @@ ghost function poly_isSubset(U: set<int>, S1:set<set<int>>, S2:set<set<int>>) : 
 {
   |S1|*|S1|*|U| + |S1|*|S2|*|U| + 2*|S1|*|U| + |S1| + 2
 }
-ghost function poly_inner_loop(U: set<int>, S: set<set<int>>, k: nat) : (o:nat) {
-  |S|*|U| + 2*|U|
+ghost function poly_inner_loop(U: set<int>, S: set<set<int>>, k: nat, I:set<set<int>>) : (o:nat) {
+  //|S|*|U| + 2*|U|
+  3*|I|
 }
 ghost function poly_outer_loop(U: set<int>, S: set<set<int>>, k: nat, I:set<set<int>>) : (o:nat)
-  ensures |S|*|U| + |U| + 2 + |I|*(|S|*|U| + 2*|U| + 1) == o
+  ensures |I| + |U| + 2 + |I|*(3*|I| + 1) == o
 {
-  |I|*|S|*|U| + 2*|I|*|U| + |S|*|U| + |I| + |U| + 2
+  3*|I|*|I| + 2*|I| + |U| + 2
 }
 
-ghost function poly(U: set<int>, S: set<set<int>>, k: nat, I:set<set<int>>) : (o:nat) {
-  |I|*|S|*|U|*|U| + |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U|*|U| + |S|*|U|*|U| + 3*|I|*|U| + |U|*|U| + |I| + 4*|U| + 4
+ghost function poly(U: set<int>, S: set<set<int>>, k: nat, I:set<set<int>>) : (o:nat)
+  ensures poly_isSubset(U, I, S) + |U| + 1 <= o 
+  ensures |U| + poly_isSubset(U, I, S) + 2 + |U|*(poly_outer_loop(U, S, k, I) + 1) <= o
+{
+  calc <= {
+    poly_isSubset(U, I, S) + |U| + 1;
+    |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |I| + |U| + 3;
+    4*|I|*|I|*|U| + |I|*|S|*|U| + 4*|I|*|U| + |U|*|U| + |I| + 4*|U| + 4;
+  }
+  /*
+  calc <= {
+    |U| + poly_isSubset(U, I, S) + 2 + |U|*(poly_outer_loop(U, S, k, I) + 1);
+    |U| + poly_isSubset(U, I, S) + 2 + |U|*poly_outer_loop(U, S, k, I) + |U|;
+    |U| + |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |I| + 4 + |U|*poly_outer_loop(U, S, k, I) + |U|;
+    |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |I| + 2*|U| + 4 + |U|*poly_outer_loop(U, S, k, I);
+    |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |I| + 2*|U| + 4 + |U|*(3*|I|*|I| + 2*|I| + |U| + 2);
+    |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |I| + 2*|U| + 4 + 3*|I|*|I|*|U| + 2*|I|*|U| + |U|*|U| + 2*|U|;
+    4*|I|*|I|*|U| + |I|*|S|*|U| + 4*|I|*|U| + |U|*|U| + |I| + 4*|U| + 4;
+  }
+  */
+  4*|I|*|I|*|U| + |I|*|S|*|U| + 4*|I|*|U| + |U|*|U| + |I| + 4*|U| + 4
 }
