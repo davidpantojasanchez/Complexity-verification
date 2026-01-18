@@ -13,7 +13,7 @@ method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns 
   ensures counter <= poly(U, S, k)
 {
   counter := 0;
-  var newS:SetSetSet<int>; newS, counter := New_SetSetSet_params((set u | u in U.Model() :: (set s | s in S.Model() && u in s)), S.Size(), U.Size(), counter);
+  var SS:SetSetSet<int>; SS, counter := New_SetSetSet_params((set u | u in U.Model() :: (set s | s in S.Model() && u in s)), S.Size(), U.Size(), counter);
   var U':Set<int>; U', counter := U.Copy(counter);
   var U'_empty:bool; U'_empty, counter := U'.Empty(counter);
   assert counter == U.Size() + 2;
@@ -22,25 +22,25 @@ method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns 
     decreases U'.Cardinality()
     invariant U'_empty == (U'.Model() == {})
     // Types
-    invariant newS.Valid()
+    invariant SS.Valid()
     invariant in_universe_Set(U', U)
-    invariant newS.Cardinality() <= U.Cardinality() - U'.Cardinality()
-    invariant newS.maximumSizeElements() <= S.Size()
+    invariant SS.Cardinality() <= U.Cardinality() - U'.Cardinality()
+    invariant SS.maximumSizeElements() <= S.Size()
     // Regular invariants
-    invariant newS.Model() == (set u | u in (U.Model() - U'.Model()) :: (set s | s in S.Model() && u in s))
+    invariant SS.Model() == (set u | u in (U.Model() - U'.Model()) :: (set s | s in S.Model() && u in s))
     // Counter
     invariant counter <= U.Size() + 2 + (U.Cardinality() - U'.Cardinality())*poly_outer_loop(U, S, k)
   {
-    U', newS, U'_empty, counter := HittingSet_to_SetCover_outer_loop(U, S, k, U', newS, counter);
+    U', SS, U'_empty, counter := HittingSet_to_SetCover_outer_loop(U, S, k, U', SS, counter);
   }
   assert counter <= U.Size() + 2 + U.Cardinality()*poly_outer_loop(U, S, k);
   identity_substraction_lemma(U.Model(), U'.Model());
-  assert newS.Model() == (set u | u in U.Model() :: (set s | s in S.Model() && u in s));
+  assert SS.Model() == (set u | u in U.Model() :: (set s | s in S.Model() && u in s));
  
   var empty_set:Set<int>; empty_set, counter := New_Set(counter);
   var S_contains_empty:bool; S_contains_empty, counter := S.Contains(empty_set, counter);
   if (S_contains_empty) {
-    var newS:SetSetSet<int>; newS, counter := New_SetSetSet_params((set s | s in S.Model() :: {s}), S.maximumSizeElements(), U.Size(), counter);
+    var SS:SetSetSet<int>; SS, counter := New_SetSetSet_params((set s | s in S.Model() :: {s}), S.maximumSizeElements(), U.Size(), counter);
     var S':SetSet<int>; S', counter := S.Copy(counter);
     var S'_empty:bool; S'_empty, counter := S'.Empty(counter);
     assert counter <= poly_aux_1(U, S, k);
@@ -50,18 +50,18 @@ method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns 
       invariant S'_empty == (S'.Model() == {})
       // Types
       invariant U.Valid()
-      invariant newS.Valid()
+      invariant SS.Valid()
       invariant in_universe_SetSet(S', S)
       invariant S.maximumSizeElements() <= U.Size()
-      invariant newS.Cardinality() <= S.Cardinality() - S'.Cardinality()
-      invariant newS.maximumSizeElements() <= S.maximumSizeElements()
+      invariant SS.Cardinality() <= S.Cardinality() - S'.Cardinality()
+      invariant SS.maximumSizeElements() <= S.maximumSizeElements()
       // Regular invariants
-      invariant newS.Model() == (set s | s in (S.Model() - S'.Model()) :: {s})
+      invariant SS.Model() == (set s | s in (S.Model() - S'.Model()) :: {s})
       // Counter
       invariant counter <= poly_aux_1(U, S, k) + (S.Cardinality() - S'.Cardinality())*(poly_edge_case_loop(U, S, k))
     {
       ghost var prevS' := S';
-      S', newS, S'_empty, counter := HittingSet_to_SetCover_edge_case_loop(U, S, k, S', newS, counter);
+      S', SS, S'_empty, counter := HittingSet_to_SetCover_edge_case_loop(U, S, k, S', SS, counter);
       assert counter <= poly_aux_1(U, S, k) + (S.Cardinality() - prevS'.Cardinality())*(poly_edge_case_loop(U, S, k)) + poly_edge_case_loop(U, S, k);
       assert (S.Cardinality() - prevS'.Cardinality()) + 1 == (S.Cardinality() - S'.Cardinality());
       calc == {
@@ -70,15 +70,15 @@ method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns 
         (S.Cardinality() - S'.Cardinality())*(poly_edge_case_loop(U, S, k));
       }
     }
-    assert newS.Model() == (set s | s in S.Model() :: {s});
-    assert (S.Model(), newS.Model(), 0) == HittingSet_to_SetCover(U.Model(), S.Model(), k);
-    r := (S,newS,0);
-    //return (S, newS, 0), counter;
+    assert SS.Model() == (set s | s in S.Model() :: {s});
+    assert (S.Model(), SS.Model(), 0) == HittingSet_to_SetCover(U.Model(), S.Model(), k);
+    r := (S,SS,0);
+    //return (S, SS, 0), counter;
   }
   else {
-    assert newS.Model() == (set u | u in U.Model() :: (set s | s in S.Model() && u in s));
-    assert (S.Model(), newS.Model(), k) == HittingSet_to_SetCover(U.Model(), S.Model(), k);
-    r := (S,newS,k);
+    assert SS.Model() == (set u | u in U.Model() :: (set s | s in S.Model() && u in s));
+    assert (S.Model(), SS.Model(), k) == HittingSet_to_SetCover(U.Model(), S.Model(), k);
+    r := (S,SS,k);
   }
   assert (r.0.Model(),r.1.Model(),r.2) == HittingSet_to_SetCover(U.Model(), S.Model(), k);
   return r,counter;
@@ -86,28 +86,28 @@ method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns 
 }
 
 
-method HittingSet_to_SetCover_outer_loop(U:Set<int>, S:SetSet<int>, k:nat, U':Set<int>, newS:SetSetSet<int>, ghost counter_in:nat) returns (U'':Set<int>, newS':SetSetSet<int>, U''_empty:bool, ghost counter:nat)
+method HittingSet_to_SetCover_outer_loop(U:Set<int>, S:SetSet<int>, k:nat, U':Set<int>, SS:SetSetSet<int>, ghost counter_in:nat) returns (U'':Set<int>, SS':SetSetSet<int>, U''_empty:bool, ghost counter:nat)
   // Termination in
   requires U'.Model() != {}
   // Types in
   requires S.Valid()
-  requires newS.Valid()
+  requires SS.Valid()
   requires in_universe_Set(U', U)
   requires S.maximumSizeElements() <= U.Size()
-  requires newS.Cardinality() <= (U.Cardinality() - U'.Cardinality())
-  requires newS.maximumSizeElements() <= S.Size()
+  requires SS.Cardinality() <= (U.Cardinality() - U'.Cardinality())
+  requires SS.maximumSizeElements() <= S.Size()
   // Invariant in
-  requires newS.Model() == (set u | u in (U.Model() - U'.Model()) :: (set s | s in S.Model() && u in s))
+  requires SS.Model() == (set u | u in (U.Model() - U'.Model()) :: (set s | s in S.Model() && u in s))
   // Termination out
   ensures U''.Cardinality() == U'.Cardinality() - 1
   ensures U''_empty == (U''.Model() == {})
   // Types out
-  ensures newS'.Valid()
+  ensures SS'.Valid()
   ensures in_universe_Set(U'', U)
-  ensures newS'.Cardinality() <= (U.Cardinality() - U''.Cardinality())
-  ensures newS'.maximumSizeElements() <= S.Size()
+  ensures SS'.Cardinality() <= (U.Cardinality() - U''.Cardinality())
+  ensures SS'.maximumSizeElements() <= S.Size()
   // Invariant out
-  ensures newS'.Model() == (set u | u in (U.Model() - U''.Model()) :: (set s | s in S.Model() && u in s))
+  ensures SS'.Model() == (set u | u in (U.Model() - U''.Model()) :: (set s | s in S.Model() && u in s))
   // Counter
   ensures counter <= counter_in + poly_outer_loop(U, S, k)
 {
@@ -138,15 +138,15 @@ method HittingSet_to_SetCover_outer_loop(U:Set<int>, S:SetSet<int>, k:nat, U':Se
     counter_simplification_aux_1(U, S, k, S'_prev, S');
   }
   in_universe_lemma_SetSet(sets_in_S_that_contain_u, S);
-  newS', counter := newS.Add(sets_in_S_that_contain_u, counter);
+  SS', counter := SS.Add(sets_in_S_that_contain_u, counter);
 
   U''_empty, counter := U''.Empty(counter);
-  mult_preserves_order(newS.Cardinality(), newS.maximumSizeElements(), U.Cardinality(), S.Size());
-  assert newS'.Model() == (set v | v in (U.Model() - U''.Model()) :: (set s | s in S.Model() && v in s)) by {
-    assert newS'.Model() == (set v | v in (U.Model() - U'.Model()) :: (set s | s in S.Model() && v in s)) + {sets_in_S_that_contain_u.Model()};
-    assert newS'.Model() == (set v | v in (U.Model() - U'.Model()) :: (set s | s in S.Model() && v in s)) + {(set s | s in (S.Model() - S'.Model()) && u in s)};
+  mult_preserves_order(SS.Cardinality(), SS.maximumSizeElements(), U.Cardinality(), S.Size());
+  assert SS'.Model() == (set v | v in (U.Model() - U''.Model()) :: (set s | s in S.Model() && v in s)) by {
+    assert SS'.Model() == (set v | v in (U.Model() - U'.Model()) :: (set s | s in S.Model() && v in s)) + {sets_in_S_that_contain_u.Model()};
+    assert SS'.Model() == (set v | v in (U.Model() - U'.Model()) :: (set s | s in S.Model() && v in s)) + {(set s | s in (S.Model() - S'.Model()) && u in s)};
     assert (S.Model() - S'.Model()) == S.Model();
-    assert newS'.Model() == (set v | v in (U.Model() - U'.Model()) + {u} :: (set s | s in S.Model() && v in s));
+    assert SS'.Model() == (set v | v in (U.Model() - U'.Model()) + {u} :: (set s | s in S.Model() && v in s));
     assert (U.Model() - U''.Model()) == (U.Model() - U'.Model()) + {u};
   }
 }
@@ -272,39 +272,39 @@ ensures counter <= counter_in + poly_contains_empty_loop(U, S, k)
 }
 */
 
-method HittingSet_to_SetCover_edge_case_loop(U:Set<int>, S:SetSet<int>, k:nat, S':SetSet<int>, newS:SetSetSet<int>, ghost counter_in:nat) returns (S'':SetSet<int>, newS':SetSetSet<int>, S''_empty:bool, ghost counter:nat)
+method HittingSet_to_SetCover_edge_case_loop(U:Set<int>, S:SetSet<int>, k:nat, S':SetSet<int>, SS:SetSetSet<int>, ghost counter_in:nat) returns (S'':SetSet<int>, SS':SetSetSet<int>, S''_empty:bool, ghost counter:nat)
   // Termination in
   requires S'.Model() != {}
   // Types in
   requires U.Valid()
-  requires newS.Valid()
+  requires SS.Valid()
   requires in_universe_SetSet(S', S)
   requires S.maximumSizeElements() <= U.Size()
-  requires newS.Cardinality() <= S.Cardinality() - S'.Cardinality()
-  requires newS.maximumSizeElements() <= S.maximumSizeElements()
+  requires SS.Cardinality() <= S.Cardinality() - S'.Cardinality()
+  requires SS.maximumSizeElements() <= S.maximumSizeElements()
   // Invariant in
-  requires newS.Model() == (set s | s in (S.Model() - S'.Model()) :: {s})
+  requires SS.Model() == (set s | s in (S.Model() - S'.Model()) :: {s})
   // Termination out
   ensures S''.Cardinality() == S'.Cardinality() - 1
   ensures S''_empty == (S''.Model() == {})
   // Types out
-  ensures newS'.Valid()
+  ensures SS'.Valid()
   ensures in_universe_SetSet(S'', S)
-  ensures newS'.Cardinality() <= S.Cardinality() - S''.Cardinality()
-  ensures newS'.maximumSizeElements() <= S.maximumSizeElements()
+  ensures SS'.Cardinality() <= S.Cardinality() - S''.Cardinality()
+  ensures SS'.maximumSizeElements() <= S.maximumSizeElements()
   // Invariant out
-  ensures newS'.Model() == (set s | s in (S.Model() - S''.Model()) :: {s})
+  ensures SS'.Model() == (set s | s in (S.Model() - S''.Model()) :: {s})
   // Counter
   ensures counter <= counter_in + poly_edge_case_loop(U, S, k)
 {
   in_universe_lemma_SetSet(S', S);
-  mult_preserves_order(newS.Cardinality(), newS.maximumSizeElements(), S.Cardinality(), S.maximumSizeElements());
+  mult_preserves_order(SS.Cardinality(), SS.maximumSizeElements(), S.Cardinality(), S.maximumSizeElements());
   counter := counter_in;
   var s:Set<int>; s, counter := S'.Pick(counter);
   S'', counter := S'.Remove(s, counter);
   var s_set:SetSet<int>; s_set, counter := New_SetSet_params(S.Model(), S.maximumSizeElements(), counter);
   s_set, counter := s_set.Add(s, counter);
-  newS', counter := newS.Add(s_set, counter);
+  SS', counter := SS.Add(s_set, counter);
   S''_empty, counter := S''.Empty(counter);
 }
 
