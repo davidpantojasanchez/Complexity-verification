@@ -225,6 +225,7 @@ type SetSetSet< T(==) > {
     requires Valid()
     ensures e.Valid()
     requires Model() != {}
+    ensures e.Size() == maximumSizeElements()
     ensures e.maximumSizeElements() == maximumSizeElements'()
     ensures e.Model() in Model()
     ensures counter_out == counter_in + maximumSizeElements()
