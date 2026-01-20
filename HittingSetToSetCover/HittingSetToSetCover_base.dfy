@@ -8,14 +8,14 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
   requires forall s | s in S ::  s <= U
   ensures r == HittingSet_to_SetCover(U, S, k)
 {
-  var newS:set<set<set<int>>> := {};
+  var SS:set<set<set<int>>> := {};
   var U' := U;
   while (U' != {})
     decreases |U'|
     invariant U' <= U
-    invariant newS == (set u | u in (U - U') :: (set s | s in S && u in s))
+    invariant SS == (set u | u in (U - U') :: (set s | s in S && u in s))
   {
-    U', newS := HittingSet_to_SetCover_outer_loop(U, S, k, U', newS);
+    U', SS := HittingSet_to_SetCover_outer_loop(U, S, k, U', SS);
   }
   identity_substraction_lemma(U, U');
 
@@ -30,36 +30,36 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
   }
 
   if (S_contains_empty) {
-    var newS := {};
+    var SS := {};
     var S' := S;
     while (S' != {})
       decreases |S'|
       invariant S' <= S
-      invariant newS == (set s | s in (S - S') :: {s})
+      invariant SS == (set s | s in (S - S') :: {s})
     {
-      S', newS := HittingSet_to_SetCover_edge_case_loop(U, S, k, S', newS);
+      S', SS := HittingSet_to_SetCover_edge_case_loop(U, S, k, S', SS);
     }
     identity_substraction_lemma(S, S');
-    return (S, newS, 0);
+    return (S, SS, 0);
   }
   else {
-    return (S, newS, k);
+    return (S, SS, k);
   }
 
 }
 
 
-method HittingSet_to_SetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, U':set<int>, newS:set<set<set<int>>>) returns (U'':set<int>, newS':set<set<set<int>>>)
+method HittingSet_to_SetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, U':set<int>, SS:set<set<set<int>>>) returns (U'':set<int>, SS':set<set<set<int>>>)
   // Termination in
   requires U' != {}
   // Invariant in
   requires U' <= U
-  requires newS == (set u | u in (U - U') :: (set s | s in S && u in s))
+  requires SS == (set u | u in (U - U') :: (set s | s in S && u in s))
   // Termination out
   ensures |U''| == |U'| - 1
   // Invariant out
   ensures U'' <= U
-  ensures newS' == (set u | u in (U - U'') :: (set s | s in S && u in s))
+  ensures SS' == (set u | u in (U - U'') :: (set s | s in S && u in s))
 {
   var u :| u in U';
   U'' := U' - {u};
@@ -74,11 +74,11 @@ method HittingSet_to_SetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, U':
     S', sets_in_S_that_contain_u := HittingSet_to_SetCover_middle_loop(U, S, k, S', u, sets_in_S_that_contain_u);
   }
 
-  newS' := newS + {sets_in_S_that_contain_u};
+  SS' := SS + {sets_in_S_that_contain_u};
 
-  assert newS' == (set v | v in (U - U'') :: (set s | s in S && v in s)) by {
+  assert SS' == (set v | v in (U - U'') :: (set s | s in S && v in s)) by {
     calc {
-      newS';
+      SS';
       (set v | v in (U - U') :: (set s | s in S && v in s)) + {sets_in_S_that_contain_u};
       (set v | v in (U - U') :: (set s | s in S && v in s)) + {(set s | s in (S - S') && u in s)};
        {assert (S - S') == S;}
@@ -170,20 +170,20 @@ method HittingSet_to_SetCover_S_contains_empty_loop(U:set<int>, S:set<set<int>>,
 }
 
 
-method HittingSet_to_SetCover_edge_case_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, newS:set<set<set<int>>>) returns (S'':set<set<int>>, newS':set<set<set<int>>>)
+method HittingSet_to_SetCover_edge_case_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, SS:set<set<set<int>>>) returns (S'':set<set<int>>, SS':set<set<set<int>>>)
   // Termination in
   requires S' != {}
   // Invariant in
   requires S' <= S
-  requires newS == (set s | s in (S - S') :: {s})
+  requires SS == (set s | s in (S - S') :: {s})
   // Termination out
   ensures |S''| == |S'| - 1
   // Invariant out
   ensures S'' <= S
-  ensures newS' == (set s | s in (S - S'') :: {s})
+  ensures SS' == (set s | s in (S - S'') :: {s})
 {
   var s :| s in S';
   S'' := S' - {s};
-  newS' := newS + {{s}};
+  SS' := SS + {{s}};
 }
 
