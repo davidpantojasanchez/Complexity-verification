@@ -324,13 +324,13 @@ method {:axiom} New_SetSetSet_params<T(==)>(ghost U:set<set<set<T>>>, ghost maxi
 
 // Used as a precondition, to ensure that at initialization the universe equals the model (and implicitly that the set is valid)
 // It is not strictly required, but is be useful
-ghost predicate init_Set(S:Set) {
+ghost predicate init_Set<T(==)>(S:Set<T>) {
     (S.Model() == S.Universe())
 }
-ghost predicate init_SetSet(S:SetSet) {
+ghost predicate init_SetSet<T(==)>(S:SetSet<T>) {
     (S.Model() == S.Universe())
 }
-ghost predicate init_SetSetSet(S:SetSetSet) {
+ghost predicate init_SetSetSet<T(==)>(S:SetSetSet<T>) {
     (S.Model() == S.Universe())
 }
 
