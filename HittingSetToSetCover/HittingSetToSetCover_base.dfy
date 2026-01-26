@@ -9,26 +9,8 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
   ensures r == HittingSet_to_SetCover(U, S, k)
 {
   var SS:set<set<set<int>>> := {};
-  var U' := U;
-  while (U' != {})
-    decreases |U'|
-    invariant U' <= U
-    invariant SS == (set u | u in (U - U') :: (set s | s in S && u in s))
-  {
-    U', SS := HittingSet_to_SetCover_outer_loop(U, S, k, U', SS);
-  }
-  identity_substraction_lemma(U, U');
-
-  var S_contains_empty:bool := false;
-  var S' := S;
-  while (S' != {})
-    decreases |S'|
-    invariant S' <= S
-    invariant S_contains_empty == ({} in (S - S'))
-  {
-    S', S_contains_empty := HittingSet_to_SetCover_S_contains_empty_loop(U, S, k, S', S_contains_empty);
-  }
-
+  // Edge case
+  var S_contains_empty:bool := {} in S;
   if (S_contains_empty) {
     var SS := {};
     var S' := S;
@@ -42,10 +24,18 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
     identity_substraction_lemma(S, S');
     return (S, SS, 0);
   }
-  else {
-    return (S, SS, k);
+  // Regular case
+  var U' := U;
+  while (U' != {})
+    decreases |U'|
+    invariant U' <= U
+    invariant SS == (set u | u in (U - U') :: (set s | s in S && u in s))
+  {
+    U', SS := HittingSet_to_SetCover_outer_loop(U, S, k, U', SS);
   }
+  identity_substraction_lemma(U, U');
 
+  return (S, SS, k);
 }
 
 
@@ -147,7 +137,7 @@ method HittingSet_to_SetCover_inner_loop(U:set<int>, S:set<set<int>>, k:nat, s:s
   }
 }
 
-
+/*
 method HittingSet_to_SetCover_S_contains_empty_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, S_contains_empty:bool) returns (S'':set<set<int>>, S_contains_empty':bool)
   // Termination in
   requires S' != {}
@@ -168,7 +158,7 @@ method HittingSet_to_SetCover_S_contains_empty_loop(U:set<int>, S:set<set<int>>,
     S_contains_empty' := true;
   }
 }
-
+*/
 
 method HittingSet_to_SetCover_edge_case_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, SS:set<set<set<int>>>) returns (S'':set<set<int>>, SS':set<set<set<int>>>)
   // Termination in
