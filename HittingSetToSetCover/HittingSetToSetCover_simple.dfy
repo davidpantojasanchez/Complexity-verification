@@ -137,10 +137,8 @@ ensures counter <= counter_in + poly_middle_loop(U, S, k)
     s', s_contains_u, counter := HittingSet_to_SetCover_inner_loop(U, S, k, s, s', u, s_contains_u, counter);
   }
   counter := counter + 1;
-  assert counter <= counter_in + poly_aux(U, S, k) by {
-    if_smaller_then_less_cardinality(s, U);
-    aux_lemma_1(U, S, k, s, s');
-  }
+  if_smaller_then_less_cardinality(s, U);
+  assert counter <= counter_in + 2*|S|*|U| + 2*|U| + |U|*(poly_inner_loop(U, S, k) + 1) + 1;
 
   if (s_contains_u) {
     sets_in_S_that_contain_u' := sets_in_S_that_contain_u + {s};
@@ -237,16 +235,11 @@ ensures counter == counter_in + poly_edge_case_loop(U, S, k)
   counter := counter + |S|*|U|;
 }
 
-ghost function poly_aux(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
-{
-  2*|S|*|U| + 2*|U| + (|U|)*(|U| + 2) + 1
-}
 ghost function poly_inner_loop(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
 {
   |U| + 1
 }
 ghost function poly_middle_loop(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
-  ensures |S|*|U| + poly_aux(U, S, k) <= o
 {
   3*|S|*|U| + 2*|U| + |U|*(|U| + 2) + 1
 }
@@ -263,21 +256,6 @@ ghost function poly_edge_case_loop(U: set<int>, S: set<set<int>>, k: nat) : (o:n
   2*|S|*|U| + 2*|U|
 }
 
-/*
-ghost function poly(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
-  ensures poly_aux_2(U, S, k) + |S|*(poly_edge_case_loop(U, S, k) + 1) + 1 <= o
-{
-  /*calc == {
-    poly_aux_2(U, S, k) + |S|*(poly_edge_case_loop(U, S, k) + 1) + 1;
-    poly_aux_2(U, S, k) + |S|*(2*|S|*|U| + 2*|U| + 1) + 1;
-    poly_aux_2(U, S, k) + 2*|S|*|S|*|U| + 2*|S|*|U| + |S| + 1;
-    poly_aux_2(U, S, k) + 2*|S|*|S|*|U| + 2*|S|*|U| + |S| + 1;
-    (3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + |S|*|S|*|U| + 4*|S|*|U|*|U| + 6*|S|*|U| + |U|*|U| + 3*|S| + 4*|U| + 3) + 2*|S|*|S|*|U| + 2*|S|*|U| + |S| + 1;
-    3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 3*|S|*|S|*|U| + 4*|S|*|U|*|U| + 8*|S|*|U| + |U|*|U| + 4*|S| + 4*|U| + 4;
-  }*/
-  3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 3*|S|*|S|*|U| + 4*|S|*|U|*|U| + 8*|S|*|U| + |U|*|U| + 4*|S| + 4*|U| + 4
-}
-*/
 ghost function poly(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
   ensures 2*|S|*|U| + 2 + |S|*(poly_edge_case_loop(U, S, k) + 1) <= o
   ensures |S|*|U| + |U| + 2 + |U|*(poly_outer_loop(U, S, k) + 1) <= o
@@ -297,7 +275,3 @@ ghost function poly(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
   3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 2*|S|*|S|*|U| + 4*|S|*|U|*|U| + 4*|S|*|U| + |U|*|U| + |S| + 4*|U| + 2
 }
 
-lemma aux_lemma_1(U: set<int>, S: set<set<int>>, k: nat, s: set<int>, s': set<int>)
-  requires 0 <= |s'| <= |s| <= |U|
-  ensures (|s| - |s'|)*(|U| + 3) <= (|U|)*(|U| + 3)
-{}

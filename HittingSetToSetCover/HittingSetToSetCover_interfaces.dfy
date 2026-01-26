@@ -332,10 +332,6 @@ ghost function poly_outer_loop(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
   }*/
   U.Size()*U.Size()*S.Cardinality() + 3*S.Size()*S.Cardinality() + S.Size()*U.Cardinality() + 4*U.Size()*S.Cardinality() + S.Size() + U.Size() + 2*S.Cardinality() + 4
 }
-ghost function poly_contains_empty_loop(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
-{
-  S.Size() + U.Size() + 1
-}
 ghost function poly_edge_case_loop(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
 {
   2*S.Size() + 2*U.Size() + 2
