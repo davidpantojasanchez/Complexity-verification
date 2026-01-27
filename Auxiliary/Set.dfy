@@ -32,7 +32,7 @@ type Set< T(==) > {
 
   // Size of the set
   // Cardinality multiplied by the maximum size of the elements of the set, which in simple sets is constant
-  ghost function Size():nat
+  ghost function UBSize0():nat
   { Cardinality() }
 
   // Cardinality of the set (of the set's model, not universe)
@@ -65,7 +65,7 @@ type Set< T(==) > {
   method {:axiom} Contains(e:T, ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
     requires Valid()
     ensures  b == (e in Model()) 
-    ensures counter_out == counter_in + Size()
+    ensures counter_out == counter_in + UBSize0()
   
   // Adds an element to the set
   // Ensures that the universe updates accordingly
@@ -77,7 +77,7 @@ type Set< T(==) > {
     ensures R.Model() == Model() + {e}
     ensures if e in Model() then R.Cardinality() == Cardinality()
             else R.Cardinality() == Cardinality() + 1
-    ensures counter_out == counter_in + Size()
+    ensures counter_out == counter_in + UBSize0()
 
   // Removes an element from the set
   method {:axiom} Remove(e:T, ghost counter_in:nat) returns (R:Set<T>, ghost counter_out:nat)
@@ -87,7 +87,7 @@ type Set< T(==) > {
     ensures  R.Model() == Model() - {e}
     ensures if e !in Model() then R.Cardinality() == Cardinality()
             else R.Cardinality() == Cardinality() - 1
-    ensures counter_out == counter_in + Size()
+    ensures counter_out == counter_in + UBSize0()
   
   // Copies the set
   // Note that the new set's universe is initialized as the model of the original set, not the universe
@@ -97,7 +97,7 @@ type Set< T(==) > {
     ensures R.Valid()
     ensures R.Model() == Model()
     ensures R.Universe() == Model()
-    ensures counter_out == counter_in + Size()
+    ensures counter_out == counter_in + UBSize0()
 
 }
 
@@ -116,25 +116,25 @@ type SetSet< T(==) > {
   }
 
   // Upper limit of the size of the elements of the set (which are basic sets)
-  ghost function {:axiom} maximumSizeElements():nat
-    ensures forall s | s in Universe() :: maximumSizeElements() >= |s|
-    ensures exists s :: s in Universe() && maximumSizeElements() == |s|
+  ghost function {:axiom} UBSize1():nat
+    ensures forall s | s in Universe() :: UBSize1() >= |s|
+    ensures exists s :: s in Universe() && UBSize1() == |s|
 
-  ghost function Size():nat
-  { Cardinality()*maximumSizeElements() }
+  ghost function UBSize0():nat
+  { Cardinality() * UBSize1() }
 
   ghost function Cardinality():(c:nat)
   ensures 0 <= c
   { |Model()| }
 
-  // The returned basic set has at most size maximumSizeElements()
+  // The returned basic set has at most size UBSize1()
   method {:axiom} Pick(ghost counter_in:nat) returns (e:Set<T>, ghost counter_out:nat)
     requires Valid()
     ensures e.Valid()
     requires Model() != {}
-    ensures e.Size() <= maximumSizeElements()
+    ensures e.UBSize0() <= UBSize1()
     ensures e.Model() in Model()
-    ensures counter_out == counter_in + maximumSizeElements()
+    ensures counter_out == counter_in + UBSize1()
 
   method {:axiom} Empty(ghost counter_in:nat) returns (b: bool, ghost counter_out:nat)
     requires Valid()
@@ -149,10 +149,10 @@ type SetSet< T(==) > {
   method {:axiom} Contains(e:Set<T>, ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
     requires Valid()
     ensures b == (e.Model() in Model()) 
-    ensures counter_out == counter_in + Size()
+    ensures counter_out == counter_in + UBSize0()
   
-  // If the basic set to be added is larger than maximumSizeElements(), it updates its value
-  // the postcondition (R.maximumSizeElements() == maximumSizeElements()) || (R.maximumSizeElements() == e.Size()) is redundant but useful for the verifier
+  // If the basic set to be added is larger than UBSize1(), it updates its value
+  // the postcondition (R.UBSize1() == UBSize1()) || (R.UBSize1() == e.UBSize0()) is redundant but useful for the verifier
   method {:axiom} Add(e:Set<T>, ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
@@ -161,30 +161,30 @@ type SetSet< T(==) > {
     ensures if e.Model() in Model()
             then R.Cardinality() == Cardinality()
             else R.Cardinality() == Cardinality() + 1
-    ensures if e.Size() <= maximumSizeElements()
-            then R.maximumSizeElements() == maximumSizeElements()
-            else R.maximumSizeElements() == e.Size()
-    ensures (R.maximumSizeElements() == maximumSizeElements()) || (R.maximumSizeElements() == e.Size())
-    ensures counter_out == counter_in + Size()
+    ensures if e.UBSize0() <= UBSize1()
+            then R.UBSize1() == UBSize1()
+            else R.UBSize1() == e.UBSize0()
+    ensures (R.UBSize1() == UBSize1()) || (R.UBSize1() == e.UBSize0())
+    ensures counter_out == counter_in + UBSize0()
 
   method {:axiom} Remove(e:Set<T>, ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
     ensures R.Universe() == Universe()
-    ensures R.maximumSizeElements() == maximumSizeElements()
+    ensures R.UBSize1() == UBSize1()
     ensures R.Model() == Model() - {e.Model()}
     ensures if e.Model() !in Model() then R.Cardinality() == Cardinality()
             else R.Cardinality() == Cardinality() - 1
-    ensures counter_out == counter_in + Size()
+    ensures counter_out == counter_in + UBSize0()
 
-  // The value of maximumSizeElements() is also passed to the copy
+  // The value of UBSize1() is also passed to the copy
   method {:axiom} Copy(ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
     ensures R.Model() == Model()
     ensures R.Universe() == Model()
-    ensures R.maximumSizeElements() == maximumSizeElements()
-    ensures counter_out == counter_in + Size()
+    ensures R.UBSize1() == UBSize1()
+    ensures counter_out == counter_in + UBSize0()
 }
 
 
@@ -202,33 +202,32 @@ type SetSetSet< T(==) > {
   }
 
   // Upper bound of the size of the elements of the set (which are sets of basic sets)
-  ghost function {:axiom} maximumSizeElements():nat
-    ensures forall s | s in Universe() :: maximumSizeElements() >= |s|*maximumSizeElements'()
-    ensures exists s :: s in Universe() && maximumSizeElements() == |s|*maximumSizeElements'()
+  ghost function {:axiom} UBSize1():nat
+    ensures forall s | s in Universe() :: UBSize1() >= |s|*UBSize2()
 
   // Upper bound of the size of the elements of the elements of the set (which are basic sets)
-  ghost function {:axiom} maximumSizeElements'():nat
-    ensures forall s | s in Universe() :: (forall s' | s' in s :: maximumSizeElements'() >= |s'|)
-    ensures exists s | s in Universe() :: (exists s' | s' in s :: maximumSizeElements'() == |s'|)
+  ghost function {:axiom} UBSize2():nat
+    ensures forall s | s in Universe() :: (forall s' | s' in s :: UBSize2() >= |s'|)
+    ensures exists s | s in Universe() :: (exists s' | s' in s :: UBSize2() == |s'|)
 
 
-  ghost function Size():nat
-  { Cardinality()*maximumSizeElements() }
+  ghost function UBSize0():nat
+  { Cardinality()*UBSize1() }
 
   ghost function Cardinality():(c:nat)
   ensures 0 <= c
   { |Model()| }
 
-  // The returned set of sets will have at most size maximumSizeElements()
-  // and its elements will have at most size maximumSizeElements'()
+  // The returned set of sets will have at most size UBSize1()
+  // and its elements will have at most size UBSize2()
   method {:axiom} Pick(ghost counter_in:nat) returns (e:SetSet<T>, ghost counter_out:nat)
     requires Valid()
     ensures e.Valid()
     requires Model() != {}
-    ensures e.Size() == maximumSizeElements()
-    ensures e.maximumSizeElements() == maximumSizeElements'()
+    ensures e.UBSize0() == UBSize1()
+    ensures e.UBSize1() == UBSize2()
     ensures e.Model() in Model()
-    ensures counter_out == counter_in + maximumSizeElements()
+    ensures counter_out == counter_in + UBSize1()
 
   method {:axiom} Empty(ghost counter_in:nat) returns (b: bool, ghost counter_out:nat)
     requires Valid()
@@ -243,9 +242,9 @@ type SetSetSet< T(==) > {
   method {:axiom} Contains(e:SetSet<T>, ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
     requires Valid()
     ensures  b == (e.Model() in Model()) 
-    ensures counter_out == counter_in + Size()
+    ensures counter_out == counter_in + UBSize0()
   
-  // Ensures that maximumSizeElements() and maximumSizeElements'() are updated accordingly
+  // Ensures that UBSize1() and UBSize2() are updated accordingly
   method {:axiom} Add(e:SetSet<T>, ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
@@ -257,34 +256,34 @@ type SetSetSet< T(==) > {
     ensures if e.Model() in Universe()
             then |R.Universe()| == |Universe()|
             else |R.Universe()| == |Universe()| + 1
-    ensures if e.Size() <= maximumSizeElements()
-            then R.maximumSizeElements() == maximumSizeElements()
-            else R.maximumSizeElements() == e.Size()
-    ensures if e.maximumSizeElements() <= maximumSizeElements'()
-            then R.maximumSizeElements'() == maximumSizeElements'()
-            else R.maximumSizeElements'() == e.maximumSizeElements()
-    ensures ((R.maximumSizeElements() == maximumSizeElements()) || (R.maximumSizeElements() == e.Size())) &&
-            ((R.maximumSizeElements'() == maximumSizeElements'()) || (R.maximumSizeElements'() == e.maximumSizeElements()))
-    ensures counter_out == counter_in + Size()
+    ensures if e.UBSize0() <= UBSize1()
+            then R.UBSize1() == UBSize1()
+            else R.UBSize1() == e.UBSize0()
+    ensures if e.UBSize1() <= UBSize2()
+            then R.UBSize2() == UBSize2()
+            else R.UBSize2() == e.UBSize1()
+    ensures ((R.UBSize1() == UBSize1()) || (R.UBSize1() == e.UBSize0())) &&
+            ((R.UBSize2() == UBSize2()) || (R.UBSize2() == e.UBSize1()))
+    ensures counter_out == counter_in + UBSize0()
 
   method {:axiom} Remove(e:SetSet<T>, ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
     ensures R.Universe() == Universe()
-    ensures R.maximumSizeElements() == maximumSizeElements()
+    ensures R.UBSize1() == UBSize1()
     ensures  R.Model() == Model() - {e.Model()}
     ensures if e.Model() !in Model() then R.Cardinality() == Cardinality()
             else R.Cardinality() == Cardinality() - 1
-    ensures counter_out == counter_in + Size()
+    ensures counter_out == counter_in + UBSize0()
 
   method {:axiom} Copy(ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
     ensures R.Model() == Model()
     ensures R.Universe() == Model()
-    ensures R.maximumSizeElements() == maximumSizeElements()
-    ensures R.maximumSizeElements'() == maximumSizeElements'()
-    ensures counter_out == counter_in + Size()
+    ensures R.UBSize1() == UBSize1()
+    ensures R.UBSize2() == UBSize2()
+    ensures counter_out == counter_in + UBSize0()
 
 }
 
@@ -310,17 +309,17 @@ method {:axiom} New_Set_params<T(==)>(ghost U:set<T>, ghost counter_in:nat) retu
   ensures counter_out == counter_in +1
   ensures R.Model() == {}
   ensures R.Universe() == U
-method {:axiom} New_SetSet_params<T(==)>(ghost U:set<set<T>>, ghost maximumSizeElements:nat, ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
+method {:axiom} New_SetSet_params<T(==)>(ghost U:set<set<T>>, ghost UBSize1:nat, ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
   ensures counter_out == counter_in +1
   ensures R.Model() == {}
   ensures R.Universe() == U
-  ensures R.maximumSizeElements() == maximumSizeElements
-method {:axiom} New_SetSetSet_params<T(==)>(ghost U:set<set<set<T>>>, ghost maximumSizeElements:nat, ghost maximumSizeElements':nat, ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
+  ensures R.UBSize1() == UBSize1
+method {:axiom} New_SetSetSet_params<T(==)>(ghost U:set<set<set<T>>>, ghost UBSize1:nat, ghost UBSize2:nat, ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
   ensures counter_out == counter_in +1
   ensures R.Model() == {}
   ensures R.Universe() == U
-  ensures R.maximumSizeElements() == maximumSizeElements
-  ensures R.maximumSizeElements'() == maximumSizeElements'
+  ensures R.UBSize1() == UBSize1
+  ensures R.UBSize2() == UBSize2
 
 
 // Used as a precondition, to ensure that at initialization the universe equals the model (and implicitly that the set is valid)
@@ -347,13 +346,13 @@ ghost predicate in_universe_SetSet(S:SetSet, U:SetSet) {
   S.Valid() &&
   U.Valid() &&
   (S.Universe() <= U.Model()) &&
-  (S.maximumSizeElements() <= U.maximumSizeElements())
+  (S.UBSize1() <= U.UBSize1())
 }
 ghost predicate in_universe_SetSetSet(S:SetSetSet, U:SetSetSet) {
   S.Valid() &&
   U.Valid() &&
   (S.Universe() <= U.Model()) &&
-  (S.maximumSizeElements() <= U.maximumSizeElements()) &&
-  (S.maximumSizeElements'() <= U.maximumSizeElements'())
+  (S.UBSize1() <= U.UBSize1()) &&
+  (S.UBSize2() <= U.UBSize2())
 }
 

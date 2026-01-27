@@ -38,7 +38,6 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
   return (S, SS, k);
 }
 
-
 method HittingSet_to_SetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, U':set<int>, SS:set<set<set<int>>>) returns (U'':set<int>, SS':set<set<set<int>>>)
   // Termination in
   requires U' != {}

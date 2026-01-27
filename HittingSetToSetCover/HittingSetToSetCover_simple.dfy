@@ -3,7 +3,6 @@ include "../Problems/SetCover.dfy"
 include "../Reductions/ReductionHittingSetToSetCover.dfy"
 include "../Auxiliary/Lemmas.dfy"
 
-
 method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) returns (r:(set<set<int>>, set<set<set<int>>>, nat), ghost counter:nat)
   requires forall s | s in S ::  s <= U
   ensures r == HittingSet_to_SetCover(U, S, k)

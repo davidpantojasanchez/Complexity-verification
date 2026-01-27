@@ -33,7 +33,7 @@ ensures |A| <= |B|
 
 lemma in_universe_lemma_Set(S:Set, U:Set)
 requires in_universe_Set(S, U)
-ensures S.Size() <= U.Size()
+ensures S.UBSize0() <= U.UBSize0()
 ensures |S.Model()| <= |U.Model()|
 ensures |S.Universe()| <= |U.Universe()|
 {
@@ -43,23 +43,22 @@ ensures |S.Universe()| <= |U.Universe()|
 
 lemma in_universe_lemma_SetSet(S:SetSet, U:SetSet)
 requires in_universe_SetSet(S, U)
-ensures S.Size() <= U.Size()
+ensures S.UBSize0() <= U.UBSize0()
 ensures |S.Model()| <= |U.Model()|
 ensures |S.Universe()| <= |U.Universe()|
 { 
   if_smaller_then_less_cardinality(S.Model(), U.Model());
   if_smaller_then_less_cardinality(S.Universe(), U.Universe());
-  mult_preserves_order(S.Cardinality(),S.maximumSizeElements(),U.Cardinality(), U.maximumSizeElements());
+  mult_preserves_order(S.Cardinality(),S.UBSize1(),U.Cardinality(), U.UBSize1());
 }
 
 lemma in_universe_lemma_SetSetSet(S:SetSetSet, U:SetSetSet)
 requires in_universe_SetSetSet(S, U)
-ensures S.Size() <= U.Size()
+ensures S.UBSize0() <= U.UBSize0()
 ensures |S.Model()| <= |U.Model()|
 ensures |S.Universe()| <= |U.Universe()|
 {
   if_smaller_then_less_cardinality(S.Model(), U.Model());
   if_smaller_then_less_cardinality(S.Universe(), U.Universe());
-  mult_preserves_order(S.Cardinality(),S.maximumSizeElements(),U.Cardinality(), U.maximumSizeElements());
+  mult_preserves_order(S.Cardinality(),S.UBSize1(),U.Cardinality(), U.UBSize1());
 }
-
