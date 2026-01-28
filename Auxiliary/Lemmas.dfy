@@ -11,12 +11,10 @@ lemma associativity(a:int, b:int, c:int)
   ensures (a*b)*c == a*(b*c)
 {}
 
-
 lemma identity_substraction_lemma<T>(S:set<T>, E:set<T>)
 requires E == {}
 ensures S - E == S
 {}
-
 
 lemma if_smaller_then_less_cardinality<T>(A:set<T>, B:set<T>)
 requires A <= B

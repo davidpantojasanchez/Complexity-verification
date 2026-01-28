@@ -31,6 +31,7 @@ method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) retur
   assert b ==> U-U' == U;
 }
 
+
 method isSubset(U:set<int>, S1:set<set<int>>, S2:set<set<int>>, ghost counter_in:nat) returns (b:bool, ghost counter:nat)
   requires forall s |s in S2 :: s <= U
   ensures b == (S1 <= S2)
@@ -53,6 +54,7 @@ method isSubset(U:set<int>, S1:set<set<int>>, S2:set<set<int>>, ghost counter_in
   }
   counter := counter + 1;
 }
+
 
 method isSubset_loop(U:set<int>, S1:set<set<int>>, S2:set<set<int>>, S1':set<set<int>>, ghost counter_in:nat, b:bool) returns (S1'':set<set<int>>, b':bool, ghost counter:nat)
   // Termination in
@@ -130,6 +132,7 @@ method verifySetCover_inner_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<i
   I'' := I' - {i}; counter := counter + |I|;      // |S|*|U|
 }
 
+
 ghost function poly_isSubset_loop(U: set<int>, S1:set<set<int>>, S2:set<set<int>>) : (o:nat)
 {
   |S1|*|U| + |S2|*|U| + |U|
@@ -147,6 +150,7 @@ ghost function poly_outer_loop(U: set<int>, S: set<set<int>>, k: nat, I:set<set<
 {
   3*|I|*|I| + 2*|I| + |U| + 2
 }
+
 
 ghost function poly(U: set<int>, S: set<set<int>>, k: nat, I:set<set<int>>) : (o:nat)
   ensures poly_isSubset(U, I, S) + |U| + 1 <= o 

@@ -4,7 +4,7 @@ include "../Reductions/ReductionHittingSetToSetCover.dfy"
 include "../Auxiliary/Lemmas.dfy"
 
 
-method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) returns (r:(set<set<int>>, set<set<set<int>>>, int))
+method HittingSet_to_SetCover_Method(U:set<int>, S:set<set<int>>, k:nat) returns (r:(set<set<int>>, set<set<set<int>>>, int))
   requires forall s | s in S ::  s <= U
   ensures r == HittingSet_to_SetCover(U, S, k)
 {
@@ -37,6 +37,7 @@ method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) retu
 
   return (S, SS, k);
 }
+
 
 method HittingSet_to_SetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, U':set<int>, SS:set<set<set<int>>>) returns (U'':set<int>, SS':set<set<set<int>>>)
   // Termination in
@@ -136,28 +137,6 @@ method HittingSet_to_SetCover_inner_loop(U:set<int>, S:set<set<int>>, k:nat, s:s
   }
 }
 
-/*
-method HittingSet_to_SetCover_S_contains_empty_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, S_contains_empty:bool) returns (S'':set<set<int>>, S_contains_empty':bool)
-  // Termination in
-  requires S' != {}
-  // Invariant in
-  requires S' <= S
-  requires S_contains_empty == ({} in (S - S'))
-  // Termination out
-  ensures |S''| == |S'| - 1
-  // Invariant out
-  ensures S'' <= S
-  ensures S_contains_empty'== ({} in (S - S''))
-{
-  S_contains_empty' := S_contains_empty;
-
-  var s :| s in S';
-  S'' := S' - {s};
-  if (s == {}) {
-    S_contains_empty' := true;
-  }
-}
-*/
 
 method HittingSet_to_SetCover_edge_case_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, SS:set<set<set<int>>>) returns (S'':set<set<int>>, SS':set<set<set<int>>>)
   // Termination in
@@ -175,4 +154,3 @@ method HittingSet_to_SetCover_edge_case_loop(U:set<int>, S:set<set<int>>, k:nat,
   S'' := S' - {s};
   SS' := SS + {{s}};
 }
-

@@ -1,4 +1,3 @@
-
 include "../Problems/HittingSet.dfy"
 include "../Problems/SetCover.dfy"
 
@@ -15,7 +14,6 @@ ghost function SetCover_to_HittingSet<T>(U: set<T>, S: set<set<T>>, k: nat) : (r
 //DEMOSTRACION DE QUE SON EQUIVALENTES
 // es decir:  SetCover(U,S,k) <==> HittingSet(HU,HS,Hk)
 // siendo (HU,HS,Hk) la transformacion de (U,S,k)
-
 
 lemma SetCover_HittingSet<T>(U:set<T>, S:set<set<T>>, k:nat)
   requires forall s | s in S :: s <= U
@@ -128,6 +126,3 @@ lemma SetCover_HittingSet2<T>(U:set<T>, S: set<set<T>>, k:nat)
     }
   } 
 }
-
-
-

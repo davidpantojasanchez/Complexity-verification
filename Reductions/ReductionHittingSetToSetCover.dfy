@@ -1,9 +1,8 @@
-//Created by: Clara Segura
 include "../Problems/HittingSet.dfy"
 include "../Problems/SetCover.dfy"
 
 
-ghost function HittingSet_to_SetCover(U: set<int>, S: set<set<int>>, k: nat) : (r:(set<set<int>>, set<set<set<int>>>, int))
+ghost function HittingSet_to_SetCover(U:set<int>, S:set<set<int>>, k:nat) : (r:(set<set<int>>, set<set<set<int>>>, int))
   requires forall s | s in S ::  s <= U // los sets son subsets del universo
   ensures forall s | s in r.1 :: s <= r.0 // los sets son subsets del universo
   ensures isCover(r.0, r.1) // existe un subconjunto de sets tal que su union es igual al universo
@@ -32,7 +31,7 @@ lemma tisCover(U: set<int>, S: set<set<int>>)
     
 }
 
-lemma {:induction C} cardinal_of_sets1(U: set<int>, S:set<set<int>>, C:set<int>,CS:set<set<set<int>>>)
+lemma {:induction C} cardinal_of_sets1(U: set<int>, S:set<set<int>>, C:set<int>, CS:set<set<set<int>>>)
   requires C <= U 
   requires CS == (set x | x in C :: (set ys | ys in S && x in ys))
   ensures |CS| <= |C|
@@ -78,7 +77,7 @@ ghost function min(s:set<int>) : (x:int)
   ensures x in s && (forall y | y in s :: x <= y)
 
 
-lemma HittingSet_SetCover(U:set<int>, S: set<set<int>>, k:nat)
+lemma HittingSet_SetCover(U:set<int>, S:set<set<int>>, k:nat)
   requires forall s | s in S :: s <= U // los sets son subsets del universo
   ensures var (SU,SS,Sk) := HittingSet_to_SetCover(U,S,k);
           HittingSet(U,S,k) <==> SetCover(SU,SS,Sk)
@@ -88,7 +87,7 @@ lemma HittingSet_SetCover(U:set<int>, S: set<set<int>>, k:nat)
   HittingSet_SetCover2(U,S,k);
 }
 
-lemma HittingSet_SetCover1(U:set<int>, S: set<set<int>>, k:nat)
+lemma HittingSet_SetCover1(U:set<int>, S:set<set<int>>, k:nat)
   requires forall s | s in S :: s <= U // los sets son subsets del universo
   ensures var (US,SS,kS) := HittingSet_to_SetCover(U,S,k);
           HittingSet(U,S,k) ==> SetCover(US,SS,kS)
@@ -144,11 +143,11 @@ ghost function minCSElem(U:set<int>, S:set<set<int>>,k:nat,CS: set<set<set<int>>
   assert exists e :: e in U && xs in setsElem(U,S,e) && setsElem(U,S,e) in CS;
   var e:int :| e in U && xs in setsElem(U,S,e) && setsElem(U,S,e) in CS;
   assert e in allEs;
- min(allEs)  
+  min(allEs)  
 }
 
 
-lemma {:induction C,CS} cardinal_of_sets2(U: set<int>, S:set<set<int>>, k:nat, C:set<int>,CS:set<set<set<int>>>)
+lemma {:induction C,CS} cardinal_of_sets2(U:set<int>, S:set<set<int>>, k:nat, C:set<int>,CS:set<set<set<int>>>)
   requires forall s | s in S :: s <= U 
   requires C <= U 
   requires CS <= (set u | u in U :: (set s | s in S && u in s)) && {} !in CS
@@ -166,7 +165,7 @@ lemma {:induction C,CS} cardinal_of_sets2(U: set<int>, S:set<set<int>>, k:nat, C
 
 
 
-lemma HittingSet_SetCover2(U:set<int>, S: set<set<int>>, k:nat)
+lemma HittingSet_SetCover2(U:set<int>, S:set<set<int>>, k:nat)
   requires forall s | s in S :: s <= U // los sets son subsets del universo
   ensures var (US,SS,kS) := HittingSet_to_SetCover(U,S,k);
           HittingSet(U,S,k) <== SetCover(US,SS,kS)
@@ -216,5 +215,3 @@ lemma HittingSet_SetCover2(U:set<int>, S: set<set<int>>, k:nat)
     }
   }
 }
-
-

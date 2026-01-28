@@ -20,6 +20,7 @@ method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns 
     var SS:SetSetSet<int>; SS, counter := New_SetSetSet_params((set s | s in S.Model() :: {s}), S.UBSize1(), U.UBSize0(), counter);
     var S':SetSet<int>; S', counter := S.Copy(counter);
     var S'_empty:bool; S'_empty, counter := S'.Empty(counter);
+
     while (!S'_empty)
       // Termination
       decreases S'.Cardinality()
@@ -46,6 +47,7 @@ method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns 
       }
     }
     assert SS.Model() == (set s | s in S.Model() :: {s});
+    assert (S.Model(), SS.Model(), 0) == HittingSet_to_SetCover(U.Model(), S.Model(), k);
     return (S, SS, 0), counter;
   }
   // Regular case
@@ -141,7 +143,6 @@ method HittingSet_to_SetCover_outer_loop(U:Set<int>, S:SetSet<int>, k:nat, U':Se
 }
 
 
-
 method HittingSet_to_SetCover_middle_loop(U:Set<int>, S:SetSet<int>, k:nat, S':SetSet<int>, u:int, sets_in_S_that_contain_u:SetSet<int>, ghost counter_in:nat) returns (S'':SetSet<int>, sets_in_S_that_contain_u':SetSet<int>, S''_empty:bool, ghost counter:nat)
   // Termination in
   requires S'.Model() != {}
@@ -199,6 +200,7 @@ method HittingSet_to_SetCover_middle_loop(U:Set<int>, S:SetSet<int>, k:nat, S':S
   assert counter <= counter_in + 3*S.UBSize0() + 2*U.UBSize0() + 2 + U.UBSize0()*poly_inner_loop(U, S, k);
 }
 
+
 method HittingSet_to_SetCover_inner_loop(U:Set<int>, S:SetSet<int>, k:nat, s:Set<int>, s':Set<int>, u:int, s_contains_u:bool, ghost counter_in:nat) returns (s'':Set<int>, s_contains_u':bool, s''_empty:bool, ghost counter:nat)
   // Termination in
   requires s'.Model() != {}
@@ -232,34 +234,6 @@ method HittingSet_to_SetCover_inner_loop(U:Set<int>, S:SetSet<int>, k:nat, s:Set
   s''_empty, counter := s''.Empty(counter);
 }
 
-/*
-method HittingSet_to_SetCover_S_contains_empty_loop(U:Set<int>, S:SetSet<int>, k:nat, S':SetSet<int>, S_contains_empty:bool, ghost counter_in:nat) returns (S'':SetSet<int>, S_contains_empty':bool, ghost counter:nat)
-// Termination in
-requires S'.Model() != {}
-// Types in
-requires U.Valid()
-requires in_universe_SetSet(S', S)
-requires S.UBSize1() <= U.UBSize0()
-// Invariant in
-requires S_contains_empty == ({} in (S.Model() - S'.Model()))
-// Termination out
-ensures S''.Cardinality() == S'.Cardinality() - 1
-// Types out
-ensures in_universe_SetSet(S'', S)
-ensures S''.UBSize1() <= U.UBSize0()
-// Invariant out
-ensures S_contains_empty'== ({} in (S.Model() - S''.Model()))
-// Counter
-ensures counter <= counter_in + poly_contains_empty_loop(U, S, k)
-{
-  in_universe_lemma_SetSet(S', S);
-  counter := counter_in;
-  var s:Set<int>; s, counter := S'.Pick(counter);
-  S'', counter := S'.Remove(s, counter);
-  var s_empty:bool; s_empty, counter := s.Empty(counter);
-  S_contains_empty' := S_contains_empty || s_empty;
-}
-*/
 
 method HittingSet_to_SetCover_edge_case_loop(U:Set<int>, S:SetSet<int>, k:nat, S':SetSet<int>, SS:SetSetSet<int>, ghost counter_in:nat) returns (S'':SetSet<int>, SS':SetSetSet<int>, S''_empty:bool, ghost counter:nat)
   // Termination in
@@ -336,6 +310,7 @@ ghost function poly_edge_case_loop(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat
 {
   2*S.UBSize0() + 2*U.UBSize0() + 2
 }
+
 
 ghost function poly(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
   ensures 2*S.UBSize0() + 3 + S.Cardinality()*poly_edge_case_loop(U, S, k) <= o           // If S contains empty

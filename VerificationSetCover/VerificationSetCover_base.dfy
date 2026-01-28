@@ -18,7 +18,7 @@ method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) retur
   assert b1 ==> U-U' == U;
   b := b1 && I <= S && |I| <= k ;
 }
-  
+
 
 method verifySetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, U':set<int>) returns (b2:bool, U'':set<int>)
   // Termination in
@@ -63,4 +63,3 @@ method verifySetCover_inner_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<i
   b2 := u in i;
   I'' := I' - {i};
 }
-

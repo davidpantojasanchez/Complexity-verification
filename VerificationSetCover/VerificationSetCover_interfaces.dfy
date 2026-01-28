@@ -16,7 +16,6 @@ method verifySetCover(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>) returns (
   ensures counter <= poly(U, S, k, I)
 {
   counter := 0;
-
   var I_cardinality:int;
   I_cardinality, counter := I.nElements(counter);
   var I_seq_S:bool;
@@ -117,7 +116,6 @@ method isSubset_loop(S1:SetSet<int>, S2:SetSet<int>, S1':SetSet<int>, ghost coun
 }
 
 
-
 method verifySetCover_outer_loop(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>, U':Set<int>, ghost counter_in:nat) returns (b1:bool, U'':Set<int>, U''_empty:bool, ghost counter:nat)
   // Termination in
   requires U'.Model() != {}
@@ -183,7 +181,6 @@ method verifySetCover_outer_loop(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>
     mult_preserves_order(I.Cardinality(), (poly_inner_loop(U, S, k) + 1), S.Cardinality(), (poly_inner_loop(U, S, k) + 1));
   }
 }
-
 
 
 method verifySetCover_inner_loop(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>, I':SetSet<int>, u:int, ghost counter_in:nat) returns (b2:bool, I'':SetSet<int>, I''_empty:bool, ghost counter:nat)
@@ -313,6 +310,7 @@ ghost function poly_isSubset(S1:SetSet<int>, S2:SetSet<int>) : (o:nat)
   (S1.Cardinality() + 1)*S1.UBSize0() + S1.Cardinality()*S2.UBSize0() + S1.Cardinality()*S1.UBSize1() + S1.Cardinality() + 1
 }
 
+
 ghost function poly(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>) : (o:nat)
   requires U.Valid()
   requires S.Valid()
@@ -325,5 +323,5 @@ ghost function poly(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>) : (o:nat)
     I.UBSize0()*I.Cardinality() + I.UBSize0() + I.Cardinality()*S.UBSize0() + I.Cardinality()*I.UBSize1() + I.Cardinality() + 2;
     S.UBSize0()*U.Cardinality()*S.Cardinality() + I.UBSize0()*I.Cardinality() + S.UBSize0()*I.Cardinality() + 3*S.UBSize0()*U.Cardinality() + U.UBSize0()*U.Cardinality() + 2*U.Cardinality()*S.Cardinality() + 2*I.UBSize0() + U.UBSize0() + I.Cardinality() + 3*U.Cardinality() + 3;
   }
-  S.UBSize0()*U.Cardinality()*S.Cardinality() + I.UBSize0()*I.Cardinality() + S.UBSize0()*I.Cardinality() + 3*S.UBSize0()*U.Cardinality() + U.UBSize0()*U.Cardinality() + 2*U.Cardinality()*S.Cardinality() + 2*I.UBSize0() + U.UBSize0() + I.Cardinality() + 3*U.Cardinality() + 3
+  S.UBSize0()*U.Cardinality()*S.Cardinality() + I.UBSize0()*I.Cardinality() + S.UBSize0()*I.Cardinality() + 3*S.UBSize0()*U.Cardinality() + 2*S.Cardinality()*U.Cardinality() + U.Cardinality()*U.Cardinality() + 2*I.UBSize0() + I.Cardinality() + 4*U.Cardinality() + 3
 }

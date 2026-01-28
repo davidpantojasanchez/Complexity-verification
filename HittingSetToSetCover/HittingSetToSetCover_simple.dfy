@@ -3,7 +3,8 @@ include "../Problems/SetCover.dfy"
 include "../Reductions/ReductionHittingSetToSetCover.dfy"
 include "../Auxiliary/Lemmas.dfy"
 
-method HittingSet_to_SetCover_Method(U: set<int>, S: set<set<int>>, k: nat) returns (r:(set<set<int>>, set<set<set<int>>>, nat), ghost counter:nat)
+
+method HittingSet_to_SetCover_Method(U:set<int>, S:set<set<int>>, k:nat) returns (r:(set<set<int>>, set<set<set<int>>>, nat), ghost counter:nat)
   requires forall s | s in S ::  s <= U
   ensures r == HittingSet_to_SetCover(U, S, k)
   ensures counter <= poly(U, S, k)
@@ -175,37 +176,6 @@ ensures counter == counter_in + poly_inner_loop(U, S, k)
   }
 }
 
-/*
-method HittingSet_to_SetCover_S_contains_empty_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, S_contains_empty:bool, ghost counter_in:nat) returns (S'':set<set<int>>, S_contains_empty':bool, ghost counter:nat)
-// Problem requirements
-requires forall s | s in S ::  s <= U
-// Termination in
-requires S' != {}
-// Invariant in
-requires S' <= S
-requires S_contains_empty == ({} in (S - S'))
-// Termination out
-ensures |S''| == |S'| - 1
-// Invariant out
-ensures S'' <= S
-ensures S_contains_empty'== ({} in (S - S''))
-// Counter
-ensures counter == counter_in + poly_contains_empty_loop(U, S, k)
-{
-  counter := counter_in;
-  S_contains_empty' := S_contains_empty;
-
-  var s :| s in S';
-  counter := counter + |U|;
-  S'' := S' - {s};
-  counter := counter + |S|*|U|;
-  if (s == {}) {
-    S_contains_empty' := true;
-  }
-  counter := counter + 1;
-}
-*/
-
 
 method HittingSet_to_SetCover_edge_case_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, SS:set<set<set<int>>>, ghost counter_in:nat) returns (S'':set<set<int>>, SS':set<set<set<int>>>, ghost counter:nat)
 // Problem requirements
@@ -234,28 +204,30 @@ ensures counter == counter_in + poly_edge_case_loop(U, S, k)
   counter := counter + |S|*|U|;
 }
 
-ghost function poly_inner_loop(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
+
+ghost function poly_inner_loop(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
 {
   |U| + 1
 }
-ghost function poly_middle_loop(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
+ghost function poly_middle_loop(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
 {
   3*|S|*|U| + 2*|U| + |U|*(|U| + 2) + 1
 }
-ghost function poly_outer_loop(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
+ghost function poly_outer_loop(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
 {
   3*|S|*|S|*|U| + 2*|S|*|U|*|U| + 4*|S|*|U| + 3*|S| + |U| + 2
 }
-ghost function poly_contains_empty_loop(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
+ghost function poly_contains_empty_loop(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
 {
   |S|*|U| + |U| + 1
 }
-ghost function poly_edge_case_loop(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
+ghost function poly_edge_case_loop(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
 {
   2*|S|*|U| + 2*|U|
 }
 
-ghost function poly(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
+
+ghost function poly(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
   ensures 2*|S|*|U| + 2 + |S|*(poly_edge_case_loop(U, S, k) + 1) <= o
   ensures |S|*|U| + |U| + 2 + |U|*(poly_outer_loop(U, S, k) + 1) <= o
 {
@@ -273,4 +245,3 @@ ghost function poly(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
   }
   3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 2*|S|*|S|*|U| + 4*|S|*|U|*|U| + 4*|S|*|U| + |U|*|U| + |S| + 4*|U| + 2
 }
-
