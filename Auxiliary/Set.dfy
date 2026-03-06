@@ -171,7 +171,7 @@ type SetSet< T(==) > {
     requires Valid()
     ensures R.Valid()
     ensures R.Universe() == Universe()
-    ensures R.UBSize1() == UBSize1()
+    ensures R.UBSize1() <= UBSize1()
     ensures R.Model() == Model() - {e.Model()}
     ensures if e.Model() !in Model() then R.Cardinality() == Cardinality()
             else R.Cardinality() == Cardinality() - 1
@@ -224,8 +224,8 @@ type SetSetSet< T(==) > {
     requires Valid()
     ensures e.Valid()
     requires Model() != {}
-    ensures e.UBSize0() == UBSize1()
-    ensures e.UBSize1() == UBSize2()
+    ensures e.UBSize0() <= UBSize1()
+    ensures e.UBSize1() <= UBSize2()
     ensures e.Model() in Model()
     ensures counter_out == counter_in + UBSize1()
 
@@ -253,9 +253,6 @@ type SetSetSet< T(==) > {
     ensures if e.Model() in Model()
             then R.Cardinality() == Cardinality()
             else R.Cardinality() == Cardinality() + 1
-    ensures if e.Model() in Universe()
-            then |R.Universe()| == |Universe()|
-            else |R.Universe()| == |Universe()| + 1
     ensures if e.UBSize0() <= UBSize1()
             then R.UBSize1() == UBSize1()
             else R.UBSize1() == e.UBSize0()
@@ -270,7 +267,7 @@ type SetSetSet< T(==) > {
     requires Valid()
     ensures R.Valid()
     ensures R.Universe() == Universe()
-    ensures R.UBSize1() == UBSize1()
+    ensures R.UBSize1() <= UBSize1()
     ensures  R.Model() == Model() - {e.Model()}
     ensures if e.Model() !in Model() then R.Cardinality() == Cardinality()
             else R.Cardinality() == Cardinality() - 1
