@@ -1,6 +1,37 @@
 include "Set.dfy"
 
 
+lemma set_subset_cardinality<T>(smaller:set<T>, larger:set<T>)
+  requires smaller <= larger
+  ensures |smaller| <= |larger|
+  decreases smaller
+{
+  if smaller != {} {
+    var element :| element in smaller;
+    set_subset_cardinality(smaller - {element}, larger - {element});
+  }
+}
+
+lemma nat_mult_mono(factor:nat, lower:nat, upper:nat)
+  requires lower <= upper
+  ensures factor*lower <= factor*upper
+{}
+
+lemma quotient_upper_bound(factor:nat, value:nat, bound:nat)
+  requires 0 < factor
+  requires factor*value <= bound
+  ensures value <= bound/factor
+{
+  if bound/factor < value {
+    assert bound/factor + 1 <= value;
+    nat_mult_mono(factor, bound/factor + 1, value);
+    assert factor*(bound/factor + 1) == factor*(bound/factor) + factor;
+    assert bound == factor*(bound/factor) + bound%factor;
+    assert bound%factor < factor;
+  }
+}
+
+
 lemma mult_preserves_order(a:int, b:int, a':int, b':int)
   requires 0 <= a <= a'
   requires 0 <= b <= b'
@@ -25,6 +56,19 @@ ensures |A| <= |B|
   else {
     var a :| a in A && a in B;
     if_smaller_then_less_cardinality(A - {a}, B - {a});
+  }
+}
+
+lemma for_all_if_smaller_then_less_cardinality<T>(A':set<set<T>>, B:set<T>)
+requires forall A | A in A' :: A <= B
+ensures forall A | A in A' :: |A| <= |B|
+{
+  if (A' == {}) {
+  }
+  else {
+    var A :| A in A';
+    if_smaller_then_less_cardinality(A, B);
+    for_all_if_smaller_then_less_cardinality(A' - {A}, B);
   }
 }
 

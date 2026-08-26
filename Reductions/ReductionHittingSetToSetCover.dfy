@@ -48,7 +48,7 @@ lemma {:induction C} cardinal_of_sets1(U: set<int>, S:set<set<int>>, C:set<int>,
           (set y | y in C :: (set ys | ys in S && y in ys));
           {assert C==C-{x}+{x};}
           (set y | y in C-{x}+{x} :: (set ys | ys in S && y in ys));
-          (set y | y in C-{x} :: (set ys | ys in S && y in ys)) + (set y | y in {x} :: (set ys | ys in S && y in ys));
+          (set y | y in C-{x} :: (set ys | ys in S && y in ys)) + {(set ys | ys in S && x in ys)};
           CS' + {(set ys | ys in S && x in ys)};
         }
     }
@@ -75,6 +75,37 @@ lemma {:induction C} cardinal_of_sets1(U: set<int>, S:set<set<int>>, C:set<int>,
 ghost function min(s:set<int>) : (x:int)
   requires s != {}
   ensures x in s && (forall y | y in s :: x <= y)
+  decreases |s|
+{
+  var candidate :| candidate in s;
+  if s == {candidate} then
+    candidate
+  else
+    assert s - {candidate} != {};
+    var restMin := min(s - {candidate});
+    if candidate <= restMin then
+      assert forall y | y in s :: candidate <= y by {
+        forall y | y in s
+          ensures candidate <= y
+        {
+          if y != candidate {
+            assert y in s - {candidate};
+          }
+        }
+      }
+      candidate
+    else
+      assert forall y | y in s :: restMin <= y by {
+        forall y | y in s
+          ensures restMin <= y
+        {
+          if y != candidate {
+            assert y in s - {candidate};
+          }
+        }
+      }
+      restMin
+}
 
 
 lemma HittingSet_SetCover(U:set<int>, S:set<set<int>>, k:nat)

@@ -1,4 +1,23 @@
-Dafny is an imperative and functional programming language designed for the specification and formal verification of programs equipped with a static program verifier.
-In this paper, we showcase the effectiveness of Dafny in computer-assisted verification of proofs of computational complexity, particularly proofs of NP-completeness.
-We introduce a methodology for the verification of such proofs, using as case study the well-known Set Cover problem's NP-completeness.
-We formally demonstrate the correctness of a certificate verification algorithm (to prove the membership of the problem to NP) as well as the correctness of the polynomial reduction from the Hitting Set problem to that problem (to prove its NP-hardness).
+# Complexity verification in Dafny
+
+This project develops a Dafny methodology for computer-assisted verification of
+computational-complexity proofs, currently focused on NP-completeness. Set Cover
+is the case study: the repository verifies its certificate checker, the
+correctness of a reduction from Hitting Set, and polynomial upper bounds for the
+checker and reduction.
+
+## Repository map
+
+- `Problems/`: mathematical problem definitions.
+- `Reductions/`: functional correctness of reductions in both directions.
+- `VerificationSetCover/`: Set Cover certificate verification.
+- `HittingSetToSetCover/`: executable Hitting Set to Set Cover transformation.
+- `Auxiliary/Set.dfy`: abstract set interfaces and operation-cost model.
+- `Auxiliary/ConcreteSet.dfy`: concrete immutable-set implementations.
+- `Auxiliary/Lemmas.dfy`: reusable proof lemmas.
+
+The analysis directories contain three versions:
+
+- `_base`: functional proof without costs.
+- `_simple`: costs written explicitly by the algorithm author.
+- `_interfaces`: costs obtained through the abstract set interfaces.

@@ -2,6 +2,7 @@ include "../Problems/HittingSet.dfy"
 include "../Problems/SetCover.dfy"
 include "../Reductions/ReductionHittingSetToSetCover.dfy"
 include "../Auxiliary/Lemmas.dfy"
+include "../Auxiliary/ConcreteSet.dfy"
 
 
 method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns (r:(SetSet<int>, SetSetSet<int>, nat), ghost counter:nat)
@@ -17,7 +18,12 @@ method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns 
   var empty_set:Set<int>; empty_set, counter := New_Set(counter);
   var S_contains_empty:bool; S_contains_empty, counter := S.Contains(empty_set, counter);
   if (S_contains_empty) {
-    var SS:SetSetSet<int>; SS, counter := New_SetSetSet_params((set s | s in S.Model() :: {s}), S.UBSize1(), U.UBSize0(), counter);
+
+    ghost var SS_universe := (set s | s in S.Model() :: {s});
+    assert forall u | u in SS_universe :: |u| == 1;
+    assert forall u | u in SS_universe :: forall u' | u' in u :: |u'| <= S.UBSize1();
+    assert forall u | u in SS_universe :: |u|*S.UBSize1() <= S.UBSize1();
+    var SS:SetSetSet<int>; SS, counter := New_SetSetSet_params(SS_universe, S.UBSize1(), S.UBSize1(), counter);
     var S':SetSet<int>; S', counter := S.Copy(counter);
     var S'_empty:bool; S'_empty, counter := S'.Empty(counter);
 
@@ -35,23 +41,33 @@ method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns 
       // Regular invariants
       invariant SS.Model() == (set s | s in (S.Model() - S'.Model()) :: {s})
       // Counter
-      invariant counter <= 2*S.UBSize0() + 3 + (S.Cardinality() - S'.Cardinality())*(poly_edge_case_loop(U, S, k))
+      invariant counter <= 2*cost_New() + cost_Contains(S.UBSize0()) +
+                           cost_Copy(S.UBSize0()) + cost_Empty() +
+                           (S.Cardinality() - S'.Cardinality())*poly_edge_case_loop(U, S, k)
     {
       ghost var prevS' := S';
       S', SS, S'_empty, counter := HittingSet_to_SetCover_edge_case_loop(U, S, k, S', SS, counter);
-      assert counter <= 2*S.UBSize0() + 3 + (S.Cardinality() - prevS'.Cardinality())*(poly_edge_case_loop(U, S, k)) + poly_edge_case_loop(U, S, k);
       calc == {
         (S.Cardinality() - prevS'.Cardinality())*(poly_edge_case_loop(U, S, k)) + poly_edge_case_loop(U, S, k);
         (S.Cardinality() - prevS'.Cardinality() + 1)*(poly_edge_case_loop(U, S, k));
         (S.Cardinality() - S'.Cardinality())*(poly_edge_case_loop(U, S, k));
       }
     }
+
+    assert counter <= 2*cost_New() + cost_Contains(S.UBSize0()) +
+                      cost_Copy(S.UBSize0()) + cost_Empty() +
+                      S.Cardinality()*poly_edge_case_loop(U, S, k);
     assert SS.Model() == (set s | s in S.Model() :: {s});
-    assert (S.Model(), SS.Model(), 0) == HittingSet_to_SetCover(U.Model(), S.Model(), k);
     return (S, SS, 0), counter;
   }
   // Regular case
-  var SS:SetSetSet<int>; SS, counter := New_SetSetSet_params((set u | u in U.Model() :: (set s | s in S.Model() && u in s)), S.UBSize0(), U.UBSize0(), counter);
+  ghost var SS_universe := (set u | u in U.Model() :: (set s | s in S.Model() && u in s));
+  assert forall u | u in SS_universe :: |u| <= S.Cardinality() by {
+    assert forall u | u in SS_universe :: u <= S.Model();
+    for_all_if_smaller_then_less_cardinality(SS_universe, S.Model());
+  }
+  assert forall u | u in SS_universe :: |u|*S.UBSize1() <= S.UBSize0();
+  var SS:SetSetSet<int>; SS, counter := New_SetSetSet_params(SS_universe, S.UBSize0(), S.UBSize1(), counter);
   var U':Set<int>; U', counter := U.Copy(counter);
   var U'_empty:bool; U'_empty, counter := U'.Empty(counter);
   while (!U'_empty)
@@ -66,11 +82,15 @@ method HittingSet_to_SetCover_Method(U:Set<int>, S:SetSet<int>, k: nat) returns 
     // Regular invariants
     invariant SS.Model() == (set u | u in (U.Model() - U'.Model()) :: (set s | s in S.Model() && u in s))
     // Counter
-    invariant counter <= S.UBSize0() + U.UBSize0() + 3 + (U.Cardinality() - U'.Cardinality())*poly_outer_loop(U, S, k)
+    invariant counter <= 2*cost_New() + cost_Contains(S.UBSize0()) +
+                         cost_Copy(U.UBSize0()) + cost_Empty() +
+                         (U.Cardinality() - U'.Cardinality())*poly_outer_loop(U, S, k)
   {
     U', SS, U'_empty, counter := HittingSet_to_SetCover_outer_loop(U, S, k, U', SS, counter);
   }
-  assert counter <= S.UBSize0() + U.UBSize0() + 3 + U.Cardinality()*poly_outer_loop(U, S, k);
+  assert counter <= 2*cost_New() + cost_Contains(S.UBSize0()) +
+                    cost_Copy(U.UBSize0()) + cost_Empty() +
+                    U.Cardinality()*poly_outer_loop(U, S, k);
   identity_substraction_lemma(U.Model(), U'.Model());
 
   return (S,SS,k),counter;
@@ -122,7 +142,9 @@ method HittingSet_to_SetCover_outer_loop(U:Set<int>, S:SetSet<int>, k:nat, U':Se
     // Regular invariants
     invariant sets_in_S_that_contain_u.Model() == (set s | s in (S.Model() - S'.Model()) && u in s)
     // Counter
-    invariant counter <= counter_in + S.UBSize0() + U.UBSize0() + 3 + (S.Cardinality() - S'.Cardinality())*(poly_middle_loop(U, S, k))
+    invariant counter <= counter_in + cost_Pick(0) + cost_Remove(U.UBSize0()) + cost_New() +
+                         cost_Copy(S.UBSize0()) + cost_Empty() +
+                         (S.Cardinality() - S'.Cardinality())*poly_middle_loop(U, S, k)
   {
     ghost var S'_prev := S';
     S', sets_in_S_that_contain_u, S'_empty, counter := HittingSet_to_SetCover_middle_loop(U, S, k, S', u, sets_in_S_that_contain_u, counter);
@@ -134,8 +156,6 @@ method HittingSet_to_SetCover_outer_loop(U:Set<int>, S:SetSet<int>, k:nat, U':Se
   U''_empty, counter := U''.Empty(counter);
   mult_preserves_order(SS.Cardinality(), SS.UBSize1(), U.Cardinality(), S.UBSize0());
   assert SS'.Model() == (set v | v in (U.Model() - U''.Model()) :: (set s | s in S.Model() && v in s)) by {
-    assert SS'.Model() == (set v | v in (U.Model() - U'.Model()) :: (set s | s in S.Model() && v in s)) + {sets_in_S_that_contain_u.Model()};
-    assert SS'.Model() == (set v | v in (U.Model() - U'.Model()) :: (set s | s in S.Model() && v in s)) + {(set s | s in (S.Model() - S'.Model()) && u in s)};
     assert (S.Model() - S'.Model()) == S.Model();
     assert SS'.Model() == (set v | v in (U.Model() - U'.Model()) + {u} :: (set s | s in S.Model() && v in s));
     assert (U.Model() - U''.Model()) == (U.Model() - U'.Model()) + {u};
@@ -188,7 +208,9 @@ method HittingSet_to_SetCover_middle_loop(U:Set<int>, S:SetSet<int>, k:nat, S':S
     // Regular invariants
     invariant s_contains_u == (u in (s.Model() - s'.Model()))
     // Counter
-    invariant counter <= counter_in + 2*S.UBSize0() + 2*U.UBSize0() + 1 + (s.Cardinality() - s'.Cardinality())*poly_inner_loop(U, S, k)
+    invariant counter <= counter_in + cost_Copy(S.UBSize0()) + cost_Pick(U.UBSize0()) +
+                         cost_Remove(S.UBSize0()) + cost_Copy(U.UBSize0()) + cost_Empty() +
+                         (s.Cardinality() - s'.Cardinality())*poly_inner_loop(U, S, k)
   {
     s', s_contains_u, s'_empty, counter := HittingSet_to_SetCover_inner_loop(U, S, k, s, s', u, s_contains_u, counter);
   }
@@ -197,7 +219,6 @@ method HittingSet_to_SetCover_middle_loop(U:Set<int>, S:SetSet<int>, k:nat, S':S
     sets_in_S_that_contain_u', counter := sets_in_S_that_contain_u.Add(s, counter);
   }
   S''_empty, counter := S''.Empty(counter);
-  assert counter <= counter_in + 3*S.UBSize0() + 2*U.UBSize0() + 2 + U.UBSize0()*poly_inner_loop(U, S, k);
 }
 
 
@@ -274,59 +295,53 @@ method HittingSet_to_SetCover_edge_case_loop(U:Set<int>, S:SetSet<int>, k:nat, S
 
 lemma counter_simplification_aux_1(U: Set<int>, S: SetSet<int>, k: nat, S'_prev: SetSet<int>, S': SetSet<int>)
   requires S'_prev.Cardinality() == S'.Cardinality() + 1
-  ensures S.UBSize0() + U.UBSize0() + 3 + (S.Cardinality() - S'_prev.Cardinality())*(poly_middle_loop(U, S, k)) + poly_middle_loop(U, S, k) ==
-          S.UBSize0() + U.UBSize0() + 3 + (S.Cardinality() - S'.Cardinality())*(poly_middle_loop(U, S, k))
+  ensures cost_Pick(0) + cost_Remove(U.UBSize0()) + cost_New() + cost_Copy(S.UBSize0()) + cost_Empty() +
+          (S.Cardinality() - S'_prev.Cardinality())*poly_middle_loop(U, S, k) + poly_middle_loop(U, S, k) ==
+          cost_Pick(0) + cost_Remove(U.UBSize0()) + cost_New() + cost_Copy(S.UBSize0()) + cost_Empty() +
+          (S.Cardinality() - S'.Cardinality())*poly_middle_loop(U, S, k)
 {}
 
 
-ghost function poly_inner_loop(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
+ghost function {:opaque} poly_inner_loop(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
+  ensures o == cost_Pick(0) + cost_Remove(U.UBSize0()) + cost_Empty()
 {
-  U.UBSize0() + 2
+  cost_Pick(0) + cost_Remove(U.UBSize0()) + cost_Empty()
 }
-ghost function poly_middle_loop(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
-  ensures 3*S.UBSize0() + 2*U.UBSize0() + 2 + U.UBSize0()*poly_inner_loop(U, S, k) <= o
+ghost function {:opaque} poly_middle_loop(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
+  ensures o == cost_Copy(S.UBSize0()) + cost_Pick(U.UBSize0()) + cost_Remove(S.UBSize0()) +
+               cost_Copy(U.UBSize0()) + cost_Empty() + U.UBSize0()*poly_inner_loop(U, S, k) +
+               cost_Add(S.UBSize0()) + cost_Empty()
 {
-  /*calc <= {
-    3*S.UBSize0() + 2*U.UBSize0() + 2 + U.UBSize0()*poly_inner_loop(U, S, k);
-    3*S.UBSize0() + 2*U.UBSize0() + 2 + U.UBSize0()*(U.UBSize0() + 2);
-    3*S.UBSize0() + 2*U.UBSize0() + 2 + U.UBSize0()*U.UBSize0() + 2*U.UBSize0();
-    U.UBSize0()*U.UBSize0() + 3*S.UBSize0() + 4*U.UBSize0() + 1;
-  }*/
-  U.UBSize0()*U.UBSize0() + 3*S.UBSize0() + 4*U.UBSize0() + 2
+  cost_Copy(S.UBSize0()) + cost_Pick(U.UBSize0()) + cost_Remove(S.UBSize0()) +
+  cost_Copy(U.UBSize0()) + cost_Empty() + U.UBSize0()*poly_inner_loop(U, S, k) +
+  cost_Add(S.UBSize0()) + cost_Empty()
 }
-ghost function poly_outer_loop(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
-  ensures S.UBSize0() + U.UBSize0() + 4 + S.Cardinality()*(poly_middle_loop(U, S, k)) + S.UBSize0()*U.Cardinality() <= o
+ghost function {:opaque} poly_outer_loop(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
+  ensures o == cost_Pick(0) + cost_Remove(U.UBSize0()) + cost_New() +
+               cost_Copy(S.UBSize0()) + cost_Empty() + S.Cardinality()*poly_middle_loop(U, S, k) +
+               cost_Add(S.UBSize0()*U.Cardinality()) + cost_Empty()
 {
-  /*calc <= {
-    S.UBSize0() + U.UBSize0() + 4 + S.Cardinality()*(poly_middle_loop(U, S, k)) + S.UBSize0()*U.Cardinality();
-    S.UBSize0()*U.Cardinality() + S.UBSize0() + U.UBSize0() + 4 + S.Cardinality()*(poly_middle_loop(U, S, k));
-    S.UBSize0()*U.Cardinality() + S.UBSize0() + U.UBSize0() + 4 + S.Cardinality()*(U.UBSize0()*U.UBSize0() + 3*S.UBSize0() + 4*U.UBSize0() + 2);
-    S.UBSize0()*U.Cardinality() + S.UBSize0() + U.UBSize0() + 4 + (U.UBSize0()*U.UBSize0()*S.Cardinality() + 3*S.UBSize0()*S.Cardinality() + 4*U.UBSize0()*S.Cardinality() + 2*S.Cardinality());
-    U.UBSize0()*U.UBSize0()*S.Cardinality() + 3*S.UBSize0()*S.Cardinality() + S.UBSize0()*U.Cardinality() + 4*U.UBSize0()*S.Cardinality() + S.UBSize0() + U.UBSize0() + 2*S.Cardinality() + 4;
-  }*/
-  U.UBSize0()*U.UBSize0()*S.Cardinality() + 3*S.UBSize0()*S.Cardinality() + S.UBSize0()*U.Cardinality() + 4*U.UBSize0()*S.Cardinality() + S.UBSize0() + U.UBSize0() + 2*S.Cardinality() + 4
+  cost_Pick(0) + cost_Remove(U.UBSize0()) + cost_New() +
+  cost_Copy(S.UBSize0()) + cost_Empty() + S.Cardinality()*poly_middle_loop(U, S, k) +
+  cost_Add(S.UBSize0()*U.Cardinality()) + cost_Empty()
 }
-ghost function poly_edge_case_loop(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
+ghost function {:opaque} poly_edge_case_loop(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
+  ensures o == cost_Pick(U.UBSize0()) + cost_Remove(S.UBSize0()) +
+               cost_New() + cost_Add(0) + cost_Add(S.UBSize0()) + cost_Empty()
 {
-  2*S.UBSize0() + 2*U.UBSize0() + 2
+  cost_Pick(U.UBSize0()) + cost_Remove(S.UBSize0()) +
+  cost_New() + cost_Add(0) + cost_Add(S.UBSize0()) + cost_Empty()
 }
 
 
-ghost function poly(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
-  ensures 2*S.UBSize0() + 3 + S.Cardinality()*poly_edge_case_loop(U, S, k) <= o           // If S contains empty
-  ensures S.UBSize0() + U.UBSize0() + 3 + U.Cardinality()*poly_outer_loop(U, S, k) <= o      // Otherwise
+ghost function {:opaque} poly(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
+  ensures 2*cost_New() + cost_Contains(S.UBSize0()) + cost_Copy(S.UBSize0()) + cost_Empty() +
+          S.Cardinality()*poly_edge_case_loop(U, S, k) <= o                                 // If S contains empty
+  ensures 2*cost_New() + cost_Contains(S.UBSize0()) + cost_Copy(U.UBSize0()) + cost_Empty() +
+          U.Cardinality()*poly_outer_loop(U, S, k) <= o                                     // Otherwise
 {
-  calc == {
-    2*S.UBSize0() + 3 + S.Cardinality()*(poly_edge_case_loop(U, S, k));
-    2*S.UBSize0() + 3 + S.Cardinality()*(2*S.UBSize0() + 2*U.UBSize0() + 2);
-    2*S.UBSize0() + 3 + (2*S.UBSize0()*S.Cardinality() + 2*U.UBSize0()*S.Cardinality() + 2*S.Cardinality());
-    2*S.UBSize0()*S.Cardinality() + 2*U.UBSize0()*S.Cardinality() + 2*S.UBSize0() + 2*S.Cardinality() + 3;
-  }
-  calc == {
-    S.UBSize0() + U.UBSize0() + 3 + U.Cardinality()*poly_outer_loop(U, S, k);
-    S.UBSize0() + U.UBSize0() + 3 + U.Cardinality()*(U.UBSize0()*U.UBSize0()*S.Cardinality() + 3*S.UBSize0()*S.Cardinality() + S.UBSize0()*U.Cardinality() + 4*U.UBSize0()*S.Cardinality() + S.UBSize0() + U.UBSize0() + 2*S.Cardinality() + 4);
-    S.UBSize0() + U.UBSize0() + 3 + (U.UBSize0()*U.UBSize0()*S.Cardinality()*U.Cardinality() + 3*S.UBSize0()*S.Cardinality()*U.Cardinality() + S.UBSize0()*U.Cardinality()*U.Cardinality() + 4*U.UBSize0()*S.Cardinality()*U.Cardinality() + S.UBSize0()*U.Cardinality() + U.UBSize0()*U.Cardinality() + 2*S.Cardinality()*U.Cardinality() + 4*U.Cardinality());
-    U.UBSize0()*U.UBSize0()*S.Cardinality()*U.Cardinality() + 3*S.UBSize0()*S.Cardinality()*U.Cardinality() + S.UBSize0()*U.Cardinality()*U.Cardinality() + 4*U.UBSize0()*S.Cardinality()*U.Cardinality() + S.UBSize0()*U.Cardinality() + U.UBSize0()*U.Cardinality() + 2*S.Cardinality()*U.Cardinality() + S.UBSize0() + U.UBSize0() + 4*U.Cardinality() + 3;
-  }
-  U.UBSize0()*U.UBSize0()*S.Cardinality()*U.Cardinality() + 3*S.UBSize0()*S.Cardinality()*U.Cardinality() + S.UBSize0()*U.Cardinality()*U.Cardinality() + 4*U.UBSize0()*S.Cardinality()*U.Cardinality() + 2*S.UBSize0()*S.Cardinality() + S.UBSize0()*U.Cardinality() + 2*U.UBSize0()*S.Cardinality() + U.UBSize0()*U.Cardinality() + 2*S.Cardinality()*U.Cardinality() + 2*S.UBSize0() + U.UBSize0() + 2*S.Cardinality() + 4*U.Cardinality() + 3
+  2*cost_New() + cost_Contains(S.UBSize0()) +
+  cost_Copy(S.UBSize0()) + cost_Empty() + S.Cardinality()*poly_edge_case_loop(U, S, k) +
+  2*cost_New() + cost_Contains(S.UBSize0()) +
+  cost_Copy(U.UBSize0()) + cost_Empty() + U.Cardinality()*poly_outer_loop(U, S, k)
 }
