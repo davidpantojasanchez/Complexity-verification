@@ -15,9 +15,10 @@ class ConcreteInterview<Q(==)> extends Interview<Q> {
     tree := tree_in;
     domain := domain_in;
     remaining := remaining_in;
+    reveal Model();
   }
 
-  ghost function Model():InterviewModel<Q> { tree }
+  function Repr():InterviewModel<Q> { tree }
   ghost function QuestionDomain():set<Q> { domain }
   ghost function RemainingQuestions():set<Q> { remaining }
 
@@ -26,6 +27,7 @@ class ConcreteInterview<Q(==)> extends Interview<Q> {
     ensures isEnd == Model().End?
     ensures counter_out == counter_in + cost_InterviewIsEnd()
   {
+    reveal Model();
     isEnd := tree.End?;
     counter_out := counter_in + cost_InterviewIsEnd();
   }
@@ -36,6 +38,7 @@ class ConcreteInterview<Q(==)> extends Interview<Q> {
     ensures question == Model().question
     ensures counter_out == counter_in + cost_InterviewQuestion()
   {
+    reveal Model();
     question := tree.question;
     counter_out := counter_in + cost_InterviewQuestion();
   }
@@ -52,6 +55,7 @@ class ConcreteInterview<Q(==)> extends Interview<Q> {
     ensures branch.NodeCount() < NodeCount()
     ensures counter_out == counter_in + cost_InterviewBranch()
   {
+    reveal Model();
     var chosen := if answer then tree.trueBranch else tree.falseBranch;
     branch := new ConcreteInterview(chosen, domain, remaining - {tree.question});
     if Valid() {
@@ -77,10 +81,10 @@ method New_Interview<Q(==)>(tree:InterviewModel<Q>, ghost domain:set<Q>,
   ensures interview.QuestionDomain() == domain
   ensures interview.RemainingQuestions() == domain
   ensures interview.Valid() == InterviewFits(tree, domain)
-  ensures counter_out == counter_in + cost_New()
+  ensures counter_out == counter_in + cost_NewInterview()
 {
   interview := new ConcreteInterview(tree, domain, domain);
-  counter_out := counter_in + cost_New();
+  counter_out := counter_in + cost_NewInterview();
 }
 
 

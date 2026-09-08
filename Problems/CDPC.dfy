@@ -12,7 +12,6 @@ Multiplicities are kept as integers; they are never expanded into individuals.
 type Candidate<Q(==)> = map<Q, bool>
 
 ghost predicate CDPC<Q(!new)>(
-    questions:set<Q>,
     fitness:map<Candidate<Q>, bool>,
     multiplicity:map<Candidate<Q>, nat>,
     privateQuestions:set<Q>,
@@ -20,17 +19,16 @@ ghost predicate CDPC<Q(!new)>(
     privateUpper:real,
     fitnessLower:real,
     fitnessUpper:real)
-  requires ValidCDPCInstance(questions, fitness, multiplicity, privateQuestions, privateLower, privateUpper, fitnessLower, fitnessUpper)
+  requires CDPCValidInstance(fitness, multiplicity, privateQuestions, privateLower, privateUpper, fitnessLower, fitnessUpper)
 {
-  exists interview:InterviewModel<Q> | InterviewFits(interview, questions) ::
-    CertificateCDPC(
+  exists interview:InterviewModel<Q> | InterviewFits(interview, CDPCQuestions(fitness.Keys)) ::
+    CDPCCertificate(
       fitness, multiplicity, privateQuestions,
       privateLower, privateUpper, fitnessLower, fitnessUpper,
       fitness.Keys, interview)
 }
 
-ghost predicate ValidCDPCInstance<Q(!new)>(
-    questions:set<Q>,
+ghost predicate CDPCValidInstance<Q(!new)>(
     fitness:map<Candidate<Q>, bool>,
     multiplicity:map<Candidate<Q>, nat>,
     privateQuestions:set<Q>,
@@ -41,14 +39,28 @@ ghost predicate ValidCDPCInstance<Q(!new)>(
 {
   fitness.Keys == multiplicity.Keys &&
   fitness.Keys != {} &&
-  privateQuestions <= questions &&
+  privateQuestions <= CDPCQuestions(fitness.Keys) &&
   (forall candidate | candidate in fitness.Keys ::
-    candidate.Keys == questions && multiplicity[candidate] > 0) &&
+    candidate.Keys == CDPCQuestions(fitness.Keys) && multiplicity[candidate] > 0) &&
   0.0 <= privateLower <= privateUpper <= 1.0 &&
   0.0 <= fitnessLower <= fitnessUpper <= 1.0
 }
 
-ghost predicate {:opaque} CertificateCDPC<Q(!new)>(
+// Complete correctness at the root; CDPCCertificate below is the recursive
+// population semantics and intentionally remains separate from tree structure.
+ghost predicate CDPCCorrectCertificate<Q(!new)>(
+    fitness:map<Candidate<Q>, bool>, multiplicity:map<Candidate<Q>, nat>,
+    privateQuestions:set<Q>, privateLower:real, privateUpper:real,
+    fitnessLower:real, fitnessUpper:real, interview:InterviewModel<Q>)
+  requires CDPCValidInstance(fitness, multiplicity, privateQuestions,
+    privateLower, privateUpper, fitnessLower, fitnessUpper)
+{
+  InterviewFits(interview, CDPCQuestions(fitness.Keys)) &&
+  CDPCCertificate(fitness, multiplicity, privateQuestions,
+    privateLower, privateUpper, fitnessLower, fitnessUpper, fitness.Keys, interview)
+}
+
+ghost predicate {:opaque} CDPCCertificate<Q(!new)>(
     fitness:map<Candidate<Q>, bool>,
     multiplicity:map<Candidate<Q>, nat>,
     privateQuestions:set<Q>,
@@ -101,7 +113,17 @@ ghost predicate {:opaque} CDPCBranch<Q(!new)>(
   if candidates == {} then interview.End?
   else
     PrivateSafe(candidates, multiplicity, privateQuestions, privateLower, privateUpper) &&      // No es necesario
-    CertificateCDPC(fitness, multiplicity, privateQuestions, privateLower, privateUpper, fitnessLower, fitnessUpper, candidates, interview)
+    CDPCCertificate(fitness, multiplicity, privateQuestions, privateLower, privateUpper, fitnessLower, fitnessUpper, candidates, interview)
+}
+
+// Valid instances have a nonempty population and a common answer domain.
+// The chosen representative is ghost; executable callers may pick any candidate.
+ghost function CDPCQuestions<Q(!new)>(candidates:set<Candidate<Q>>):(questions:set<Q>)
+  requires candidates != {}
+  ensures exists candidate | candidate in candidates :: questions == candidate.Keys
+{
+  var candidate :| candidate in candidates;
+  candidate.Keys
 }
 
 ghost predicate ClassificationDecided<Q(!new)>(
@@ -185,6 +207,66 @@ ghost predicate {:opaque} PrivateMass<Q(!new)>(candidates:set<Candidate<Q>>, pri
 
 
 // Lemmas
+
+// The result does not depend on which representative is chosen.
+lemma CDPCQuestionsCommonDomain<Q(!new)>(candidates:set<Candidate<Q>>, questions:set<Q>)
+  requires candidates != {}
+  requires forall candidate | candidate in candidates :: candidate.Keys == questions
+  ensures CDPCQuestions(candidates) == questions
+{
+  var representative :| representative in candidates &&
+    CDPCQuestions(candidates) == representative.Keys;
+}
+
+// Equivalence with the former explicit-domain conditions, for any common domain.
+lemma CDPCValidInstanceCommonDomain<Q(!new)>(
+    questions:set<Q>, fitness:map<Candidate<Q>, bool>,
+    multiplicity:map<Candidate<Q>, nat>, privateQuestions:set<Q>,
+    privateLower:real, privateUpper:real, fitnessLower:real, fitnessUpper:real)
+  requires fitness.Keys != {}
+  requires fitness.Keys == multiplicity.Keys
+  requires forall candidate | candidate in fitness.Keys :: candidate.Keys == questions
+  ensures CDPCValidInstance(
+    fitness, multiplicity, privateQuestions,
+    privateLower, privateUpper, fitnessLower, fitnessUpper) ==
+      (privateQuestions <= questions &&
+       (forall candidate | candidate in fitness.Keys :: multiplicity[candidate] > 0) &&
+       0.0 <= privateLower <= privateUpper <= 1.0 &&
+       0.0 <= fitnessLower <= fitnessUpper <= 1.0)
+{
+  CDPCQuestionsCommonDomain(fitness.Keys, questions);
+}
+
+lemma CDPCQuestionDomainRegressions()
+{
+  var first := map[0 := true, 1 := false];
+  var second := map[0 := false, 1 := true];
+  assert first[0] != second[0];
+  assert first != second;
+  var fitness := map[first := true, second := false];
+  var multiplicity := map[first := 2, second := 1];
+  assert first in fitness.Keys;
+  assert forall candidate | candidate in fitness.Keys :: candidate.Keys == {0, 1};
+  CDPCValidInstanceCommonDomain(
+    {0, 1}, fitness, multiplicity, {1}, 0.0, 1.0, 0.0, 1.0);
+  assert CDPCValidInstance(fitness, multiplicity, {1}, 0.0, 1.0, 0.0, 1.0);
+  assert CDPCQuestions(fitness.Keys) == {0, 1};
+  assert !CDPCValidInstance(fitness, multiplicity, {2}, 0.0, 1.0, 0.0, 1.0);
+  assert !CDPCValidInstance(fitness, map[first := 0, second := 1], {}, 0.0, 1.0, 0.0, 1.0);
+  assert !CDPCValidInstance(fitness, map[first := 1], {}, 0.0, 1.0, 0.0, 1.0);
+
+  var partial := map[0 := false];
+  assert !CDPCValidInstance(
+    map[first := true, partial := false], map[first := 1, partial := 1],
+    {}, 0.0, 1.0, 0.0, 1.0);
+  assert !CDPCValidInstance<int>(map[], map[], {}, 0.0, 1.0, 0.0, 1.0);
+
+  // A nonempty population may still have no questions at all.
+  var noAnswers:Candidate<int> := map[];
+  CDPCQuestionsCommonDomain({noAnswers}, {});
+  assert CDPCValidInstance(
+    map[noAnswers := true], map[noAnswers := 1], {}, 0.0, 1.0, 0.0, 1.0);
+}
 
 
 lemma FitMassDefinition<Q(!new)>(candidates:set<Candidate<Q>>, fitness:map<Candidate<Q>, bool>, multiplicity:map<Candidate<Q>, nat>, mass:nat, filtered:set<Candidate<Q>>)
@@ -301,7 +383,7 @@ lemma CDPCBranchStep<Q(!new)>(
     candidates, interview)
   ensures PrivateSafe(candidates, multiplicity, privateQuestions,
                       privateLower, privateUpper)
-  ensures CertificateCDPC(
+  ensures CDPCCertificate(
     fitness, multiplicity, privateQuestions,
     privateLower, privateUpper, fitnessLower, fitnessUpper,
     candidates, interview)
@@ -321,7 +403,7 @@ lemma CDPCEndStep<Q(!new)>(
   requires candidates != {}
   requires candidates <= fitness.Keys
   requires candidates <= multiplicity.Keys
-  requires CertificateCDPC(
+  requires CDPCCertificate(
     fitness, multiplicity, privateQuestions,
     privateLower, privateUpper, fitnessLower, fitnessUpper,
     candidates, End)
@@ -330,7 +412,7 @@ lemma CDPCEndStep<Q(!new)>(
   ensures ClassificationDecided(candidates, fitness, multiplicity,
                                 fitnessLower, fitnessUpper)
 {
-  reveal CertificateCDPC();
+  reveal CDPCCertificate();
 }
 
 lemma CDPCAskStep<Q(!new)>(
@@ -347,7 +429,7 @@ lemma CDPCAskStep<Q(!new)>(
   requires candidates != {}
   requires candidates <= fitness.Keys
   requires candidates <= multiplicity.Keys
-  requires CertificateCDPC(
+  requires CDPCCertificate(
     fitness, multiplicity, privateQuestions,
     privateLower, privateUpper, fitnessLower, fitnessUpper,
     candidates, interview)
@@ -362,7 +444,7 @@ lemma CDPCAskStep<Q(!new)>(
     FilterCandidates(candidates, interview.question, false),
     interview.falseBranch)
 {
-  reveal CertificateCDPC();
+  reveal CDPCCertificate();
 }
 
 /*
@@ -404,30 +486,30 @@ lemma UnequalWeightsRegression()
 }
 
 lemma EmptyPopulationIsMalformed()
-  ensures !ValidCDPCInstance<int>(
-    {}, map[], map[], {}, 0.0, 1.0, 0.0, 1.0)
+  ensures !CDPCValidInstance<int>(
+    map[], map[], {}, 0.0, 1.0, 0.0, 1.0)
 {
-  reveal ValidCDPCInstance();
+  reveal CDPCValidInstance();
 }
 
 lemma ZeroWeightIsMalformed()
   ensures
     var candidate := map[0 := true];
-    !ValidCDPCInstance<int>(
-      {0}, map[candidate := true], map[candidate := 0], {},
+    !CDPCValidInstance<int>(
+      map[candidate := true], map[candidate := 0], {},
       0.0, 1.0, 0.0, 1.0)
 {
-  reveal ValidCDPCInstance();
+  reveal CDPCValidInstance();
 }
 
 lemma InclusiveThresholdRegression()
   ensures
     var candidate := map[0 := true];
-    ValidCDPCInstance<int>(
-      {0}, map[candidate := true], map[candidate := 3], {0},
+    CDPCValidInstance<int>(
+      map[candidate := true], map[candidate := 3], {0},
       1.0, 1.0, 0.0, 1.0) &&
       CDPC<int>(
-        {0}, map[candidate := true], map[candidate := 3], {0},
+        map[candidate := true], map[candidate := 3], {0},
         1.0, 1.0, 0.0, 1.0)
 {
   var candidate := map[0 := true];
@@ -439,9 +521,9 @@ lemma InclusiveThresholdRegression()
   assert candidate in fitness.Keys;
   assert fitness.Keys != {};
   assert multiplicity[candidate] > 0;
-  assert ValidCDPCInstance(
-    {0}, fitness, multiplicity, {0}, 1.0, 1.0, 0.0, 1.0) by {
-    reveal ValidCDPCInstance();
+  assert CDPCValidInstance(
+    fitness, multiplicity, {0}, 1.0, 1.0, 0.0, 1.0) by {
+    reveal CDPCValidInstance();
   }
   assert InterviewFits(End, {0}) by {
     reveal InterviewFits();
@@ -476,10 +558,10 @@ lemma InclusiveThresholdRegression()
     {candidate}, fitness, multiplicity, 0.0, 1.0) by {
     reveal ClassificationDecided();
   }
-  assert CertificateCDPC(
+  assert CDPCCertificate(
     fitness, multiplicity, {0}, 1.0, 1.0, 0.0, 1.0,
     {candidate}, End) by {
-    reveal CertificateCDPC();
+    reveal CDPCCertificate();
   }
   reveal CDPC();
 }

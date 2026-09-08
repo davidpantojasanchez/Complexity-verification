@@ -1,5 +1,3 @@
-include "Set.dfy"
-
 /*
 Abstract interface for finite binary CDPC interviews.
 
@@ -112,15 +110,12 @@ lemma InterviewDepthBound<Q>(tree:InterviewModel<Q>, remaining:set<Q>)
 }
 
 
-ghost function cost_InterviewIsEnd():nat { 1 }
-ghost function cost_InterviewQuestion():nat { 1 }
-ghost function cost_InterviewBranch():nat { 1 }
-
 
 trait Interview<Q(==)> {
-  ghost function Model():InterviewModel<Q>
-  ghost function QuestionDomain():set<Q>
-  ghost function RemainingQuestions():set<Q>
+  function Repr():InterviewModel<Q>
+  ghost function {:opaque} Model():InterviewModel<Q> { Repr() }
+  ghost function QuestionDomain():set<Q>                          // Todas las preguntas que pueden haber en la totalidad de la entrevista
+  ghost function RemainingQuestions():set<Q>                      // Preguntas que pueden (o no) aparecer a partir de este punto (sin las del resto del path)
 
   ghost function Valid():bool
   {
@@ -166,3 +161,9 @@ lemma InterviewBounds<Q>(interview:Interview<Q>)
   InterviewQuestionsBound(interview.Model(), interview.RemainingQuestions());
   InterviewDepthBound(interview.Model(), interview.RemainingQuestions());
 }
+
+
+ghost function cost_InterviewIsEnd():nat { 1 }
+ghost function cost_InterviewQuestion():nat { 1 }
+ghost function cost_InterviewBranch():nat { 1 }
+ghost function cost_NewInterview():nat { 1 }

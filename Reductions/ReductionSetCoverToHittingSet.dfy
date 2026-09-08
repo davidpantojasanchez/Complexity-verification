@@ -3,9 +3,8 @@ include "../Problems/SetCover.dfy"
 
 
 ghost function SetCover_to_HittingSet<T>(U: set<T>, S: set<set<T>>, k: nat) : (r:(set<set<T>>, set<set<set<T>>>, int))
-  requires forall s | s in S :: s <= U // los sets son subsets del universo
-  requires isCover(U, S) // existe un subconjunto de sets tal que su union es igual al universo
-  ensures forall s | s in r.1 :: s <= r.0 // los sets son subsets del universo
+  requires SetCoverValidInstance(U, S)
+  ensures HittingSetValidInstance(r.0, r.1)
 {
   var newS: set<set<set<T>>> := (set u | u in U :: (set s | s in S && u in s));
   (S, newS, k)
@@ -16,8 +15,7 @@ ghost function SetCover_to_HittingSet<T>(U: set<T>, S: set<set<T>>, k: nat) : (r
 // siendo (HU,HS,Hk) la transformacion de (U,S,k)
 
 lemma SetCover_HittingSet<T>(U:set<T>, S:set<set<T>>, k:nat)
-  requires forall s | s in S :: s <= U
-  requires isCover(U, S)
+  requires SetCoverValidInstance(U, S)
   ensures var (HU,HS,Hk) := SetCover_to_HittingSet(U,S,k);
               SetCover(U,S,k) <==> HittingSet(HU,HS,Hk)
 {
@@ -30,14 +28,14 @@ lemma SetCover_HittingSet<T>(U:set<T>, S:set<set<T>>, k:nat)
 //El primer lema demuestra HS ==> SC
 
  lemma SetCover_HittingSet1<T>(U:set<T>, S: set<set<T>>, k:nat)
-  requires forall s | s in S :: s <= U
-  requires isCover(U, S)
+  requires SetCoverValidInstance(U, S)
   ensures var (HU,HS,Hk) := SetCover_to_HittingSet(U,S,k);
               SetCover(U,S,k) <== HittingSet(HU,HS,Hk)
 {
   var (HU,HS,Hk) := SetCover_to_HittingSet(U,S,k);
   if (HittingSet(HU,HS,Hk)) {  
-    var C:set<set<T>> :| hitsSets(HS, C) && |C| <= Hk && C <= HU;
+    var C:set<set<T>> :| HittingSetCertificate(HU, HS, Hk, C);
+    assert HittingSetCertificate(HU, HS, Hk, C);
     //Veamos que se cumple que C es cobertura de U, es decir, isCover(U,C)
     forall u | u in U
     ensures exists s :: s in C && u in s
@@ -83,8 +81,7 @@ lemma gintersect_set_of_sets<T>(U:set<T>,S: set<set<T>>, C:set<set<T>>)
 }
 
 lemma SetCover_HittingSet2<T>(U:set<T>, S: set<set<T>>, k:nat)
-  requires forall s | s in S :: s <= U
-  requires isCover(U, S)
+  requires SetCoverValidInstance(U, S)
   ensures var (HU,HS,Hk) := SetCover_to_HittingSet(U,S,k);
               SetCover(U,S,k) ==> HittingSet(HU,HS,Hk)
 { 
@@ -97,6 +94,7 @@ lemma SetCover_HittingSet2<T>(U:set<T>, S: set<set<T>>, k:nat)
     else if (S == {{}}) { 
       var C := {};
       assert C <= U && |C| <= Hk;
+      assert HittingSetCertificate(HU, HS, Hk, {});
       assert HittingSet(HU,HS,Hk);
     }
     else {
@@ -110,7 +108,8 @@ lemma SetCover_HittingSet2<T>(U:set<T>, S: set<set<T>>, k:nat)
   }
   else{
     if (SetCover(U,S,k)) {
-      var C:set<set<T>> :| C <= S && isCover(U, C) && |C| <= k;
+      var C:set<set<T>> :| SetCoverCertificate(U, S, k, C);
+      assert SetCoverCertificate(U, S, k, C);
       assert C <= HU && |C| <= Hk by
         {assert C!={};
         var s :| s in S && s !={};
@@ -121,6 +120,7 @@ lemma SetCover_HittingSet2<T>(U:set<T>, S: set<set<T>>, k:nat)
       //corresponde a un conjunto de newS cuyos conjuntos contienen a u
       //Usamos el lema auxiliar
       gintersect_set_of_sets(U,S,C);
+      assert HittingSetCertificate(HU, HS, Hk, C);
       //assert forall s | s in HS :: C * s != {};
       //assert exists s:set<set<T>> :: hitsSets(HS, s) && |s| <= Hk && s <= HU;
     }

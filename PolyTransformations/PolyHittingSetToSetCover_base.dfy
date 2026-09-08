@@ -5,7 +5,7 @@ include "../Auxiliary/Lemmas.dfy"
 
 
 method HittingSet_to_SetCover_Method(U:set<int>, S:set<set<int>>, k:nat) returns (r:(set<set<int>>, set<set<set<int>>>, int))
-  requires forall s | s in S ::  s <= U
+  requires HittingSetValidInstance(U, S)
   ensures r == HittingSet_to_SetCover(U, S, k)
 {
   var SS:set<set<set<int>>> := {};

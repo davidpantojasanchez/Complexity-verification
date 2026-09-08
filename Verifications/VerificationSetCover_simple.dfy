@@ -2,18 +2,22 @@ include "../Problems/SetCover.dfy"
 include "../Auxiliary/Lemmas.dfy"
 
 
-method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) returns (b:bool, ghost counter:nat)   
-  requires forall s | s in S :: s <= U
-  requires k <= |S|
-  requires forall i | i in I :: |i| <= |U|
-  ensures b == (I <= S && isCover(U, I) && |I| <= k)
+method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) returns (accepted:bool, ghost counter:nat)   
+  requires SetCoverValidInstance(U, S)
+  requires SetCoverAdmissibleCertificate(U, I)
+  ensures accepted == SetCoverCertificate(U, S, k, I)
+  ensures accepted ==> SetCover(U, S, k)
   ensures counter <= poly(U, S, k)
 {
+  assert forall i | i in I :: |i| <= |U|;
   counter := 0;
   var U' := U; counter := counter + |U|;
-  b:= true;
+  accepted:= true;
   counter := counter + 1;
-  if (k < |I|) {
+  if (k < |I| || |S| < |I|) {
+    if I <= S {
+      if_smaller_then_less_cardinality(I, S);
+    }
     return false, counter;
   }
   var I_seq_S:bool;
@@ -25,19 +29,20 @@ method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) retur
     assert counter <= poly(U, S, k);
     return false, counter;
   }
-  while (U' != {} && b)
+  while (U' != {} && accepted)
     decreases |U'|
     invariant U' <= U 
-    invariant b == isCover(U-U',I)
+    invariant accepted == isCover(U-U',I)
     invariant counter <= |U| + poly_isSubset(U, I, S) + 1 + (|U| - |U'|)*(poly_outer_loop(U, S, k) + 1)
   {
     counter := counter + 1;
-    b, U', counter := verifySetCover_outer_loop(U, S, k, I, U', counter);
+    accepted, U', counter := verifySetCover_outer_loop(U, S, k, I, U', counter);
   }
   counter := counter + 1;
   assert counter <= |U| + poly_isSubset(U, I, S) + 2 + |U|*(poly_outer_loop(U, S, k) + 1);
   counter_simplification(U, S, k, I);
-  assert b ==> U-U' == U;
+  assert accepted ==> U-U' == U;
+  assert accepted ==> SetCoverCertificate(U, S, k, I);
 }
 
 

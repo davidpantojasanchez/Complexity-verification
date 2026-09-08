@@ -5,7 +5,7 @@ include "../Auxiliary/Lemmas.dfy"
 
 
 method HittingSet_to_SetCover_Method(U:set<int>, S:set<set<int>>, k:nat) returns (r:(set<set<int>>, set<set<set<int>>>, nat), ghost counter:nat)
-  requires forall s | s in S ::  s <= U
+  requires HittingSetValidInstance(U, S)
   ensures r == HittingSet_to_SetCover(U, S, k)
   ensures counter <= poly(U, S, k)
 {
@@ -48,7 +48,7 @@ method HittingSet_to_SetCover_Method(U:set<int>, S:set<set<int>>, k:nat) returns
 
 method HittingSet_to_SetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, U':set<int>, SS:set<set<set<int>>>, ghost counter_in:nat) returns (U'':set<int>, SS':set<set<set<int>>>, ghost counter:nat)
 // Problem requirements
-requires forall s | s in S ::  s <= U
+requires HittingSetValidInstance(U, S)
 // Termination in
 requires U' != {}
 // Invariant in
@@ -101,7 +101,7 @@ ensures counter <= counter_in + poly_outer_loop(U, S, k)
 
 method HittingSet_to_SetCover_middle_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, u:int, sets_in_S_that_contain_u:set<set<int>>, ghost counter_in:nat) returns (S'':set<set<int>>, sets_in_S_that_contain_u':set<set<int>>, ghost counter:nat)
 // Problem requirements
-requires forall s | s in S ::  s <= U
+requires HittingSetValidInstance(U, S)
 // Termination in
 requires S' != {}
 // Invariant in
@@ -149,7 +149,7 @@ ensures counter <= counter_in + poly_middle_loop(U, S, k)
 
 method HittingSet_to_SetCover_inner_loop(U:set<int>, S:set<set<int>>, k:nat, s:set<int>, s':set<int>, u:int, s_contains_u:bool, ghost counter_in:nat) returns (s'':set<int>, s_contains_u':bool, ghost counter:nat)
 // Problem requirements
-requires forall s | s in S ::  s <= U
+requires HittingSetValidInstance(U, S)
 // Termination in
 requires s' != {}
 // Invariant in
@@ -179,7 +179,7 @@ ensures counter == counter_in + poly_inner_loop(U, S, k)
 
 method HittingSet_to_SetCover_edge_case_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, SS:set<set<set<int>>>, ghost counter_in:nat) returns (S'':set<set<int>>, SS':set<set<set<int>>>, ghost counter:nat)
 // Problem requirements
-requires forall s | s in S ::  s <= U
+requires HittingSetValidInstance(U, S)
 // Termination in
 requires S' != {}
 // Invariant in

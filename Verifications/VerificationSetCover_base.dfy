@@ -1,10 +1,11 @@
 include "../Problems/SetCover.dfy"
 
 
-method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) returns (b:bool)   
-  requires forall s | s in S :: s <= U
-  requires k <= |S|
-  ensures b == (I <= S && isCover(U, I) && |I| <= k)
+method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) returns (accepted:bool)   
+  requires SetCoverValidInstance(U, S)
+  requires SetCoverAdmissibleCertificate(U, I)
+  ensures accepted == SetCoverCertificate(U, S, k, I)
+  ensures accepted ==> SetCover(U, S, k)
 {
   var U' := U;
   var b1:= true;
@@ -17,7 +18,7 @@ method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) retur
     b1, U' := verifySetCover_outer_loop(U, S, k, I, U');
   }
   assert b1 ==> U-U' == U;
-  b := b1 && I <= S && |I| <= k ;
+  accepted := b1 && I <= S && |I| <= k ;
 }
 
 
