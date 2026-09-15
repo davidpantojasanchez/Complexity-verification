@@ -4,7 +4,7 @@ include "../Reductions/ReductionHittingSetToSetCover.dfy"
 include "../Auxiliary/Lemmas.dfy"
 
 
-method HittingSet_to_SetCover_Method(U:set<int>, S:set<set<int>>, k:nat) returns (r:(set<set<int>>, set<set<set<int>>>, int))
+method HittingSet_to_SetCover_Method(U:set<int>, S:set<set<int>>, k:nat) returns (r:(set<set<int>>, set<set<set<int>>>, nat))
   requires HittingSetValidInstance(U, S)
   ensures r == HittingSet_to_SetCover(U, S, k)
 {
@@ -40,14 +40,10 @@ method HittingSet_to_SetCover_Method(U:set<int>, S:set<set<int>>, k:nat) returns
 
 
 method HittingSet_to_SetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, U':set<int>, SS:set<set<set<int>>>) returns (U'':set<int>, SS':set<set<set<int>>>)
-  // Termination in
   requires U' != {}
-  // Invariant in
   requires U' <= U
   requires SS == (set u | u in (U - U') :: (set s | s in S && u in s))
-  // Termination out
   ensures |U''| == |U'| - 1
-  // Invariant out
   ensures U'' <= U
   ensures SS' == (set u | u in (U - U'') :: (set s | s in S && u in s))
 {
@@ -81,14 +77,10 @@ method HittingSet_to_SetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, U':
 
 
 method HittingSet_to_SetCover_middle_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, u:int, sets_in_S_that_contain_u:set<set<int>>) returns (S'':set<set<int>>, sets_in_S_that_contain_u':set<set<int>>)
-  // Termination in
   requires S' != {}
-  // Invariant in
   requires S' <= S
   requires sets_in_S_that_contain_u == (set s | s in (S - S') && u in s)
-  // Termination out
   ensures |S''| == |S'| - 1
-  // Invariant out
   ensures S'' <= S
   ensures sets_in_S_that_contain_u' == (set s | s in (S - S'') && u in s)
 {
@@ -97,16 +89,7 @@ method HittingSet_to_SetCover_middle_loop(U:set<int>, S:set<set<int>>, k:nat, S'
   var s :| s in S';
   S'' := S' - {s};
 
-  var s_contains_u:bool := false;
-  var s' := s;
-
-  while (s' != {})
-    decreases |s'|
-    invariant s' <= s
-    invariant s_contains_u == (u in (s - s'))
-  {
-    s', s_contains_u := HittingSet_to_SetCover_inner_loop(U, S, k, s, s', u, s_contains_u);
-  }
+  var s_contains_u:bool := u in s;
 
   if (s_contains_u) {
     sets_in_S_that_contain_u' := sets_in_S_that_contain_u + {s};
@@ -115,38 +98,11 @@ method HittingSet_to_SetCover_middle_loop(U:set<int>, S:set<set<int>>, k:nat, S'
 }
 
 
-method HittingSet_to_SetCover_inner_loop(U:set<int>, S:set<set<int>>, k:nat, s:set<int>, s':set<int>, u:int, s_contains_u:bool) returns (s'':set<int>, s_contains_u':bool)
-  // Termination in
-  requires s' != {}
-  // Invariant in
-  requires s' <= s
-  requires s_contains_u == (u in (s - s'))
-  // Termination out
-  ensures |s''| == |s'| - 1
-  // Invariant out
-  ensures s'' <= s
-  ensures s_contains_u' == (u in (s - s''))
-{
-  s_contains_u' := s_contains_u;
-
-  var e :| e in s';
-  s'' := s' - {e};
-
-  if (e == u) {
-    s_contains_u' := true;
-  }
-}
-
-
 method HittingSet_to_SetCover_edge_case_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, SS:set<set<set<int>>>) returns (S'':set<set<int>>, SS':set<set<set<int>>>)
-  // Termination in
   requires S' != {}
-  // Invariant in
   requires S' <= S
   requires SS == (set s | s in (S - S') :: {s})
-  // Termination out
   ensures |S''| == |S'| - 1
-  // Invariant out
   ensures S'' <= S
   ensures SS' == (set s | s in (S - S'') :: {s})
 {

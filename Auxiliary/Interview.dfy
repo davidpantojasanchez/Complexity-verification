@@ -82,9 +82,9 @@ lemma InterviewStep<Q>(tree:InterviewModel<Q>, remaining:set<Q>)
 }
 
 lemma InterviewQuestionsBound<Q>(tree:InterviewModel<Q>, remaining:set<Q>)
+  decreases tree
   requires InterviewFits(tree, remaining)
   ensures InterviewQuestions(tree) <= remaining
-  decreases tree
 {
   if tree.Ask? {
     InterviewStep(tree, remaining);
@@ -96,9 +96,9 @@ lemma InterviewQuestionsBound<Q>(tree:InterviewModel<Q>, remaining:set<Q>)
 }
 
 lemma InterviewDepthBound<Q>(tree:InterviewModel<Q>, remaining:set<Q>)
+  decreases tree
   requires InterviewFits(tree, remaining)
   ensures InterviewDepth(tree) <= |remaining|
-  decreases tree
 {
   if tree.Ask? {
     InterviewStep(tree, remaining);
@@ -138,13 +138,13 @@ trait Interview<Q(==)> {
 
   method Branch(answer:bool, ghost counter_in:nat) returns (branch:Interview<Q>, ghost counter_out:nat)
     requires Model().Ask?
+    ensures Valid() ==> branch.Valid()
+    ensures branch.NodeCount() < NodeCount()
     ensures branch.Model() ==
             if answer then Model().trueBranch else Model().falseBranch
     ensures branch.QuestionDomain() == QuestionDomain()
     ensures branch.RemainingQuestions() ==
             RemainingQuestions() - {Model().question}
-    ensures Valid() ==> branch.Valid()
-    ensures branch.NodeCount() < NodeCount()
     ensures counter_out == counter_in + cost_InterviewBranch()
 }
 

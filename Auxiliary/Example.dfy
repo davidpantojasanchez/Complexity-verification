@@ -13,9 +13,9 @@ ghost function fib(n:int) : int
   ensures fib(n) % 2 == 1 &&  fib(n + 1) % 2 == 1 && fib(n + 2) % 2 == 0
 {}*/
 lemma fibOddOddEven(n:int)
+  decreases n
   requires n >= 1 && n % 3 == 1
   ensures fib(n) % 2 == 1 &&  fib(n + 1) % 2 == 1 && fib(n + 2) % 2 == 0
-  decreases n
 {
   if n == 1 {
     assert fib(1) == 1 && fib(2) == 1 && fib(3) == 2;

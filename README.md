@@ -3,20 +3,23 @@
 This project develops a Dafny methodology for computer-assisted verification of
 computational-complexity arguments. Set Cover is the main case study: certificate
 checking, correctness of the Hitting Set reduction, and polynomial bounds on
-abstract operation counters. Weighted binary CDPC is an ongoing second case study.
+abstract operation counters. Multiplicity-based binary CDPC is an ongoing second case study;
+its instances carry the finite question set explicitly alongside fitness,
+multiplicity, private questions and the four thresholds.
 
 No end-to-end bit-complexity or absolute NP-completeness theorem is established.
 The Set Cover to CDPC correctness proof is unfinished and currently contains
-proof bypasses; consult the current status before using it.
+proof bypasses.
 
 ## Repository map
 
 | Directory | Purpose |
 | --- | --- |
-| `Problems/` | Mathematical definitions of Set Cover, Hitting Set and weighted binary CDPC. |
+| `Problems/` | Mathematical definitions of Set Cover, Hitting Set and multiplicity-based binary CDPC. |
 | `Verifications/` | Certificate checkers and cost proofs; CDPC ghost helpers live in `VerificationCDPC_aux.dfy`. |
+| `NPMembership/` | Representation contracts for NP arguments; Set Cover uses an ordered family and Boolean selection certificates. Construction and the composed checker are pending. |
 | `Reductions/` | Mathematical transformations and correctness arguments, including unfinished Set Cover → CDPC. |
-| `PolyTransformations/` | Executable Hitting Set → Set Cover transformations and cost analyses. |
+| `PolyTransformations/` | Executable Hitting Set → Set Cover and Set Cover → CDPC transformations, with cost analyses. |
 | `Auxiliary/` | Abstract traits, immutable implementations, cost models and reusable lemmas; `Example.dfy` is a standalone Fibonacci example. |
 
 The Set Cover checker and Hitting Set → Set Cover transformation have three
@@ -24,42 +27,39 @@ variants: `_base` has functional correctness without costs, `_simple` has explic
 author-written costs, and the unsuffixed default uses instrumented interfaces.
 CDPC does not have this trio.
 
-Set Cover definitions, reductions and checkers use valid instances whose complete
-set family covers the universe. The budget `k` is any natural number, without an
-upper bound. Checkers test certificate correctness; instance validity is a
-precondition. Contracts distinguish instance validity, basic certificate
-admissibility, and certificate correctness. Admissibility bounds Set Cover member
-sizes, Hitting Set certificate size, and CDPC tree question labels. It does not
-assume a solution. Set Cover checkers require admissibility; CDPC checks actual
-question labels through CheckInterviewFits without assuming their admissibility.
-Representation conditions remain separate. Witness-preservation
-lemmas are in `Auxiliary/Lemmas.dfy`; encodings and polynomial CDPC witness size
-remain open.
+Instrumented nested collections use specialized interfaces such as `SetSet`,
+`Map_Map_T`, `Map_Set_T` and `Map_MapSet_T`: comparisons use contents and the
+cost model accounts for every represented nesting level. The executable
+Set Cover → CDPC transformation has a degree-four collection-counter bound;
+its functional correctness remains pending.
 
-## Working documentation
+## Mathematical scope
 
-Start with [agent instructions](AGENTS.md), then
-[current state and verification](project-info/PROJECT_STATE.md) and
-[active decisions](project-info/DECISIONS.md).
-[Future work](project-info/FUTURE_WORK.md) records open work and observed defects;
-[the changelog](project-info/CHANGELOG.md) records completed changes.
-
-These support files are local: `.gitignore` excludes `AGENTS.md`, `project-info/`,
-`Experiments/` and `CDPC_reference/`. A clone does not receive them through the
-current tracked tree. Experiments are optional evidence; the CDPC reference is
-read-only historical material.
+Set Cover instances require the complete set family to cover the universe; the
+budget `k` may be any natural number. Each problem exposes instance validity and
+certificate correctness. Checkers assume simple certificate-size bounds and
+verify correctness within that domain. Lemmas prove that every correct
+certificate satisfies the size bounds. Public cost bounds depend only on the
+instance; efficient validation or construction of the required representations
+remains a separate obligation for a complete NP argument.
+Correct CDPC interviews have at most `2*M*Q + 1` nodes, for `M` candidate types
+and `Q` questions. These results use abstract collection costs. Encodings and
+bit-complexity bounds remain open.
 
 ## Verification
 
-The local toolchain is Dafny 4.11.0. Verify sources separately, including proof
-helper files, with a 60-second limit per obligation:
+The project uses Dafny 4.11.0. You can verify directly in your IDE, or, with
+`dafny` available on PATH:
 
 ```powershell
 dafny verify --verification-time-limit 60 Verifications/VerificationSetCover.dfy
 ```
 
-With local support files available, also run `./project-info/verify-all.ps1`.
-It locates Dafny through `DAFNY_EXE`, PATH, or the VS Code extension. It currently
-stops at its policy scan because proof bypasses occur in both the historical
-reference and the active CDPC reduction. Its `-Files` option does not restrict
-that scan. See `PROJECT_STATE.md` for the exact validation scope.
+The limit applies per verification obligation. Verify dependencies separately as
+well: checking a file does not verify the bodies of its included declarations.
+For example, the CDPC checker and its proof helpers are checked with:
+
+```powershell
+dafny verify --verification-time-limit 60 Verifications/VerificationCDPC_aux.dfy
+dafny verify --verification-time-limit 60 Verifications/VerificationCDPC.dfy
+```

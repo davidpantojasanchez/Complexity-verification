@@ -7,22 +7,22 @@ class ConcreteSet<T(==)> extends Set<T> {
 
   constructor(elements_in:set<T>, ghost universe_in:set<T>)
     requires elements_in <= universe_in
+    ensures Valid()
     ensures Model() == elements_in
     ensures Universe() == universe_in
-    ensures Valid()
   {
     elements := elements_in;
     universe := universe_in;
     reveal Model();
-    set_subset_cardinality(elements_in, universe_in);
+    if_smaller_then_less_cardinality(elements_in, universe_in);
   }
 
   function Repr():set<T> { elements }
   ghost function Universe():set<T> { universe }
 
   method Pick(ghost counter_in:nat) returns (e:T, ghost counter_out:nat)
-    requires Valid()
     requires Model() != {}
+    requires Valid()
     ensures e in Model()
     ensures e in Universe()
     ensures counter_out == counter_in + cost_SetPick(this)
@@ -42,7 +42,7 @@ class ConcreteSet<T(==)> extends Set<T> {
     counter_out := counter_in + cost_SetEmpty(this);
   }
 
-  method nElements(ghost counter_in:nat) returns (size:int, ghost counter_out:nat)
+  method nElements(ghost counter_in:nat) returns (size:nat, ghost counter_out:nat)
     requires Valid()
     ensures size == Cardinality()
     ensures counter_out == counter_in + cost_SetNElements(this)
@@ -50,6 +50,17 @@ class ConcreteSet<T(==)> extends Set<T> {
     reveal Model();
     size := |elements|;
     counter_out := counter_in + cost_SetNElements(this);
+  }
+
+  method Equal(other:Set<T>, ghost counter_in:nat) returns (equal:bool, ghost counter_out:nat)
+    requires Valid() && other.Valid()
+    ensures equal == (Model() == other.Model())
+    ensures counter_out == counter_in + cost_SetEqual(this, other)
+    ensures counter_out <= counter_in + cost_SetEqualUniverse(this, other)
+  {
+    reveal Model(), other.Model();
+    equal := elements == other.Repr();
+    counter_out := counter_in + cost_SetEqual(this, other);
   }
 
   method Contains(e:T, ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
@@ -66,10 +77,10 @@ class ConcreteSet<T(==)> extends Set<T> {
   method Add(e:T, ghost counter_in:nat) returns (R:Set<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
-    ensures R.Universe() == Universe() + {e}
-    ensures R.Model() == Model() + {e}
     ensures if e in Model() then R.Cardinality() == Cardinality()
             else R.Cardinality() == Cardinality() + 1
+    ensures R.Universe() == Universe() + {e}
+    ensures R.Model() == Model() + {e}
     ensures counter_out == counter_in + cost_SetAdd(this)
     ensures counter_out <= counter_in + cost_SetAddUniverse(this)
   {
@@ -86,10 +97,10 @@ class ConcreteSet<T(==)> extends Set<T> {
   method Remove(e:T, ghost counter_in:nat) returns (R:Set<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
-    ensures R.Universe() == Universe()
-    ensures R.Model() == Model() - {e}
     ensures if e !in Model() then R.Cardinality() == Cardinality()
             else R.Cardinality() == Cardinality() - 1
+    ensures R.Universe() == Universe()
+    ensures R.Model() == Model() - {e}
     ensures counter_out == counter_in + cost_SetRemove(this)
     ensures counter_out <= counter_in + cost_SetRemoveUniverse(this)
   {
@@ -121,16 +132,16 @@ class ConcreteSetSet<T(==)> extends SetSet<T> {
   constructor(elements_in:set<set<T>>, ghost universe_in:set<set<T>>, ghost ub_size1_in:nat)
     requires elements_in <= universe_in
     requires forall s | s in universe_in :: |s| <= ub_size1_in
+    ensures Valid()
+    ensures UBSize1() == ub_size1_in
     ensures Model() == elements_in
     ensures Universe() == universe_in
-    ensures UBSize1() == ub_size1_in
-    ensures Valid()
   {
     elements := elements_in;
     universe := universe_in;
     ub_size1 := ub_size1_in;
     reveal Model();
-    set_subset_cardinality(elements_in, universe_in);
+    if_smaller_then_less_cardinality(elements_in, universe_in);
   }
 
   function Repr():set<set<T>> { elements }
@@ -138,8 +149,8 @@ class ConcreteSetSet<T(==)> extends SetSet<T> {
   ghost function UBSize1():nat { ub_size1 }
 
   method Pick(ghost counter_in:nat) returns (e:Set<T>, ghost counter_out:nat)
-    requires Valid()
     requires Model() != {}
+    requires Valid()
     ensures e.Valid()
     ensures e.Size0() <= UBSize1()
     ensures e.UBSize0() <= UBSize1()
@@ -164,7 +175,7 @@ class ConcreteSetSet<T(==)> extends SetSet<T> {
     counter_out := counter_in + cost_SetSetEmpty(this);
   }
 
-  method nElements(ghost counter_in:nat) returns (size:int, ghost counter_out:nat)
+  method nElements(ghost counter_in:nat) returns (size:nat, ghost counter_out:nat)
     requires Valid()
     ensures size == Cardinality()
     ensures counter_out == counter_in + cost_SetSetNElements(this)
@@ -172,6 +183,19 @@ class ConcreteSetSet<T(==)> extends SetSet<T> {
     reveal Model();
     size := |elements|;
     counter_out := counter_in + cost_SetSetNElements(this);
+  }
+
+  method Equal(other:SetSet<T>, ghost counter_in:nat) returns (equal:bool, ghost counter_out:nat)
+    requires Valid() && other.Valid()
+    ensures equal == (Model() == other.Model())
+    ensures counter_out == counter_in + cost_SetSetEqual(this, other)
+    ensures counter_out <= counter_in + cost_SetSetEqualUniverse(this, other)
+  {
+    SetSetModelSizeBound(this);
+    SetSetModelSizeBound(other);
+    reveal Model(), other.Model();
+    equal := elements == other.Repr();
+    counter_out := counter_in + cost_SetSetEqual(this, other);
   }
 
   method Contains(e:Set<T>, ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
@@ -190,13 +214,13 @@ class ConcreteSetSet<T(==)> extends SetSet<T> {
   method Add(e:Set<T>, ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
-    ensures R.Universe() == Universe() + {e.Model()}
-    ensures R.Model() == Model() + {e.Model()}
     ensures if e.Model() in Model() then R.Cardinality() == Cardinality()
             else R.Cardinality() == Cardinality() + 1
     ensures if e.Size0() <= UBSize1() then R.UBSize1() == UBSize1()
             else R.UBSize1() == e.Size0()
     ensures (R.UBSize1() == UBSize1()) || (R.UBSize1() == e.Size0())
+    ensures R.Universe() == Universe() + {e.Model()}
+    ensures R.Model() == Model() + {e.Model()}
     ensures counter_out == counter_in + cost_SetSetAdd(this)
     ensures counter_out <= counter_in + cost_SetSetAddUniverse(this)
   {
@@ -217,11 +241,11 @@ class ConcreteSetSet<T(==)> extends SetSet<T> {
   method Remove(e:Set<T>, ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
-    ensures R.Universe() == Universe()
     ensures R.UBSize1() <= UBSize1()
-    ensures R.Model() == Model() - {e.Model()}
     ensures if e.Model() !in Model() then R.Cardinality() == Cardinality()
             else R.Cardinality() == Cardinality() - 1
+    ensures R.Universe() == Universe()
+    ensures R.Model() == Model() - {e.Model()}
     ensures counter_out == counter_in + cost_SetSetRemove(this)
     ensures counter_out <= counter_in + cost_SetSetRemoveUniverse(this)
   {
@@ -235,9 +259,9 @@ class ConcreteSetSet<T(==)> extends SetSet<T> {
   method Copy(ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
+    ensures R.UBSize1() == UBSize1()
     ensures R.Model() == Model()
     ensures R.Universe() == Model()
-    ensures R.UBSize1() == UBSize1()
     ensures counter_out == counter_in + cost_SetSetCopy(this)
     ensures counter_out <= counter_in + cost_SetSetCopyUniverse(this)
   {
@@ -259,18 +283,18 @@ class ConcreteSetSetSet<T(==)> extends SetSetSet<T> {
     requires elements_in <= universe_in
     requires forall s | s in universe_in :: forall s' | s' in s :: |s|*|s'| <= ub_size1_in
     requires forall s | s in universe_in :: forall s' | s' in s :: |s'| <= ub_size2_in
-    ensures Model() == elements_in
-    ensures Universe() == universe_in
+    ensures Valid()
     ensures UBSize1() == ub_size1_in
     ensures UBSize2() == ub_size2_in
-    ensures Valid()
+    ensures Model() == elements_in
+    ensures Universe() == universe_in
   {
     elements := elements_in;
     universe := universe_in;
     ub_size1 := ub_size1_in;
     ub_size2 := ub_size2_in;
     reveal Model();
-    set_subset_cardinality(elements_in, universe_in);
+    if_smaller_then_less_cardinality(elements_in, universe_in);
   }
 
   function Repr():set<set<set<T>>> { elements }
@@ -279,8 +303,8 @@ class ConcreteSetSetSet<T(==)> extends SetSetSet<T> {
   ghost function UBSize2():nat { ub_size2 }
 
   method {:isolate_assertions} Pick(ghost counter_in:nat) returns (e:SetSet<T>, ghost counter_out:nat)
-    requires Valid()
     requires Model() != {}
+    requires Valid()
     ensures e.Valid()
     ensures e.Size0() <= UBSize1()
     ensures e.UBSize0() <= UBSize1()
@@ -323,7 +347,7 @@ class ConcreteSetSetSet<T(==)> extends SetSetSet<T> {
     counter_out := counter_in + cost_SetSetSetEmpty(this);
   }
 
-  method nElements(ghost counter_in:nat) returns (size:int, ghost counter_out:nat)
+  method nElements(ghost counter_in:nat) returns (size:nat, ghost counter_out:nat)
     requires Valid()
     ensures size == Cardinality()
     ensures counter_out == counter_in + cost_SetSetSetNElements(this)
@@ -331,6 +355,19 @@ class ConcreteSetSetSet<T(==)> extends SetSetSet<T> {
     reveal Model();
     size := |elements|;
     counter_out := counter_in + cost_SetSetSetNElements(this);
+  }
+
+  method Equal(other:SetSetSet<T>, ghost counter_in:nat) returns (equal:bool, ghost counter_out:nat)
+    requires Valid() && other.Valid()
+    ensures equal == (Model() == other.Model())
+    ensures counter_out == counter_in + cost_SetSetSetEqual(this, other)
+    ensures counter_out <= counter_in + cost_SetSetSetEqualUniverse(this, other)
+  {
+    SetSetSetModelSizeBound(this);
+    SetSetSetModelSizeBound(other);
+    reveal Model(), other.Model();
+    equal := elements == other.Repr();
+    counter_out := counter_in + cost_SetSetSetEqual(this, other);
   }
 
   method Contains(e:SetSet<T>, ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
@@ -350,8 +387,6 @@ class ConcreteSetSetSet<T(==)> extends SetSetSet<T> {
     requires Valid()
     requires e.Valid()
     ensures R.Valid()
-    ensures R.Universe() == Universe() + {e.Model()}
-    ensures R.Model() == Model() + {e.Model()}
     ensures if e.Model() in Model() then R.Cardinality() == Cardinality()
             else R.Cardinality() == Cardinality() + 1
     ensures if e.Size0() <= UBSize1() then R.UBSize1() == UBSize1()
@@ -360,6 +395,8 @@ class ConcreteSetSetSet<T(==)> extends SetSetSet<T> {
             else R.UBSize2() == e.UBSize1()
     ensures ((R.UBSize1() == UBSize1()) || (R.UBSize1() == e.Size0())) &&
             ((R.UBSize2() == UBSize2()) || (R.UBSize2() == e.UBSize1()))
+    ensures R.Universe() == Universe() + {e.Model()}
+    ensures R.Model() == Model() + {e.Model()}
     ensures counter_out == counter_in + cost_SetSetSetAdd(this)
     ensures counter_out <= counter_in + cost_SetSetSetAddUniverse(this)
   {
@@ -396,12 +433,12 @@ class ConcreteSetSetSet<T(==)> extends SetSetSet<T> {
   method Remove(e:SetSet<T>, ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
-    ensures R.Universe() == Universe()
     ensures R.UBSize1() <= UBSize1()
     ensures R.UBSize2() <= UBSize2()
-    ensures R.Model() == Model() - {e.Model()}
     ensures if e.Model() !in Model() then R.Cardinality() == Cardinality()
             else R.Cardinality() == Cardinality() - 1
+    ensures R.Universe() == Universe()
+    ensures R.Model() == Model() - {e.Model()}
     ensures counter_out == counter_in + cost_SetSetSetRemove(this)
     ensures counter_out <= counter_in + cost_SetSetSetRemoveUniverse(this)
   {
@@ -415,10 +452,10 @@ class ConcreteSetSetSet<T(==)> extends SetSetSet<T> {
   method Copy(ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
-    ensures R.Model() == Model()
-    ensures R.Universe() == Model()
     ensures R.UBSize1() == UBSize1()
     ensures R.UBSize2() == UBSize2()
+    ensures R.Model() == Model()
+    ensures R.Universe() == Model()
     ensures counter_out == counter_in + cost_SetSetSetCopy(this)
     ensures counter_out <= counter_in + cost_SetSetSetCopyUniverse(this)
   {
@@ -431,37 +468,42 @@ class ConcreteSetSetSet<T(==)> extends SetSetSet<T> {
 
 
 method New_Set<T(==)>(ghost counter_in:nat) returns (R:Set<T>, ghost counter_out:nat)
-  ensures counter_out == counter_in + cost_NewSet()
-  ensures R.Model() == {}
   ensures R.Valid()
+  ensures R.Model() == {}
+  ensures R.Universe() == {}
+  ensures counter_out == counter_in + cost_NewSet()
 {
   R := new ConcreteSet({}, {});
   counter_out := counter_in + cost_NewSet();
 }
 
 method New_SetSet<T(==)>(ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
-  ensures counter_out == counter_in + cost_NewSetSet()
-  ensures R.Model() == {}
+  ensures R.UBSize1() == 0
   ensures R.Valid()
+  ensures R.Model() == {}
+  ensures R.Universe() == {}
+  ensures counter_out == counter_in + cost_NewSetSet()
 {
   R := new ConcreteSetSet({}, {}, 0);
   counter_out := counter_in + cost_NewSetSet();
 }
 
 method New_SetSetSet<T(==)>(ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
-  ensures counter_out == counter_in + cost_NewSetSetSet()
-  ensures R.Model() == {}
+  ensures R.UBSize1() == 0 && R.UBSize2() == 0
   ensures R.Valid()
+  ensures R.Model() == {}
+  ensures R.Universe() == {}
+  ensures counter_out == counter_in + cost_NewSetSetSet()
 {
   R := new ConcreteSetSetSet({}, {}, 0, 0);
   counter_out := counter_in + cost_NewSetSetSet();
 }
 
 method New_Set_params<T(==)>(ghost U:set<T>, ghost counter_in:nat) returns (R:Set<T>, ghost counter_out:nat)
-  ensures counter_out == counter_in + cost_NewSet()
+  ensures R.Valid()
   ensures R.Model() == {}
   ensures R.Universe() == U
-  ensures R.Valid()
+  ensures counter_out == counter_in + cost_NewSet()
 {
   R := new ConcreteSet({}, U);
   counter_out := counter_in + cost_NewSet();
@@ -469,11 +511,11 @@ method New_Set_params<T(==)>(ghost U:set<T>, ghost counter_in:nat) returns (R:Se
 
 method New_SetSet_params<T(==)>(ghost U:set<set<T>>, ghost UBSize1:nat, ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
   requires forall u | u in U :: |u| <= UBSize1
-  ensures counter_out == counter_in + cost_NewSetSet()
-  ensures R.Model() == {}
-  ensures R.Universe() == U
   ensures R.UBSize1() == UBSize1
   ensures R.Valid()
+  ensures R.Model() == {}
+  ensures R.Universe() == U
+  ensures counter_out == counter_in + cost_NewSetSet()
 {
   R := new ConcreteSetSet({}, U, UBSize1);
   counter_out := counter_in + cost_NewSetSet();
@@ -482,12 +524,12 @@ method New_SetSet_params<T(==)>(ghost U:set<set<T>>, ghost UBSize1:nat, ghost co
 method New_SetSetSet_params<T(==)>(ghost U:set<set<set<T>>>, ghost UBSize1:nat, ghost UBSize2:nat, ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
   requires forall u | u in U :: |u|*UBSize2 <= UBSize1
   requires forall u | u in U :: forall u' | u' in u :: |u'| <= UBSize2
-  ensures counter_out == counter_in + cost_NewSetSetSet()
-  ensures R.Model() == {}
-  ensures R.Universe() == U
   ensures R.UBSize1() == UBSize1
   ensures R.UBSize2() == UBSize2
   ensures R.Valid()
+  ensures R.Model() == {}
+  ensures R.Universe() == U
+  ensures counter_out == counter_in + cost_NewSetSetSet()
 {
   forall outer | outer in U
     ensures forall inner | inner in outer :: |outer|*|inner| <= UBSize1

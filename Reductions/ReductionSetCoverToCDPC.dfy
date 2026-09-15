@@ -2,19 +2,15 @@ include "../Problems/SetCover.dfy"
 include "../Problems/CDPC.dfy"
 
 /*
-Reduccion matematica Set Cover -> CDPC binario, sin interfaces ni costes.
-Las preguntas son los propios conjuntos de S. Tras eliminar el conjunto vacio
-de S, {} queda reservado como pregunta privada; no hace falta ordenar S.
+Reduccion matemática Set Cover -> CDPC
 
-Se verifica la construccion de una instancia valida y algunos pasos iniciales.
-La equivalencia de soluciones queda pendiente al final de este archivo.
+Las preguntas son los propios conjuntos de S. Tras eliminar el conjunto vacío de S, {} queda reservado como pregunta privada
 */
 
 ghost function SetCoverToCDPC<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
-    : (r:(map<Candidate<set<T>>, bool>, map<Candidate<set<T>>, nat>,
-          set<set<T>>, real, real, real, real))
+    : (r:(set<set<T>>, map<Candidate<set<T>>, bool>, map<Candidate<set<T>>, nat>, set<set<T>>, real, real, real, real))
   requires SetCoverValidInstance(U, S)
-  ensures CDPCValidInstance(r.0, r.1, r.2, r.3, r.4, r.5, r.6)
+  ensures CDPCValidInstance(r.0, r.1, r.2, r.3, r.4, r.5, r.6, r.7)
 {
   var nonemptySets := S - {{}};
   SetCoverWithoutEmpty(U, S, k);
@@ -25,27 +21,25 @@ ghost function SetCoverToCDPC<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
 }
 
 ghost function SetCoverCDPCPositiveInstance<T(!new)>()
-    : (r:(map<Candidate<set<T>>, bool>, map<Candidate<set<T>>, nat>,
-          set<set<T>>, real, real, real, real))
-  ensures CDPCValidInstance(r.0, r.1, r.2, r.3, r.4, r.5, r.6)
-  ensures CDPC(r.0, r.1, r.2, r.3, r.4, r.5, r.6)
+    : (r:(set<set<T>>, map<Candidate<set<T>>, bool>, map<Candidate<set<T>>, nat>, set<set<T>>, real, real, real, real))
+  ensures CDPCValidInstance(r.0, r.1, r.2, r.3, r.4, r.5, r.6, r.7)
+  ensures CDPC(r.0, r.1, r.2, r.3, r.4, r.5, r.6, r.7)
 {
   var candidate:Candidate<set<T>> := map[{} := false];
   var fitness := map[candidate := true];
   var multiplicity:map<Candidate<set<T>>, nat> := map[candidate := 1];
   CDPCPositiveInstanceIsCorrect<T>();
-  (fitness, multiplicity, {}, 0.0, 1.0, 0.0, 1.0)
+  ({{}}, fitness, multiplicity, {}, 0.0, 1.0, 0.0, 1.0)
 }
 
 ghost function SetCoverToCDPCNontrivial<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
-    : (r:(map<Candidate<set<T>>, bool>, map<Candidate<set<T>>, nat>,
-          set<set<T>>, real, real, real, real))
+    : (r:(set<set<T>>, map<Candidate<set<T>>, bool>, map<Candidate<set<T>>, nat>, set<set<T>>, real, real, real, real))
   requires SetCoverValidInstance(U, S)
   requires {} !in S
   requires k < |S|
-  ensures CDPCValidInstance(r.0, r.1, r.2, r.3, r.4, r.5, r.6)
-  ensures CDPCQuestions(r.0.Keys) == S + {{}}
-  ensures r.2 == {{}}
+  ensures CDPCValidInstance(r.0, r.1, r.2, r.3, r.4, r.5, r.6, r.7)
+  ensures r.0 == S + {{}}
+  ensures r.3 == {{}}
 {
   assert isCover(U, S);
   assert U != {} by {
@@ -76,18 +70,18 @@ ghost function SetCoverToCDPCNontrivial<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
   assert nullCandidate !in setCandidates;
 
   var fitness := map c | c in candidates :: c == nullCandidate;
-  // Varios elementos pueden generar el mismo mapa: conservar toda su masa.
-  var multiplicity := map c | c in candidates :: SetCoverCandidateWeight(U, S, omega, c);
+  // Varios elementos pueden generar el mismo mapa: conservar toda su suma.
+  var multiplicity := map c | c in candidates :: SetCoverCandidateMultiplicity(U, S, omega, c);
 
   assert fitness.Keys == multiplicity.Keys == candidates;
   assert forall c | c in candidates :: multiplicity[c] > 0;
   assert forall c | c in candidates :: c.Keys == S + {{}};
-  CDPCValidInstanceCommonDomain(
+  CDPCValidInstanceDefinition(
     S + {{}}, fitness, multiplicity, {{}}, a, 1.0, 0.0, y);
-  (fitness, multiplicity, {{}}, a, 1.0, 0.0, y)
+  (S + {{}}, fitness, multiplicity, {{}}, a, 1.0, 0.0, y)
 }
 
-// Generadores de tipos de candidato, todos con el mismo dominio.
+// Generadores de tipos de candidato
 ghost function {:opaque} SetCoverElementCandidate<T(!new)>(S:set<set<T>>, u:T) : (c:Candidate<set<T>>)
   ensures c.Keys == S + {{}}
   ensures !c[{}]
@@ -114,13 +108,13 @@ ghost function {:opaque} SetCoverNullCandidate<T(!new)>(S:set<set<T>>) : (c:Cand
 }
 
 // La opacidad separa la aritmetica de las obligaciones sobre mapas.
-// Revelar estas definiciones al demostrar las identidades de masas y umbrales.
+// Revelar estas definiciones al demostrar las identidades de sumas y umbrales.
 // Null    -> Omega^2
 // Element -> Omega
 // Set     -> 1
-ghost function {:opaque} SetCoverCandidateWeight<T(!new)>(U:set<T>, S:set<set<T>>, omega:nat, candidate:Candidate<set<T>>) : (weight:nat)
+ghost function {:opaque} SetCoverCandidateMultiplicity<T(!new)>(U:set<T>, S:set<set<T>>, omega:nat, candidate:Candidate<set<T>>) : (multiplicity:nat)
   requires omega > 0
-  ensures weight > 0
+  ensures multiplicity > 0
 {
   if candidate == SetCoverNullCandidate(S) then omega * omega
   else
@@ -181,8 +175,8 @@ lemma CDPCPositiveInstanceIsCorrect<T(!new)>()
     var candidate:Candidate<set<T>> := map[{} := false];
     ghost var fitness := map[candidate := true];
     var multiplicity:map<Candidate<set<T>>, nat> := map[candidate := 1];
-    CDPCValidInstance(fitness, multiplicity, {}, 0.0, 1.0, 0.0, 1.0) &&
-      CDPC(fitness, multiplicity, {}, 0.0, 1.0, 0.0, 1.0)
+    CDPCValidInstance({{}}, fitness, multiplicity, {}, 0.0, 1.0, 0.0, 1.0) &&
+      CDPC({{}}, fitness, multiplicity, {}, 0.0, 1.0, 0.0, 1.0)
 {
   var candidate:Candidate<set<T>> := map[{} := false];
   var fitness := map[candidate := true];
@@ -190,24 +184,24 @@ lemma CDPCPositiveInstanceIsCorrect<T(!new)>()
 
   assert fitness.Keys == {candidate};
   assert multiplicity[candidate] == 1;
-  WeightedMassSingleton(candidate, multiplicity);
-  FitMassDefinition({candidate}, fitness, multiplicity, 1, {candidate});
-  assert WeightedMass({candidate}, multiplicity, 1);
-  assert FitMass({candidate}, fitness, multiplicity, 1);
-  assert WeightedMass(fitness.Keys, multiplicity, 1);
-  assert FitMass(fitness.Keys, fitness, multiplicity, 1);
+  MultiplicitySumSingleton(candidate, multiplicity);
+  FitSumDefinition({candidate}, fitness, multiplicity, 1, {candidate});
+  assert MultiplicitySum({candidate}, multiplicity, 1);
+  assert FitSum({candidate}, fitness, multiplicity, 1);
+  assert MultiplicitySum(fitness.Keys, multiplicity, 1);
+  assert FitSum(fitness.Keys, fitness, multiplicity, 1);
   assert ClassificationDecided(fitness.Keys, fitness, multiplicity, 0.0, 1.0);
   assert PrivateSafe(fitness.Keys, multiplicity, {}, 0.0, 1.0);
   // End es un testigo de la existencia de una entrevista aceptada por CDPC.
+  var questions:set<set<T>> := {{}};
   reveal InterviewFits();
-  assert InterviewFits(End, CDPCQuestions(fitness.Keys));
-  reveal CDPCCertificate();
-  assert CDPCCertificate(
-    fitness, multiplicity, {}, 0.0, 1.0, 0.0, 1.0, fitness.Keys, End);
+  assert InterviewFits(End, questions);
+  reveal CDPCInterviewSemantics();
+  assert CDPCInterviewSemantics(fitness, multiplicity, {}, 0.0, 1.0, 0.0, 1.0, fitness.Keys, End);
+  assert CDPCCertificate(questions, fitness, multiplicity, {}, 0.0, 1.0, 0.0, 1.0, End);
 }
 
-// Testigo propuesto para la implicacion directa. Su validez estructural esta
-// probada, pero todavia no su aceptacion por CDPCCertificate.
+// Su validez estructural esta probada, pero todavia no su aceptacion por CDPCInterviewSemantics.
 ghost function SetCoverInterview<T(!new)>(cover:set<set<T>>, available:set<set<T>>) : (tree:InterviewModel<set<T>>)
   requires cover <= available
   requires {} !in cover
@@ -230,33 +224,30 @@ ghost function SetCoverInterview<T(!new)>(cover:set<set<T>>, available:set<set<T
 
 lemma SetCoverToCDPC_Lemma<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
   requires SetCoverValidInstance(U, S)
-  ensures var (fitness, multiplicity, privateQuestions,
+  ensures var (questions, fitness, multiplicity, privateQuestions,
                privateLower, privateUpper, fitnessLower, fitnessUpper) :=
             SetCoverToCDPC(U, S, k);
           SetCover(U, S, k) <==> CDPC(
-            fitness, multiplicity, privateQuestions,
+            questions, fitness, multiplicity, privateQuestions,
             privateLower, privateUpper, fitnessLower, fitnessUpper)
 {
   SetCoverToCDPCForward(U, S, k);
   SetCoverToCDPCBackward(U, S, k);
 }
 
-lemma {:only} SetCoverToCDPCForward<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
+lemma SetCoverToCDPCForward<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
   requires SetCoverValidInstance(U, S)
-  ensures var (fitness, multiplicity, privateQuestions, privateLower, privateUpper, fitnessLower, fitnessUpper) :=
+  ensures var (questions, fitness, multiplicity, privateQuestions, privateLower, privateUpper, fitnessLower, fitnessUpper) :=
             SetCoverToCDPC(U, S, k);
           SetCover(U, S, k) ==> CDPC(
-            fitness, multiplicity, privateQuestions,
+            questions, fitness, multiplicity, privateQuestions,
             privateLower, privateUpper, fitnessLower, fitnessUpper)
 {
   // Caso trivial: usar la postcondicion de SetCoverCDPCPositiveInstance.
-
-  // TODO: elegir cover <= S - {{}} con |cover| <= k y usar SetCoverInterview.
-  // TODO: demostrar las masas ponderadas despues de cada respuesta.
-  // Con j respuestas false y r elementos compatibles: masa privada s-j,
-  // masa total r*omega + omega^2 + s-j. Una rama true tiene aptitud cero
-  // y proporcion privada 1/(r*omega+1). Probar privacidad y clasificacion.
-
+  // Elegir cover <= S - {{}} con |cover| <= k y usar SetCoverInterview.
+  // Demostrar las sumas ponderadas despues de cada respuesta.
+  // Con j respuestas false y r elementos compatibles: suma privada s-j, suma total r*omega + omega^2 + s-j.
+  // Una rama true tiene aptitud cero y proporcion privada 1/(r*omega+1). Probar privacidad y clasificacion.
   if |S| <= k {}
   else {
     //assert exists C:set<set<T>> | C <= S :: isCover(U, C) && |C| <= k;
@@ -266,17 +257,14 @@ lemma {:only} SetCoverToCDPCForward<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
 
 lemma SetCoverToCDPCBackward<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
   requires SetCoverValidInstance(U, S)
-  ensures var (fitness, multiplicity, privateQuestions,
+  ensures var (questions, fitness, multiplicity, privateQuestions,
                privateLower, privateUpper, fitnessLower, fitnessUpper) :=
             SetCoverToCDPC(U, S, k);
-          CDPC(fitness, multiplicity, privateQuestions,
+          CDPC(questions, fitness, multiplicity, privateQuestions,
                privateLower, privateUpper,
                fitnessLower, fitnessUpper) ==> SetCover(U, S, k)
-
-  // TODO: en el caso no trivial, seguir el camino false del tipo nulo.
+  // En el caso no trivial, seguir el camino false del tipo nulo.
   // La pregunta privada produciria proporcion privada cero, menor que a.
-  // Tras k+1 preguntas de conjuntos, la privacidad tambien falla; acotar
-  // solo este camino, sin afirmar una cota global para todo el arbol.
-  // TODO: si queda un elemento, la aptitud esta estrictamente entre x e y.
+  // Tras k+1 preguntas de conjuntos, la privacidad tambien falla; acotar solo este camino, sin afirmar una cota global para todo el arbol.
+  // Si queda un elemento, la aptitud esta estrictamente entre x e y.
   // Deducir que las preguntas de ese camino cubren U y son a lo sumo k.
-

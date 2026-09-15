@@ -3,50 +3,42 @@ include "../Auxiliary/Set.dfy"
 include "../Auxiliary/Lemmas.dfy"
 
 
-method verifySetCover(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>) returns (accepted:bool, ghost counter:nat)   
+method verifySetCover(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>) returns (accepted:bool, ghost counter:nat)
+  // Types in
   requires SetCoverValidInstance(U.Model(), S.Model())
-  requires SetCoverAdmissibleCertificate(U.Model(), I.Model())
-
-  requires init_Set(U)
-  requires init_SetSet(S)
-  requires init_SetSet(I)
+  requires init_Set(U) && init_SetSet(S) && init_SetSet(I)
   requires S.UBSize1() <= U.UBSize0()
   requires I.UBSize1() <= U.UBSize0()
-
+  requires I.Cardinality() <= S.Cardinality()
+  // Invariant out
   ensures accepted == SetCoverCertificate(U.Model(), S.Model(), k, I.Model())
   ensures accepted ==> SetCover(U.Model(), S.Model(), k)
-  ensures counter <= poly(U, S, k, I)
+  // Counter
+  ensures counter <= SetCoverVerificationPolynomial(|U.Model()| + |S.Model()| + 1)
 {
+  SetCoverVerificationCostBound(U, S, k, I);
   counter := 0;
-  var I_cardinality:int;
+  var I_cardinality:nat;
   I_cardinality, counter := I.nElements(counter);
   if (k < I_cardinality) {
-    return false, counter;
-  }
-  var S_cardinality:int;
-  S_cardinality, counter := S.nElements(counter);
-  if (S_cardinality < I_cardinality) {
-    if I.Model() <= S.Model() {
-      if_smaller_then_less_cardinality(I.Model(), S.Model());
-    }
     return false, counter;
   }
   var I_seq_S:bool;
   I_seq_S, counter := isSubset(I, S, counter);
   if (!I_seq_S) {
-    counter_simplification_special_case(U, S, k, I);
     return false, counter;
   }
-  assert I.Model() <= S.Model();
   if_smaller_then_less_cardinality(I.Model(), S.Model());
-  assert I.Cardinality() <= S.Cardinality();
 
   var U':Set<int>;
-  U', counter := U.Copy(counter);
+  U' := U;
   accepted := true;
   var U'_empty:bool;
   U'_empty, counter := U'.Empty(counter);
   
+  ghost var loopBase := cost_SetSetNElements(I) + poly_isSubset(I, S) +
+    cost_SetEmpty(U);
+  LinearLoopBudgetZero(loopBase, poly_outer_loop(U, S, k, I));
   while (!U'_empty && accepted)
     // Termination
     decreases U'.Cardinality()
@@ -62,30 +54,36 @@ method verifySetCover(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>) returns (
     // Regular invariants
     invariant accepted == isCover(U.Model() - U'.Model() , I.Model())
     // Counter
-    invariant counter <= cost_SetSetNElements(I) + cost_SetSetNElements(S) + poly_isSubset(I, S) +
-                         cost_SetCopyUniverse(U) + cost_SetEmpty(U) +
-                         (U.Cardinality() - U'.Cardinality())*poly_outer_loop(U, S, k, I)
+    invariant counter <= LinearLoopBudget(loopBase, poly_outer_loop(U, S, k, I),
+      U.Cardinality() - U'.Cardinality())
   {
+    LinearLoopBudgetStep(loopBase, poly_outer_loop(U, S, k, I), U.Cardinality() - U'.Cardinality());
     accepted, U', U'_empty, counter := verifySetCover_outer_loop(U, S, k, I, U', counter);
   }
   assert accepted ==> U.Model() - U'.Model() == U.Model();
-  counter_simplification(U, S, k, I, U');
+  LinearLoopBudgetBound(loopBase, poly_outer_loop(U, S, k, I), U.Cardinality() - U'.Cardinality(), U.UBCardinality());
+  LinearLoopBudgetTransfer(counter, LinearLoopBudget(loopBase, poly_outer_loop(U, S, k, I), U.Cardinality() - U'.Cardinality()),
+    loopBase + (U.UBCardinality())*(poly_outer_loop(U, S, k, I)), 0, poly(U, S, k, I));
 }
 
 
 method isSubset(S1:SetSet<int>, S2:SetSet<int>, ghost counter_in:nat) returns (b:bool, ghost counter:nat)
-  requires S1.Valid()
-  requires S2.Valid()
+  // Types in
+  requires init_SetSet(S1) && S2.Valid()
+  // Invariant out
   ensures b == (S1.Model() <= S2.Model())
+  // Counter
   ensures counter <= counter_in + poly_isSubset(S1, S2)
 {
   counter := counter_in;
   b := true;
   var S1';
-  S1', counter := S1.Copy(counter);
+  S1' := S1;
   var S1'_empty:bool;
   S1'_empty, counter := S1'.Empty(counter);
   
+  ghost var loopBase := counter_in + cost_SetSetEmpty(S1);
+  LinearLoopBudgetZero(loopBase, poly_isSubset_loop(S1, S2));
   while (!S1'_empty)
   // Termination
   decreases S1'.Cardinality()
@@ -96,31 +94,28 @@ method isSubset(S1:SetSet<int>, S2:SetSet<int>, ghost counter_in:nat) returns (b
   // Regular invariants
   invariant b == ((S1.Model() - S1'.Model()) <= S2.Model())
   // Counter
-  invariant counter <= counter_in + cost_SetSetCopyUniverse(S1) + cost_SetSetEmpty(S1) +
-                       (S1.Cardinality() - S1'.Cardinality())*poly_isSubset_loop(S1, S2)
+  invariant counter <= LinearLoopBudget(loopBase, poly_isSubset_loop(S1, S2),
+    S1.Cardinality() - S1'.Cardinality())
   {
+    LinearLoopBudgetStep(loopBase, poly_isSubset_loop(S1, S2), S1.Cardinality() - S1'.Cardinality());
     S1', S1'_empty, b, counter := isSubset_loop(S1, S2, S1', counter, b);
   }
+  LinearLoopBudgetBound(loopBase, poly_isSubset_loop(S1, S2), S1.Cardinality() - S1'.Cardinality(), S1.UBCardinality());
+  LinearLoopBudgetTransfer(counter, LinearLoopBudget(loopBase, poly_isSubset_loop(S1, S2), S1.Cardinality() - S1'.Cardinality()),
+    loopBase + (S1.UBCardinality())*(poly_isSubset_loop(S1, S2)), 0, counter_in + poly_isSubset(S1, S2));
 }
 
 
 method isSubset_loop(S1:SetSet<int>, S2:SetSet<int>, S1':SetSet<int>, ghost counter_in:nat, b:bool) returns (S1'':SetSet<int>, S1'_empty:bool, b':bool, ghost counter:nat)
-  // Termination in
   requires S1'.Model() != {}
-  // Types in
   requires in_universe_SetSet(S1', S1)
   requires S2.Valid()
-  // Invariant in
   requires b == ((S1.Model() - S1'.Model()) <= S2.Model())
-  // Termination out
   ensures S1''.Cardinality() == S1'.Cardinality() - 1
   ensures S1'_empty == (S1''.Model() == {})
-  // Types out
   ensures S1''.Valid()
   ensures in_universe_SetSet(S1'', S1)
-  // Invariant out
   ensures b' == ((S1.Model() - S1''.Model()) <= S2.Model())
-  // Counter
   ensures counter <= counter_in + poly_isSubset_loop(S1, S2)
 {
   in_universe_lemma_SetSet(S1', S1);
@@ -145,7 +140,7 @@ method verifySetCover_outer_loop(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>
   requires U.Valid()
   requires U'.Valid()
   requires S.Valid()
-  requires I.Valid()
+  requires init_SetSet(I)
   requires in_universe_Set(U', U)
   requires I.Model() <= S.Model()
   requires I.Cardinality() <= S.Cardinality()
@@ -170,13 +165,13 @@ method verifySetCover_outer_loop(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>
   U'', counter := U'.Remove(u, counter);
 
   var I':SetSet<int>;
-  I', counter := I.Copy(counter);
+  I' := I;
 
   var b2:bool := false;
   var I'_empty:bool;
   I'_empty, counter := I'.Empty(counter);
   assert counter <= counter_in + cost_SetPick(U) + cost_SetRemoveUniverse(U) +
-                               cost_SetSetCopyUniverse(I) + cost_SetSetEmpty(I);
+                               cost_SetSetEmpty(I);
   
   while (!I'_empty && !b2)
     // Termination
@@ -185,7 +180,7 @@ method verifySetCover_outer_loop(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>
     // Types
     invariant I'.Valid()
     invariant in_universe_SetSet(I', I)
-    invariant I.Valid()
+    invariant init_SetSet(I)
     invariant S.Valid()
     invariant I.Cardinality() <= S.Cardinality()
     invariant I.UBSize1() <= U.UBSize0()
@@ -193,9 +188,9 @@ method verifySetCover_outer_loop(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>
     invariant b2 == (exists i' | i' in I.Model() - I'.Model() :: u in i')
     // Counter
     invariant counter <= counter_in + cost_SetPick(U) + cost_SetRemoveUniverse(U) +
-                         cost_SetSetCopyUniverse(I) + cost_SetSetEmpty(I) +
+                         cost_SetSetEmpty(I) +
                          (I.Cardinality()-I'.Cardinality())*
-                           (poly_inner_loop(U, S, k, I) + cost_SetSetEmpty(I))
+                           poly_inner_loop(U, S, k, I)
   {
     b2, I', I'_empty, counter := verifySetCover_inner_loop(U, S, k, I, I', u, counter);
   }
@@ -205,37 +200,30 @@ method verifySetCover_outer_loop(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>
 
   assert U.Model() - U''.Model() == U.Model() - U'.Model() + {u};
   assert counter <= counter_in + cost_SetPick(U) + cost_SetRemoveUniverse(U) +
-                       cost_SetSetCopyUniverse(I) + cost_SetSetEmpty(I) +
-                       I.Cardinality()*(poly_inner_loop(U, S, k, I) + cost_SetSetEmpty(I)) +
+                       cost_SetSetEmpty(I) +
+                       I.Cardinality()*poly_inner_loop(U, S, k, I) +
                        cost_SetEmpty(U);
   mult_preserves_order(I.Cardinality(),
-                       poly_inner_loop(U, S, k, I) + cost_SetSetEmpty(I),
+                       poly_inner_loop(U, S, k, I),
                        I.UBCardinality(),
-                       poly_inner_loop(U, S, k, I) + cost_SetSetEmpty(I));
+                       poly_inner_loop(U, S, k, I));
 }
 
 
 method verifySetCover_inner_loop(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>, I':SetSet<int>, u:int, ghost counter_in:nat) returns (b2:bool, I'':SetSet<int>, I''_empty:bool, ghost counter:nat)
-  // Termination in
   requires I'.Model() != {}
-  // Types in
   requires U.Valid()
   requires S.Valid()
   requires I.Valid()
   requires in_universe_SetSet(I', I)
   requires I.Cardinality() <= S.Cardinality()
   requires I.UBSize1() <= U.UBSize0()
-  // Invariant in
   requires !(exists i' | i' in I.Model() - I'.Model() :: u in i')
-  // Termination out
   ensures I''.Cardinality() == I'.Cardinality() - 1
   ensures I''_empty == (I''.Model() == {})
-  // Types out
   ensures I''.Valid()
   ensures in_universe_SetSet(I'', I)
-  // Invariant out
   ensures b2 == (exists i' | i' in I.Model() - I''.Model() :: u in i')
-  // Counter
   ensures counter <= counter_in + poly_inner_loop(U, S, k, I)
 {
   in_universe_lemma_SetSet(I', I);
@@ -248,32 +236,6 @@ method verifySetCover_inner_loop(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>
 }
 
 
-lemma counter_simplification(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>, U':Set<int>)
-  requires in_universe_Set(U', U)
-  requires U.Valid()
-  requires S.Valid()
-  requires I.Valid()
-  requires I.Cardinality() <= S.Cardinality()
-  requires I.UBSize1() <= U.UBSize0()
-  ensures cost_SetSetNElements(I) + cost_SetSetNElements(S) + poly_isSubset(I, S) +
-          cost_SetCopyUniverse(U) + cost_SetEmpty(U) +
-          (U.Cardinality() - U'.Cardinality())*poly_outer_loop(U, S, k, I) <=
-          poly(U, S, k, I)
-{
-  in_universe_lemma_Set(U', U);
-  mult_preserves_order(U.Cardinality() - U'.Cardinality(), poly_outer_loop(U, S, k, I),
-                       U.Cardinality(), poly_outer_loop(U, S, k, I));
-}
-lemma counter_simplification_special_case(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>)
-  requires U.Valid()
-  requires S.Valid()
-  requires I.Valid()
-  requires I.Cardinality() <= S.Cardinality()
-  requires I.UBSize1() <= U.UBSize0()
-  ensures cost_SetSetNElements(I) + cost_SetSetNElements(S) + poly_isSubset(I, S) <= poly(U, S, k, I)
-{}
-
-
 ghost function poly_inner_loop(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>) : (o:nat)
 {
   cost_SetSetPickUniverse(I) +
@@ -284,8 +246,8 @@ ghost function poly_inner_loop(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>) 
 ghost function poly_outer_loop(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>) : (o:nat)
 {
   cost_SetPick(U) + cost_SetRemoveUniverse(U) +
-  cost_SetSetCopyUniverse(I) + cost_SetSetEmpty(I) +
-  I.UBCardinality()*(poly_inner_loop(U, S, k, I) + cost_SetSetEmpty(I)) +
+  cost_SetSetEmpty(I) +
+  I.UBCardinality()*poly_inner_loop(U, S, k, I) +
   cost_SetEmpty(U)
 }
 ghost function poly_isSubset_loop(S1:SetSet<int>, S2:SetSet<int>) : (o:nat)
@@ -294,10 +256,10 @@ ghost function poly_isSubset_loop(S1:SetSet<int>, S2:SetSet<int>) : (o:nat)
   cost_SetSetRemoveUniverse(S1) + cost_SetSetEmpty(S1)
 }
 ghost function {:opaque} poly_isSubset(S1:SetSet<int>, S2:SetSet<int>) : (o:nat)
-  ensures o == cost_SetSetCopyUniverse(S1) + cost_SetSetEmpty(S1) +
+  ensures o == cost_SetSetEmpty(S1) +
                S1.UBCardinality()*poly_isSubset_loop(S1, S2)
 {
-  cost_SetSetCopyUniverse(S1) + cost_SetSetEmpty(S1) +
+  cost_SetSetEmpty(S1) +
   S1.UBCardinality()*poly_isSubset_loop(S1, S2)
 }
 
@@ -308,7 +270,37 @@ ghost function poly(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>) : (o:nat)
   requires I.Valid()
   ensures 1 <= o
 {
-  cost_SetSetNElements(I) + cost_SetSetNElements(S) + poly_isSubset(I, S) +
-  cost_SetCopyUniverse(U) + cost_SetEmpty(U) +
+  cost_SetSetNElements(I) + poly_isSubset(I, S) +
+  cost_SetEmpty(U) +
   U.UBCardinality()*poly_outer_loop(U, S, k, I)
+}
+
+
+// Fixed polynomial in the instance measure n = |U| + |S| + 1.
+ghost function SetCoverVerificationPolynomial(n:nat):nat
+{
+  2 + (n*n + 2) + n*(2*n*n + n + 4) + n + 2 +
+  n*(n + 4 + n*n + n*(n*n + 2*n + 5))
+}
+
+lemma {:isolate_assertions} SetCoverVerificationCostBound(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>)
+  requires init_Set(U) && init_SetSet(S) && init_SetSet(I)
+  requires S.UBSize1() <= U.UBSize0()
+  requires I.UBSize1() <= U.UBSize0()
+  requires I.Cardinality() <= S.Cardinality()
+  ensures poly(U, S, k, I) <= SetCoverVerificationPolynomial(|U.Model()| + |S.Model()| + 1)
+{
+  var n := |U.Model()| + |S.Model()| + 1;
+  SetSetUniverseSizeBound(I, n, n);
+  SetSetUniverseSizeBound(S, n, n);
+  assert n*n + n*n == 2*n*n by { associativity(2, n, n); }
+  assert poly_isSubset_loop(I, S) <= 2*n*n + n + 4;
+  mult_preserves_order(I.UBCardinality(), poly_isSubset_loop(I, S), n, 2*n*n + n + 4);
+  assert poly_isSubset(I, S) <= n*n + 2 + n*(2*n*n + n + 4);
+  assert poly_inner_loop(U, S, k, I) <= n*n + 2*n + 5;
+  mult_preserves_order(I.UBCardinality(), poly_inner_loop(U, S, k, I),
+                       n, n*n + 2*n + 5);
+  assert poly_outer_loop(U, S, k, I) <= n + 4 + n*n + n*(n*n + 2*n + 5);
+  mult_preserves_order(U.UBCardinality(), poly_outer_loop(U, S, k, I),
+                       n, n + 4 + n*n + n*(n*n + 2*n + 5));
 }

@@ -15,12 +15,6 @@ ghost predicate SetCoverValidInstance<T>(universe:set<T>, sets:set<set<T>>)
   (forall s | s in sets :: s <= universe) && isCover(universe, sets)
 }
 
-// Admissibility bounds individual sets, but does not assert inclusion or coverage.
-ghost predicate SetCoverAdmissibleCertificate<T>(universe:set<T>, cover:set<set<T>>)
-{
-  forall s | s in cover :: |s| <= |universe|
-}
-
 ghost predicate SetCoverCertificate<T>(universe:set<T>, sets:set<set<T>>, cardinality:nat, cover:set<set<T>>)
 {
   cover <= sets && isCover(universe, cover) && |cover| <= cardinality

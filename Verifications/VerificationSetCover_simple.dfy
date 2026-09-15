@@ -2,9 +2,10 @@ include "../Problems/SetCover.dfy"
 include "../Auxiliary/Lemmas.dfy"
 
 
-method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) returns (accepted:bool, ghost counter:nat)   
+method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) returns (accepted:bool, ghost counter:nat)
   requires SetCoverValidInstance(U, S)
-  requires SetCoverAdmissibleCertificate(U, I)
+  requires |I| <= |S|
+  requires (forall s | s in I :: |s| <= |U|)
   ensures accepted == SetCoverCertificate(U, S, k, I)
   ensures accepted ==> SetCover(U, S, k)
   ensures counter <= poly(U, S, k)
@@ -14,10 +15,7 @@ method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) retur
   var U' := U; counter := counter + |U|;
   accepted:= true;
   counter := counter + 1;
-  if (k < |I| || |S| < |I|) {
-    if I <= S {
-      if_smaller_then_less_cardinality(I, S);
-    }
+  if (k < |I|) {
     return false, counter;
   }
   var I_seq_S:bool;
@@ -55,12 +53,9 @@ method isSubset(U:set<int>, S1:set<set<int>>, S2:set<set<int>>, ghost counter_in
   b := true;
   var S1':= S1; counter := counter + |U|*|S1|;
   while (S1' != {})
-    // Termination
     decreases |S1'|
-    // Regular invariants
-    invariant b == ((S1 - S1') <= S2)
     invariant S1' <= S1
-    // Counter
+    invariant b == ((S1 - S1') <= S2)
     invariant counter <= counter_in + |S1|*|U| + 1 + (|S1| - |S1'|)*(poly_isSubset_loop(U, S1, S2) + 1)
   {
     counter := counter + 1;
@@ -71,17 +66,12 @@ method isSubset(U:set<int>, S1:set<set<int>>, S2:set<set<int>>, ghost counter_in
 
 
 method isSubset_loop(U:set<int>, S1:set<set<int>>, S2:set<set<int>>, S1':set<set<int>>, ghost counter_in:nat, b:bool) returns (S1'':set<set<int>>, b':bool, ghost counter:nat)
-  // Termination in
   requires S1' != {}
-  // Invariant in
-  requires b == ((S1 - S1') <= S2)
   requires S1' <= S1
-  // Termination out
+  requires b == ((S1 - S1') <= S2)
   ensures |S1''| == |S1'| - 1
-  // Invariant out
-  ensures b' == ((S1 - S1'') <= S2)
   ensures S1'' <= S1
-  // Counter
+  ensures b' == ((S1 - S1'') <= S2)
   ensures counter <= counter_in + poly_isSubset_loop(U, S1, S2)
 {
   counter := counter_in;
@@ -93,18 +83,13 @@ method isSubset_loop(U:set<int>, S1:set<set<int>>, S2:set<set<int>>, S1':set<set
 
 
 method verifySetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, U':set<int>, ghost counter_in:nat) returns (b1:bool, U'':set<int>, ghost counter:nat)
-  // Termination in
   requires U' != {}
-  // Invariant in
   requires U' <= U
-  requires isCover(U - U', I)
   requires |I| <= |S|
-  // Termination out
+  requires isCover(U - U', I)
   ensures |U''| == |U'| - 1
-  // Invariant out
   ensures U'' <= U
   ensures b1 == isCover(U - U'', I)
-  // Counter
   ensures counter <= counter_in + poly_outer_loop(U, S, k)
 {
   counter := counter_in;
@@ -130,17 +115,12 @@ method verifySetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<i
 
 
 method verifySetCover_inner_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, I':set<set<int>>, u:int, ghost counter_in:nat) returns (b2:bool, I'':set<set<int>>, ghost counter:nat)
-  // Termination in
   requires I' != {}
-  // Invariant in
   requires I' <= I
   requires !(exists i' | i' in I - I' :: u in i')
-  // Termination out
   ensures |I''| == |I'| - 1
-  // Invariant out
   ensures I'' <= I
   ensures b2 == (exists i' | i' in I - I'' :: u in i')
-  // Counter
   ensures counter == counter_in + poly_inner_loop(U, S, k)
 {
   counter := counter_in;

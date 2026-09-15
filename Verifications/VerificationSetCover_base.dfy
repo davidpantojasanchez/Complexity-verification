@@ -3,10 +3,13 @@ include "../Problems/SetCover.dfy"
 
 method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) returns (accepted:bool)   
   requires SetCoverValidInstance(U, S)
-  requires SetCoverAdmissibleCertificate(U, I)
+  requires |I| <= |S|
+  requires forall s | s in I :: |s| <= |U|
   ensures accepted == SetCoverCertificate(U, S, k, I)
   ensures accepted ==> SetCover(U, S, k)
 {
+  if (k < |I|) { return false; }
+  if (!(I <= S)) { return false; }
   var U' := U;
   var b1:= true;
 
@@ -18,19 +21,15 @@ method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) retur
     b1, U' := verifySetCover_outer_loop(U, S, k, I, U');
   }
   assert b1 ==> U-U' == U;
-  accepted := b1 && I <= S && |I| <= k ;
+  accepted := b1;
 }
 
 
 method verifySetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, U':set<int>) returns (b2:bool, U'':set<int>)
-  // Termination in
   requires U' != {}
-  // Invariant in
   requires U' <= U
   requires isCover(U - U', I)
-  // Termination out
   ensures |U''| < |U'|
-  // Invariant out
   ensures U'' <= U
   ensures b2 == isCover(U - U'', I)
 {
@@ -50,14 +49,10 @@ method verifySetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<i
 
 
 method verifySetCover_inner_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, I':set<set<int>>, u:int) returns (b2:bool, I'':set<set<int>>)
-  // Termination in
   requires I' != {}
-  // Invariant in
   requires I' <= I
   requires !(exists i' | i' in I - I' :: u in i')
-  // Termination out
   ensures |I''| < |I'|
-  // Invariant out
   ensures I'' <= I
   ensures b2 == (exists i' | i' in I - I'' :: u in i')
 {

@@ -2,7 +2,7 @@ include "../Problems/HittingSet.dfy"
 include "../Problems/SetCover.dfy"
 
 
-ghost function HittingSet_to_SetCover(U:set<int>, S:set<set<int>>, k:nat) : (r:(set<set<int>>, set<set<set<int>>>, int))
+ghost function HittingSet_to_SetCover(U:set<int>, S:set<set<int>>, k:nat) : (r:(set<set<int>>, set<set<set<int>>>, nat))
   requires HittingSetValidInstance(U, S)
   ensures SetCoverValidInstance(r.0, r.1)
 {

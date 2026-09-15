@@ -2,7 +2,7 @@ include "../Problems/HittingSet.dfy"
 include "../Problems/SetCover.dfy"
 
 
-ghost function SetCover_to_HittingSet<T>(U: set<T>, S: set<set<T>>, k: nat) : (r:(set<set<T>>, set<set<set<T>>>, int))
+ghost function SetCover_to_HittingSet<T>(U: set<T>, S: set<set<T>>, k: nat) : (r:(set<set<T>>, set<set<set<T>>>, nat))
   requires SetCoverValidInstance(U, S)
   ensures HittingSetValidInstance(r.0, r.1)
 {
@@ -53,9 +53,9 @@ lemma SetCover_HittingSet<T>(U:set<T>, S:set<set<T>>, k:nat)
 //Usamos dos lemas auxiliares que hacen falta para demostrar 
 //que la propia cobertura es el Hitting-set
 lemma intersect_set_of_sets<T>(U:set<T>,u:T,S: set<set<T>>, C:set<set<T>>)
-  requires u in U
   requires forall s | s in S :: s <= U
   requires C <= S && isCover(U, C) 
+  requires u in U
   ensures var ss := (set s | s in S && u in s);
           C * ss == (set s | s in C && u in  s) != {}
 {

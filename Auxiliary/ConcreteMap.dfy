@@ -10,14 +10,14 @@ class ConcreteMap<K(==), V(==)> extends Map<K, V> {
     requires entries_in.Keys <= universe_in.Keys
     requires forall key | key in entries_in.Keys ::
       entries_in[key] == universe_in[key]
+    ensures Valid()
     ensures Model() == entries_in
     ensures Universe() == universe_in
-    ensures Valid()
   {
     entries := entries_in;
     universe := universe_in;
     reveal Model();
-    set_subset_cardinality(entries_in.Keys, universe_in.Keys);
+    if_smaller_then_less_cardinality(entries_in.Keys, universe_in.Keys);
   }
 
   function Repr():map<K, V> { entries }
@@ -41,12 +41,10 @@ class ConcreteMap<K(==), V(==)> extends Map<K, V> {
       returns (result:Map<K, V>, ghost counter_out:nat)
     requires Valid()
     ensures result.Valid()
+    ensures result.Cardinality() <= Cardinality() + 1
     ensures result.Model() == Model()[key := value]
     ensures result.Universe() == Universe()[key := value]
     ensures result.Keys() == Keys() + {key}
-    ensures if key in Keys()
-            then result.Cardinality() == Cardinality()
-            else result.Cardinality() == Cardinality() + 1
     ensures counter_out == counter_in + cost_MapInsert(this)
     ensures counter_out <= counter_in + cost_MapInsertUniverse(this)
   {
@@ -61,12 +59,12 @@ class ConcreteMap<K(==), V(==)> extends Map<K, V> {
       returns (result:Map<K, V>, ghost counter_out:nat)
     requires Valid()
     ensures result.Valid()
-    ensures result.Model() == Model() - {key}
-    ensures result.Universe() == Universe()
-    ensures result.Keys() == Keys() - {key}
     ensures if key in Keys()
             then result.Cardinality() == Cardinality() - 1
             else result.Cardinality() == Cardinality()
+    ensures result.Model() == Model() - {key}
+    ensures result.Universe() == Universe()
+    ensures result.Keys() == Keys() - {key}
     ensures counter_out == counter_in + cost_MapRemove(this)
     ensures counter_out <= counter_in + cost_MapRemoveUniverse(this)
   {
@@ -79,8 +77,8 @@ class ConcreteMap<K(==), V(==)> extends Map<K, V> {
 
   method PickKey(ghost counter_in:nat)
       returns (key:K, ghost counter_out:nat)
-    requires Valid()
     requires Model() != map[]
+    requires Valid()
     ensures key in Model().Keys
     ensures key in Universe().Keys
     ensures counter_out == counter_in + cost_MapPickKey(this)
@@ -92,7 +90,7 @@ class ConcreteMap<K(==), V(==)> extends Map<K, V> {
   }
 
   method nPairs(ghost counter_in:nat)
-      returns (size:int, ghost counter_out:nat)
+      returns (size:nat, ghost counter_out:nat)
     requires Valid()
     ensures size == Cardinality()
     ensures counter_out == counter_in + cost_MapNPairs(this)
@@ -146,31 +144,25 @@ class ConcreteMap<K(==), V(==)> extends Map<K, V> {
 class ConcreteMapMapT<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
   const entries:map<map<K, V>, R>
   ghost const universe:map<map<K, V>, R>
-  ghost const ub_size_keys:nat
 
-  constructor(entries_in:map<map<K, V>, R>,
-              ghost universe_in:map<map<K, V>, R>,
-              ghost ub_size_keys_in:nat)
+  constructor(entries_in:map<map<K, V>, R>, ghost universe_in:map<map<K, V>, R>)
     requires entries_in.Keys <= universe_in.Keys
     requires forall key | key in entries_in.Keys ::
       entries_in[key] == universe_in[key]
-    requires forall key | key in universe_in.Keys ::
-      |key| <= ub_size_keys_in
+    ensures Valid()
     ensures Model() == entries_in
     ensures Universe() == universe_in
-    ensures UBSize_Keys() == ub_size_keys_in
-    ensures Valid()
   {
     entries := entries_in;
     universe := universe_in;
-    ub_size_keys := ub_size_keys_in;
     reveal Model();
-    set_subset_cardinality(entries_in.Keys, universe_in.Keys);
+    reveal UBSize_Keys();
+    if_smaller_then_less_cardinality(entries_in.Keys, universe_in.Keys);
+    MaxMapCardinalityProperties(universe_in.Keys);
   }
 
   function Repr():map<map<K, V>, R> { entries }
   ghost function Universe():map<map<K, V>, R> { universe }
-  ghost function UBSize_Keys():nat { ub_size_keys }
 
   method Get(key:Map<K, V>, ghost counter_in:nat)
       returns (value:R, ghost counter_out:nat)
@@ -181,6 +173,7 @@ class ConcreteMapMapT<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     ensures counter_out <= counter_in + cost_MapMapTGetUniverse(this)
   {
     reveal Model();
+    reveal UBSize_Keys();
     MapMapTModelSizeBound(this);
     reveal key.Model();
     var concrete_key := key.Repr();
@@ -193,31 +186,31 @@ class ConcreteMapMapT<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     requires Valid()
     requires key.Valid()
     ensures result.Valid()
-    ensures result.Model() == Model()[key.Model() := value]
-    ensures result.Universe() == Universe()[key.Model() := value]
-    ensures result.Keys() == Keys() + {key.Model()}
-    ensures if key.Model() in Keys()
-            then result.Cardinality() == Cardinality()
-            else result.Cardinality() == Cardinality() + 1
+    ensures result.Cardinality() <= Cardinality() + 1
     ensures if key.Size() <= UBSize_Keys()
             then result.UBSize_Keys() == UBSize_Keys()
             else result.UBSize_Keys() == key.Size()
     ensures result.UBSize_Keys() == UBSize_Keys() ||
             result.UBSize_Keys() == key.Size()
+    ensures result.Model() == Model()[key.Model() := value]
+    ensures result.Universe() == Universe()[key.Model() := value]
+    ensures result.Keys() == Keys() + {key.Model()}
     ensures counter_out == counter_in + cost_MapMapTInsert(this)
     ensures counter_out <= counter_in + cost_MapMapTInsertUniverse(this)
   {
     reveal Model();
+    reveal UBSize_Keys();
     MapMapTModelSizeBound(this);
     reveal Valid();
     reveal key.Model();
     var concrete_key := key.Repr();
-    ghost var new_ub_size_keys :=
-      if key.Size() <= UBSize_Keys() then UBSize_Keys() else key.Size();
+    assert key.Size() == |concrete_key|;
+    assert (universe[concrete_key := value]).Keys == universe.Keys + {concrete_key};
+    MaxMapCardinalityInsert(universe.Keys, concrete_key);
     result := new ConcreteMapMapT(
       entries[concrete_key := value],
-      universe[concrete_key := value],
-      new_ub_size_keys);
+      universe[concrete_key := value]);
+    reveal result.UBSize_Keys();
     counter_out := counter_in + cost_MapMapTInsert(this);
   }
 
@@ -225,51 +218,56 @@ class ConcreteMapMapT<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
       returns (result:Map_Map_T<K, V, R>, ghost counter_out:nat)
     requires Valid()
     ensures result.Valid()
-    ensures result.Model() == Model() - {key.Model()}
-    ensures result.Universe() == Universe()
-    ensures result.Keys() == Keys() - {key.Model()}
     ensures result.UBSize_Keys() <= UBSize_Keys()
     ensures if key.Model() in Keys()
             then result.Cardinality() == Cardinality() - 1
             else result.Cardinality() == Cardinality()
+    ensures result.Model() == Model() - {key.Model()}
+    ensures result.Universe() == Universe()
+    ensures result.Keys() == Keys() - {key.Model()}
     ensures counter_out == counter_in + cost_MapMapTRemove(this)
     ensures counter_out <= counter_in + cost_MapMapTRemoveUniverse(this)
   {
     reveal Model();
+    reveal UBSize_Keys();
     MapMapTModelSizeBound(this);
     reveal Valid();
     reveal key.Model();
     var concrete_key := key.Repr();
-    result := new ConcreteMapMapT(entries - {concrete_key}, universe, UBSize_Keys());
+    result := new ConcreteMapMapT(entries - {concrete_key}, universe);
+    reveal result.UBSize_Keys();
     counter_out := counter_in + cost_MapMapTRemove(this);
   }
 
   method PickKey(ghost counter_in:nat)
       returns (key:Map<K, V>, ghost counter_out:nat)
-    requires Valid()
     requires Model() != map[]
+    requires Valid()
     ensures key.Valid()
-    ensures key.Model() in Model().Keys
-    ensures key.Universe() == key.Model()
     ensures key.Size() <= UBSize_Keys()
     ensures key.UBSize() <= UBSize_Keys()
+    ensures key.Model() in Model().Keys
+    ensures key.Universe() == key.Model()
     ensures counter_out == counter_in + cost_MapMapTPickKey(this, key)
     ensures counter_out <= counter_in + cost_MapMapTPickKeyUniverse(this)
   {
     reveal Model();
+    reveal UBSize_Keys();
     reveal Valid();
     var chosen:map<K, V> :| chosen in entries.Keys;
+    MaxMapCardinalityMember(universe.Keys, chosen);
     key := new ConcreteMap(chosen, chosen);
     counter_out := counter_in + cost_MapMapTPickKey(this, key);
   }
 
   method nPairs(ghost counter_in:nat)
-      returns (size:int, ghost counter_out:nat)
+      returns (size:nat, ghost counter_out:nat)
     requires Valid()
     ensures size == Cardinality()
     ensures counter_out == counter_in + cost_MapMapTNPairs(this)
   {
     reveal Model();
+    reveal UBSize_Keys();
     size := |entries|;
     counter_out := counter_in + cost_MapMapTNPairs(this);
   }
@@ -282,6 +280,7 @@ class ConcreteMapMapT<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     ensures counter_out <= counter_in + cost_MapMapTContainsKeyUniverse(this)
   {
     reveal Model();
+    reveal UBSize_Keys();
     MapMapTModelSizeBound(this);
     reveal key.Model();
     var concrete_key := key.Repr();
@@ -296,6 +295,7 @@ class ConcreteMapMapT<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     ensures counter_out == counter_in + cost_MapMapTEmpty(this)
   {
     reveal Model();
+    reveal UBSize_Keys();
     empty := entries == map[];
     counter_out := counter_in + cost_MapMapTEmpty(this);
   }
@@ -304,16 +304,19 @@ class ConcreteMapMapT<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
       returns (result:Map_Map_T<K, V, R>, ghost counter_out:nat)
     requires Valid()
     ensures result.Valid()
+    ensures result.UBSize_Keys() == Size_Keys()
+    ensures result.UBSize_Keys() <= UBSize_Keys()
     ensures result.Model() == Model()
     ensures result.Universe() == Model()
-    ensures result.UBSize_Keys() == UBSize_Keys()
     ensures counter_out == counter_in + cost_MapMapTCopy(this)
     ensures counter_out <= counter_in + cost_MapMapTCopyUniverse(this)
   {
     reveal Model();
+    reveal UBSize_Keys();
     MapMapTModelSizeBound(this);
     reveal Valid();
-    result := new ConcreteMapMapT(entries, entries, UBSize_Keys());
+    result := new ConcreteMapMapT(entries, entries);
+    reveal result.UBSize_Keys();
     counter_out := counter_in + cost_MapMapTCopy(this);
   }
 }
@@ -321,21 +324,20 @@ class ConcreteMapMapT<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
 
 method New_Map<K(==), V(==)>(ghost counter_in:nat)
     returns (result:Map<K, V>, ghost counter_out:nat)
+  ensures result.Valid()
   ensures result.Model() == map[]
   ensures result.Universe() == map[]
-  ensures result.Valid()
   ensures counter_out == counter_in + cost_NewMap()
 {
   result := new ConcreteMap(map[], map[]);
   counter_out := counter_in + cost_NewMap();
 }
 
-method New_Map_params<K(==), V(==)>(ghost universe:map<K, V>,
-                                    ghost counter_in:nat)
+method New_Map_params<K(==), V(==)>(ghost universe:map<K, V>, ghost counter_in:nat)
     returns (result:Map<K, V>, ghost counter_out:nat)
+  ensures result.Valid()
   ensures result.Model() == map[]
   ensures result.Universe() == universe
-  ensures result.Valid()
   ensures counter_out == counter_in + cost_NewMap()
 {
   result := new ConcreteMap(map[], universe);
@@ -344,82 +346,207 @@ method New_Map_params<K(==), V(==)>(ghost universe:map<K, V>,
 
 method New_Map_Map_T<K(==), V(==), R(==)>(ghost counter_in:nat)
     returns (result:Map_Map_T<K, V, R>, ghost counter_out:nat)
-  ensures result.Model() == map[]
-  ensures result.Universe() == map[]
   ensures result.UBSize_Keys() == 0
   ensures result.Valid()
+  ensures result.Model() == map[]
+  ensures result.Universe() == map[]
   ensures counter_out == counter_in + cost_NewMapMapT()
 {
-  result := new ConcreteMapMapT(map[], map[], 0);
+  result := new ConcreteMapMapT(map[], map[]);
+  reveal result.UBSize_Keys();
   counter_out := counter_in + cost_NewMapMapT();
 }
 
-method New_Map_Map_T_params<K(==), V(==), R(==)>(
-    ghost universe:map<map<K, V>, R>, ghost ub_size_keys:nat,
-    ghost counter_in:nat)
+method New_Map_Map_T_params<K(==), V(==), R(==)>(ghost universe:map<map<K, V>, R>, ghost counter_in:nat)
     returns (result:Map_Map_T<K, V, R>, ghost counter_out:nat)
-  requires forall key | key in universe.Keys :: |key| <= ub_size_keys
+  ensures result.Valid()
   ensures result.Model() == map[]
   ensures result.Universe() == universe
-  ensures result.UBSize_Keys() == ub_size_keys
-  ensures result.Valid()
   ensures counter_out == counter_in + cost_NewMapMapT()
 {
-  result := new ConcreteMapMapT(map[], universe, ub_size_keys);
+  result := new ConcreteMapMapT(map[], universe);
   counter_out := counter_in + cost_NewMapMapT();
 }
 
 
-method MapSmokeTest() returns (ok:bool)
-  ensures ok
-{
-  ghost var counter:nat := 0;
-  var map0:Map<int, int>;
-  map0, counter := New_Map(counter);
-  var map1:Map<int, int>;
-  map1, counter := map0.Insert(1, 10, counter);
-  var value:int;
-  value, counter := map1.Get(1, counter);
-  assert value == 10;
-  var contains:bool;
-  contains, counter := map1.ContainsKey(1, counter);
-  assert contains;
-  var map2:Map<int, int>;
-  map2, counter := map1.Copy(counter);
-  map2, counter := map2.Remove(1, counter);
-  var empty:bool;
-  empty, counter := map2.Empty(counter);
-  ok := value == 10 && contains && empty;
+class ConcreteMapSetT<K(==), V(==)> extends Map_Set_T<K, V> {
+  const entries:map<set<K>, V>
+  ghost const universe:map<set<K>, V>
+  ghost const ub_size_keys:nat
+
+  constructor(entries_in:map<set<K>, V>, ghost universe_in:map<set<K>, V>, ghost ub_size_keys_in:nat)
+    requires entries_in.Keys <= universe_in.Keys
+    requires forall key | key in universe_in.Keys :: |key| <= ub_size_keys_in
+    requires forall key | key in entries_in.Keys :: entries_in[key] == universe_in[key]
+    ensures Valid()
+    ensures UBSize_Keys() == ub_size_keys_in
+    ensures Model() == entries_in && Universe() == universe_in
+  {
+    entries := entries_in;
+    universe := universe_in;
+    ub_size_keys := ub_size_keys_in;
+    reveal Model(), Valid();
+    if_smaller_then_less_cardinality(entries_in.Keys, universe_in.Keys);
+  }
+
+  function Repr():map<set<K>, V> { entries }
+  ghost function Universe():map<set<K>, V> { universe }
+  ghost function UBSize_Keys():nat { ub_size_keys }
+
+  method Get(key:Set<K>, ghost counter_in:nat) returns (value:V, ghost counter_out:nat)
+    requires Valid()
+    requires key.Model() in Model().Keys
+    ensures value == Model()[key.Model()]
+    ensures counter_out == counter_in + cost_MapSetTGet(this)
+    ensures counter_out <= counter_in + cost_MapSetTGetUniverse(this)
+  {
+    reveal Model(), key.Model();
+    MapSetTModelSizeBound(this);
+    value := entries[key.Repr()];
+    counter_out := counter_in + cost_MapSetTGet(this);
+  }
+
+  method ContainsKey(key:Set<K>, ghost counter_in:nat) returns (contains:bool, ghost counter_out:nat)
+    requires Valid()
+    ensures contains == (key.Model() in Model().Keys)
+    ensures counter_out == counter_in + cost_MapSetTContainsKey(this)
+    ensures counter_out <= counter_in + cost_MapSetTContainsKeyUniverse(this)
+  {
+    reveal Model(), key.Model();
+    MapSetTModelSizeBound(this);
+    contains := key.Repr() in entries;
+    counter_out := counter_in + cost_MapSetTContainsKey(this);
+  }
+
+  method Insert(key:Set<K>, value:V, ghost counter_in:nat) returns (result:Map_Set_T<K, V>, ghost counter_out:nat)
+    requires Valid() && key.Valid()
+    ensures result.Valid()
+    ensures result.Cardinality() <= Cardinality() + 1
+    ensures result.UBSize_Keys() == (if key.Size0() <= UBSize_Keys() then UBSize_Keys() else key.Size0())
+    ensures result.Model() == Model()[key.Model() := value]
+    ensures result.Universe() == Universe()[key.Model() := value]
+    ensures counter_out == counter_in + cost_MapSetTInsert(this)
+    ensures counter_out <= counter_in + cost_MapSetTInsertUniverse(this)
+  {
+    reveal Model(), key.Model();
+    MapSetTModelSizeBound(this);
+    reveal Valid(), key.Valid();
+    var concrete_key := key.Repr();
+    ghost var bound := if key.Size0() <= UBSize_Keys() then UBSize_Keys() else key.Size0();
+    result := new ConcreteMapSetT(entries[concrete_key := value], universe[concrete_key := value], bound);
+    counter_out := counter_in + cost_MapSetTInsert(this);
+  }
+
 }
 
-
-method MapMapTSmokeTest() returns (ok:bool)
-  ensures ok
+method New_Map_Set_T<K(==), V(==)>(ghost counter_in:nat) returns (result:Map_Set_T<K, V>, ghost counter_out:nat)
+  ensures init_Map_Set_T(result)
+  ensures result.UBSize_Keys() == 0
+  ensures result.Model() == map[] && result.Universe() == map[]
+  ensures counter_out == counter_in + cost_NewMapSetT()
 {
-  ghost var counter:nat := 0;
-  var key0:Map<int, bool>;
-  key0, counter := New_Map(counter);
-  var key1:Map<int, bool>;
-  key1, counter := key0.Insert(1, true, counter);
+  result := new ConcreteMapSetT(map[], map[], 0);
+  counter_out := counter_in + cost_NewMapSetT();
+}
 
-  var outer0:Map_Map_T<int, bool, int>;
-  outer0, counter := New_Map_Map_T(counter);
-  var outer1:Map_Map_T<int, bool, int>;
-  outer1, counter := outer0.Insert(key1, 7, counter);
+class ConcreteMapMapSetT<K(==), V(==), R(==)> extends Map_MapSet_T<K, V, R> {
+  const entries:map<map<set<K>, V>, R>
+  ghost const universe:map<map<set<K>, V>, R>
+  ghost const ub_size_keys:nat
+  ghost const ub_size_keys_keys:nat
 
-  var equivalent_key:Map<int, bool>;
-  equivalent_key, counter := key1.Copy(counter);
-  var value:int;
-  value, counter := outer1.Get(equivalent_key, counter);
-  assert value == 7;
+  constructor(entries_in:map<map<set<K>, V>, R>, ghost universe_in:map<map<set<K>, V>, R>, ghost ub_size_keys_in:nat, ghost ub_size_keys_keys_in:nat)
+    requires entries_in.Keys <= universe_in.Keys
+    requires forall key | key in universe_in.Keys :: |key| <= ub_size_keys_in
+    requires forall key | key in universe_in.Keys :: forall question | question in key.Keys ::
+      |question| <= ub_size_keys_keys_in
+    requires forall key | key in entries_in.Keys :: entries_in[key] == universe_in[key]
+    ensures Valid()
+    ensures UBSize_Keys() == ub_size_keys_in
+    ensures UBSize_Keys_Keys() == ub_size_keys_keys_in
+    ensures Model() == entries_in && Universe() == universe_in
+  {
+    entries := entries_in;
+    universe := universe_in;
+    ub_size_keys := ub_size_keys_in;
+    ub_size_keys_keys := ub_size_keys_keys_in;
+    reveal Model(), Valid();
+    if_smaller_then_less_cardinality(entries_in.Keys, universe_in.Keys);
+  }
 
-  var picked:Map<int, bool>;
-  picked, counter := outer1.PickKey(counter);
-  assert picked.Model() == key1.Model();
+  function Repr():map<map<set<K>, V>, R> { entries }
+  ghost function Universe():map<map<set<K>, V>, R> { universe }
+  ghost function UBSize_Keys():nat { ub_size_keys }
+  ghost function UBSize_Keys_Keys():nat { ub_size_keys_keys }
 
-  var outer2:Map_Map_T<int, bool, int>;
-  outer2, counter := outer1.Remove(equivalent_key, counter);
-  var empty:bool;
-  empty, counter := outer2.Empty(counter);
-  ok := value == 7 && empty;
+  method Get(key:Map_Set_T<K, V>, ghost counter_in:nat) returns (value:R, ghost counter_out:nat)
+    requires Valid()
+    requires key.Model() in Model().Keys
+    ensures value == Model()[key.Model()]
+    ensures counter_out == counter_in + cost_MapMapSetTGet(this)
+    ensures counter_out <= counter_in + cost_MapMapSetTGetUniverse(this)
+  {
+    reveal Model(), key.Model();
+    MapMapSetTModelSizeBound(this);
+    value := entries[key.Repr()];
+    counter_out := counter_in + cost_MapMapSetTGet(this);
+  }
+
+  method ContainsKey(key:Map_Set_T<K, V>, ghost counter_in:nat) returns (contains:bool, ghost counter_out:nat)
+    requires Valid()
+    ensures contains == (key.Model() in Model().Keys)
+    ensures counter_out == counter_in + cost_MapMapSetTContainsKey(this)
+    ensures counter_out <= counter_in + cost_MapMapSetTContainsKeyUniverse(this)
+  {
+    reveal Model(), key.Model();
+    MapMapSetTModelSizeBound(this);
+    contains := key.Repr() in entries;
+    counter_out := counter_in + cost_MapMapSetTContainsKey(this);
+  }
+
+  method {:isolate_assertions} Insert(key:Map_Set_T<K, V>, value:R, ghost counter_in:nat) returns (result:Map_MapSet_T<K, V, R>, ghost counter_out:nat)
+    requires Valid() && key.Valid()
+    ensures result.Valid()
+    ensures result.Cardinality() <= Cardinality() + 1
+    ensures result.UBSize_Keys() == (if key.Cardinality() <= UBSize_Keys() then UBSize_Keys() else key.Cardinality())
+    ensures result.UBSize_Keys_Keys() == (if key.UBSize_Keys() <= UBSize_Keys_Keys() then UBSize_Keys_Keys() else key.UBSize_Keys())
+    ensures result.Model() == Model()[key.Model() := value]
+    ensures result.Universe() == Universe()[key.Model() := value]
+    ensures counter_out == counter_in + cost_MapMapSetTInsert(this)
+    ensures counter_out <= counter_in + cost_MapMapSetTInsertUniverse(this)
+  {
+    reveal Model(), key.Model();
+    MapMapSetTModelSizeBound(this);
+    reveal Valid(), key.Valid();
+    var concrete_key := key.Repr();
+    ghost var bound := if key.Cardinality() <= UBSize_Keys() then UBSize_Keys() else key.Cardinality();
+    ghost var nestedBound := if key.UBSize_Keys() <= UBSize_Keys_Keys() then UBSize_Keys_Keys() else key.UBSize_Keys();
+    forall candidate | candidate in universe[concrete_key := value].Keys
+      ensures |candidate| <= bound
+      ensures forall question | question in candidate.Keys :: |question| <= nestedBound
+    {
+      if candidate == concrete_key {
+        assert key.Model().Keys <= key.Universe().Keys;
+      } else {
+        assert candidate in universe.Keys;
+      }
+    }
+    var updatedEntries := entries[concrete_key := value];
+    ghost var updatedUniverse := universe[concrete_key := value];
+    ghost var agreedEntries, agreedUniverse := MapUpdatePreservesUniverse(entries, universe, concrete_key, value);
+    result := new ConcreteMapMapSetT(updatedEntries, updatedUniverse, bound, nestedBound);
+    counter_out := counter_in + cost_MapMapSetTInsert(this);
+  }
+
+}
+
+method New_Map_MapSet_T<K(==), V(==), R(==)>(ghost counter_in:nat) returns (result:Map_MapSet_T<K, V, R>, ghost counter_out:nat)
+  ensures init_Map_MapSet_T(result)
+  ensures result.UBSize_Keys() == 0
+  ensures result.UBSize_Keys_Keys() == 0
+  ensures result.Model() == map[] && result.Universe() == map[]
+  ensures counter_out == counter_in + cost_NewMapMapSetT()
+{
+  result := new ConcreteMapMapSetT(map[], map[], 0, 0);
+  counter_out := counter_in + cost_NewMapMapSetT();
 }

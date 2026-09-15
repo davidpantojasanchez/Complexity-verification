@@ -4,11 +4,10 @@ include "../Auxiliary/Map.dfy"
 include "../Auxiliary/Lemmas.dfy"
 
 /*
-Proof support for VerificationCDPC.dfy; no executable verification algorithm.
-The verifier depends on these contracts, not on their proof details.
+Proof support for VerificationCDPC.dfy
 */
 
-// Weighted sums: enumeration independence, uniqueness, and iteration progress.
+// Multiplicity-based sums: enumeration independence, uniqueness, and iteration progress.
 
 lemma MultisetCancellation<T>(common:multiset<T>, first:multiset<T>, second:multiset<T>)
   requires common + first == common + second
@@ -22,72 +21,72 @@ lemma MultisetCancellation<T>(common:multiset<T>, first:multiset<T>, second:mult
   }
 }
 
-lemma SequenceWeightedMassConcat<Q(!new)>(
+lemma SequenceMultiplicitySumConcat<Q(!new)>(
     left:seq<Candidate<Q>>,
     right:seq<Candidate<Q>>,
     multiplicity:map<Candidate<Q>, nat>)
+  decreases |left|
   requires forall candidate | candidate in left + right ::
     candidate in multiplicity.Keys
-  ensures SequenceWeightedMass(left + right, multiplicity) ==
-          SequenceWeightedMass(left, multiplicity) +
-          SequenceWeightedMass(right, multiplicity)
-  decreases |left|
+  ensures SequenceMultiplicitySum(left + right, multiplicity) ==
+          SequenceMultiplicitySum(left, multiplicity) +
+          SequenceMultiplicitySum(right, multiplicity)
 {
   if left == [] {
     assert left + right == right;
-    reveal SequenceWeightedMass();
+    reveal SequenceMultiplicitySum();
   } else {
     assert (left + right)[0] == left[0];
     assert (left + right)[1..] == left[1..] + right;
-    SequenceWeightedMassConcat(left[1..], right, multiplicity);
+    SequenceMultiplicitySumConcat(left[1..], right, multiplicity);
     calc {
-      SequenceWeightedMass(left + right, multiplicity);
+      SequenceMultiplicitySum(left + right, multiplicity);
       == {
-        reveal SequenceWeightedMass();
+        reveal SequenceMultiplicitySum();
       }
       multiplicity[left[0]] +
-        SequenceWeightedMass(left[1..] + right, multiplicity);
+        SequenceMultiplicitySum(left[1..] + right, multiplicity);
       ==
       multiplicity[left[0]] +
-         SequenceWeightedMass(left[1..], multiplicity) +
-         SequenceWeightedMass(right, multiplicity);
+         SequenceMultiplicitySum(left[1..], multiplicity) +
+         SequenceMultiplicitySum(right, multiplicity);
       == {
-        reveal SequenceWeightedMass();
+        reveal SequenceMultiplicitySum();
       }
-      SequenceWeightedMass(left, multiplicity) +
-        SequenceWeightedMass(right, multiplicity);
+      SequenceMultiplicitySum(left, multiplicity) +
+        SequenceMultiplicitySum(right, multiplicity);
     }
   }
 }
 
-lemma SequenceWeightedMassRemoveAt<Q(!new)>(
+lemma SequenceMultiplicitySumRemoveAt<Q(!new)>(
     values:seq<Candidate<Q>>,
     index:nat,
     multiplicity:map<Candidate<Q>, nat>)
   requires index < |values|
   requires forall candidate | candidate in values ::
     candidate in multiplicity.Keys
-  ensures SequenceWeightedMass(values, multiplicity) ==
+  ensures SequenceMultiplicitySum(values, multiplicity) ==
           multiplicity[values[index]] +
-          SequenceWeightedMass(values[..index] + values[index + 1..], multiplicity)
+          SequenceMultiplicitySum(values[..index] + values[index + 1..], multiplicity)
 {
   var prefix := values[..index];
   var suffix := values[index + 1..];
   assert values == prefix + ([values[index]] + suffix);
-  SequenceWeightedMassConcat(prefix, [values[index]] + suffix, multiplicity);
-  SequenceWeightedMassConcat(prefix, suffix, multiplicity);
+  SequenceMultiplicitySumConcat(prefix, [values[index]] + suffix, multiplicity);
+  SequenceMultiplicitySumConcat(prefix, suffix, multiplicity);
 }
 
-lemma SequenceWeightedMassPermutation<Q(!new)>(
+lemma SequenceMultiplicitySumPermutation<Q(!new)>(
     first:seq<Candidate<Q>>,
     second:seq<Candidate<Q>>,
     multiplicity:map<Candidate<Q>, nat>)
+  decreases |first|
   requires multiset(first) == multiset(second)
   requires forall candidate | candidate in first + second ::
     candidate in multiplicity.Keys
-  ensures SequenceWeightedMass(first, multiplicity) ==
-          SequenceWeightedMass(second, multiplicity)
-  decreases |first|
+  ensures SequenceMultiplicitySum(first, multiplicity) ==
+          SequenceMultiplicitySum(second, multiplicity)
 {
   if first != [] {
     var candidate := first[0];
@@ -108,117 +107,117 @@ lemma SequenceWeightedMassPermutation<Q(!new)>(
       multiset{candidate}, multiset(first[1..]), multiset(secondWithout));
     assert forall element | element in first[1..] + secondWithout ::
       element in multiplicity.Keys;
-    SequenceWeightedMassPermutation(first[1..], secondWithout, multiplicity);
-    SequenceWeightedMassRemoveAt(second, index, multiplicity);
-    assert SequenceWeightedMass(first, multiplicity) ==
+    SequenceMultiplicitySumPermutation(first[1..], secondWithout, multiplicity);
+    SequenceMultiplicitySumRemoveAt(second, index, multiplicity);
+    assert SequenceMultiplicitySum(first, multiplicity) ==
            multiplicity[candidate] +
-           SequenceWeightedMass(first[1..], multiplicity) by {
-      reveal SequenceWeightedMass();
+           SequenceMultiplicitySum(first[1..], multiplicity) by {
+      reveal SequenceMultiplicitySum();
     }
     calc {
-      SequenceWeightedMass(first, multiplicity);
+      SequenceMultiplicitySum(first, multiplicity);
       == multiplicity[candidate] +
-         SequenceWeightedMass(first[1..], multiplicity);
+         SequenceMultiplicitySum(first[1..], multiplicity);
       == multiplicity[candidate] +
-         SequenceWeightedMass(secondWithout, multiplicity);
-      == SequenceWeightedMass(second, multiplicity);
+         SequenceMultiplicitySum(secondWithout, multiplicity);
+      == SequenceMultiplicitySum(second, multiplicity);
     }
   }
 }
 
-lemma WeightedMassUnique<Q(!new)>(
+lemma MultiplicitySumUnique<Q(!new)>(
     candidates:set<Candidate<Q>>,
     multiplicity:map<Candidate<Q>, nat>,
     first:nat,
     second:nat)
   requires candidates <= multiplicity.Keys
-  requires WeightedMass(candidates, multiplicity, first)
-  requires WeightedMass(candidates, multiplicity, second)
+  requires MultiplicitySum(candidates, multiplicity, first)
+  requires MultiplicitySum(candidates, multiplicity, second)
   ensures first == second
 {
-  reveal WeightedMass();
+  reveal MultiplicitySum();
   var firstEnumeration :| multiset(firstEnumeration) == multiset(candidates) &&
     (forall candidate | candidate in firstEnumeration :: candidate in multiplicity.Keys) &&
-    first == SequenceWeightedMass(firstEnumeration, multiplicity);
+    first == SequenceMultiplicitySum(firstEnumeration, multiplicity);
   var secondEnumeration :| multiset(secondEnumeration) == multiset(candidates) &&
     (forall candidate | candidate in secondEnumeration :: candidate in multiplicity.Keys) &&
-    second == SequenceWeightedMass(secondEnumeration, multiplicity);
-  SequenceWeightedMassPermutation(firstEnumeration, secondEnumeration, multiplicity);
+    second == SequenceMultiplicitySum(secondEnumeration, multiplicity);
+  SequenceMultiplicitySumPermutation(firstEnumeration, secondEnumeration, multiplicity);
 }
 
-lemma WeightedMassAdd<Q(!new)>(
+lemma MultiplicitySumAdd<Q(!new)>(
     candidates:set<Candidate<Q>>,
     candidate:Candidate<Q>,
     multiplicity:map<Candidate<Q>, nat>,
-    mass:nat)
+    sum:nat)
   requires candidates <= multiplicity.Keys
   requires candidate in multiplicity.Keys
   requires candidate !in candidates
-  requires WeightedMass(candidates, multiplicity, mass)
-  ensures WeightedMass(
-    candidates + {candidate}, multiplicity, mass + multiplicity[candidate])
+  requires MultiplicitySum(candidates, multiplicity, sum)
+  ensures MultiplicitySum(
+    candidates + {candidate}, multiplicity, sum + multiplicity[candidate])
 {
-  reveal WeightedMass();
+  reveal MultiplicitySum();
   var enumeration :| multiset(enumeration) == multiset(candidates) &&
     (forall element | element in enumeration :: element in multiplicity.Keys) &&
-    mass == SequenceWeightedMass(enumeration, multiplicity);
-  SequenceWeightedMassConcat(enumeration, [candidate], multiplicity);
+    sum == SequenceMultiplicitySum(enumeration, multiplicity);
+  SequenceMultiplicitySumConcat(enumeration, [candidate], multiplicity);
   assert multiset(enumeration + [candidate]) ==
          multiset(candidates + {candidate});
 }
 
-lemma WeightedMassProgress<Q(!new)>(
+lemma MultiplicitySumProgress<Q(!new)>(
     allCandidates:set<Candidate<Q>>,
     previousRemaining:set<Candidate<Q>>,
     remaining:set<Candidate<Q>>,
     candidate:Candidate<Q>,
     multiplicity:map<Candidate<Q>, nat>,
-    previousMass:nat,
-    mass:nat)
+    previousSum:nat,
+    sum:nat)
   requires previousRemaining <= allCandidates
+  requires allCandidates <= multiplicity.Keys
   requires candidate in previousRemaining
   requires remaining == previousRemaining - {candidate}
-  requires allCandidates <= multiplicity.Keys
-  requires WeightedMass(
-    allCandidates - previousRemaining, multiplicity, previousMass)
-  requires mass == previousMass + multiplicity[candidate]
-  ensures WeightedMass(allCandidates - remaining, multiplicity, mass)
+  requires MultiplicitySum(
+    allCandidates - previousRemaining, multiplicity, previousSum)
+  requires sum == previousSum + multiplicity[candidate]
+  ensures MultiplicitySum(allCandidates - remaining, multiplicity, sum)
 {
   assert candidate !in allCandidates - previousRemaining;
-  WeightedMassAdd(
+  MultiplicitySumAdd(
     allCandidates - previousRemaining, candidate,
-    multiplicity, previousMass);
+    multiplicity, previousSum);
   assert allCandidates - remaining ==
     (allCandidates - previousRemaining) + {candidate};
 }
 
-lemma FitMassProgress<Q(!new)>(
+lemma FitSumProgress<Q(!new)>(
     allCandidates:set<Candidate<Q>>,
     previousRemaining:set<Candidate<Q>>,
     remaining:set<Candidate<Q>>,
     candidate:Candidate<Q>,
     fitness:map<Candidate<Q>, bool>,
     multiplicity:map<Candidate<Q>, nat>,
-    previousMass:nat,
-    mass:nat,
+    previousSum:nat,
+    sum:nat,
     isFit:bool)
   requires previousRemaining <= allCandidates
-  requires candidate in previousRemaining
-  requires remaining == previousRemaining - {candidate}
   requires allCandidates <= fitness.Keys
   requires allCandidates <= multiplicity.Keys
+  requires candidate in previousRemaining
+  requires remaining == previousRemaining - {candidate}
   requires isFit == fitness[candidate]
-  requires mass == if isFit
-                   then previousMass + multiplicity[candidate]
-                   else previousMass
-  requires WeightedMass(
+  requires sum == if isFit
+                   then previousSum + multiplicity[candidate]
+                   else previousSum
+  requires MultiplicitySum(
     set element | element in allCandidates - previousRemaining &&
       element in fitness && fitness[element] :: element,
-    multiplicity, previousMass)
-  ensures WeightedMass(
+    multiplicity, previousSum)
+  ensures MultiplicitySum(
     set element | element in allCandidates - remaining &&
       element in fitness && fitness[element] :: element,
-    multiplicity, mass)
+    multiplicity, sum)
 {
   ghost var previousFit :=
     set element | element in allCandidates - previousRemaining &&
@@ -228,40 +227,40 @@ lemma FitMassProgress<Q(!new)>(
       element in fitness && fitness[element] :: element;
   if isFit {
     assert candidate !in previousFit;
-    WeightedMassAdd(previousFit, candidate, multiplicity, previousMass);
+    MultiplicitySumAdd(previousFit, candidate, multiplicity, previousSum);
     assert currentFit == previousFit + {candidate};
   } else {
     assert currentFit == previousFit;
   }
 }
 
-lemma PrivateMassProgress<Q(!new)>(
+lemma PrivateSumProgress<Q(!new)>(
     allCandidates:set<Candidate<Q>>,
     previousRemaining:set<Candidate<Q>>,
     remaining:set<Candidate<Q>>,
     candidate:Candidate<Q>,
     question:Q,
     multiplicity:map<Candidate<Q>, nat>,
-    previousMass:nat,
-    mass:nat,
+    previousSum:nat,
+    sum:nat,
     selected:bool)
   requires previousRemaining <= allCandidates
+  requires allCandidates <= multiplicity.Keys
   requires candidate in previousRemaining
   requires remaining == previousRemaining - {candidate}
-  requires allCandidates <= multiplicity.Keys
   requires selected ==
     (question in candidate && candidate[question])
-  requires mass == if selected
-                   then previousMass + multiplicity[candidate]
-                   else previousMass
-  requires WeightedMass(
+  requires sum == if selected
+                   then previousSum + multiplicity[candidate]
+                   else previousSum
+  requires MultiplicitySum(
     set element | element in allCandidates - previousRemaining &&
       question in element && element[question] :: element,
-    multiplicity, previousMass)
-  ensures WeightedMass(
+    multiplicity, previousSum)
+  ensures MultiplicitySum(
     set element | element in allCandidates - remaining &&
       question in element && element[question] :: element,
-    multiplicity, mass)
+    multiplicity, sum)
 {
   ghost var previousPrivate :=
     set element | element in allCandidates - previousRemaining &&
@@ -271,112 +270,112 @@ lemma PrivateMassProgress<Q(!new)>(
       question in element && element[question] :: element;
   if selected {
     assert candidate !in previousPrivate;
-    WeightedMassAdd(
-      previousPrivate, candidate, multiplicity, previousMass);
+    MultiplicitySumAdd(
+      previousPrivate, candidate, multiplicity, previousSum);
     assert currentPrivate == previousPrivate + {candidate};
   } else {
     assert currentPrivate == previousPrivate;
   }
 }
 
-lemma FitMassUnique<Q(!new)>(
+lemma FitSumUnique<Q(!new)>(
     candidates:set<Candidate<Q>>,
     fitness:map<Candidate<Q>, bool>,
     multiplicity:map<Candidate<Q>, nat>,
     first:nat,
     second:nat)
   requires candidates <= multiplicity.Keys
-  requires FitMass(candidates, fitness, multiplicity, first)
-  requires FitMass(candidates, fitness, multiplicity, second)
+  requires FitSum(candidates, fitness, multiplicity, first)
+  requires FitSum(candidates, fitness, multiplicity, second)
   ensures first == second
 {
-  reveal FitMass();
-  WeightedMassUnique(
+  reveal FitSum();
+  MultiplicitySumUnique(
     set candidate | candidate in candidates &&
                     candidate in fitness && fitness[candidate] :: candidate,
     multiplicity, first, second);
 }
 
-lemma PrivateMassUnique<Q(!new)>(
+lemma PrivateSumUnique<Q(!new)>(
     candidates:set<Candidate<Q>>,
     question:Q,
     multiplicity:map<Candidate<Q>, nat>,
     first:nat,
     second:nat)
   requires candidates <= multiplicity.Keys
-  requires PrivateMass(candidates, question, multiplicity, first)
-  requires PrivateMass(candidates, question, multiplicity, second)
+  requires PrivateSum(candidates, question, multiplicity, first)
+  requires PrivateSum(candidates, question, multiplicity, second)
   ensures first == second
 {
-  reveal PrivateMass();
-  WeightedMassUnique(
+  reveal PrivateSum();
+  MultiplicitySumUnique(
     set candidate | candidate in candidates &&
                     question in candidate && candidate[question] :: candidate,
     multiplicity, first, second);
 }
 
-// Relational specifications can be checked using the unique computed masses.
+// Relational specifications can be checked using the unique computed sums.
 
-lemma ClassificationFromMasses<Q(!new)>(
+lemma ClassificationFromSums<Q(!new)>(
     candidates:set<Candidate<Q>>, fitness:map<Candidate<Q>, bool>,
-    multiplicity:map<Candidate<Q>, nat>, totalMass:nat, fitMass:nat,
+    multiplicity:map<Candidate<Q>, nat>, totalSum:nat, fitSum:nat,
     lower:real, upper:real)
   requires candidates != {}
   requires candidates <= fitness.Keys
   requires candidates <= multiplicity.Keys
-  requires WeightedMass(candidates, multiplicity, totalMass)
-  requires FitMass(candidates, fitness, multiplicity, fitMass)
+  requires MultiplicitySum(candidates, multiplicity, totalSum)
+  requires FitSum(candidates, fitness, multiplicity, fitSum)
   ensures ClassificationDecided(candidates, fitness, multiplicity, lower, upper) ==
-    ((fitMass as real) <= lower * (totalMass as real) ||
-     upper * (totalMass as real) <= (fitMass as real))
+    ((fitSum as real) <= lower * (totalSum as real) ||
+     upper * (totalSum as real) <= (fitSum as real))
 {
   reveal ClassificationDecided();
   if ClassificationDecided(candidates, fitness, multiplicity, lower, upper) {
     var semanticTotal:nat, semanticFit:nat :|
-      WeightedMass(candidates, multiplicity, semanticTotal) &&
-      FitMass(candidates, fitness, multiplicity, semanticFit) &&
+      MultiplicitySum(candidates, multiplicity, semanticTotal) &&
+      FitSum(candidates, fitness, multiplicity, semanticFit) &&
       ((semanticFit as real) <= lower * (semanticTotal as real) ||
        upper * (semanticTotal as real) <= (semanticFit as real));
-    WeightedMassUnique(candidates, multiplicity, totalMass, semanticTotal);
-    FitMassUnique(candidates, fitness, multiplicity, fitMass, semanticFit);
+    MultiplicitySumUnique(candidates, multiplicity, totalSum, semanticTotal);
+    FitSumUnique(candidates, fitness, multiplicity, fitSum, semanticFit);
   }
 }
 
-lemma PrivateQuestionFromMass<Q(!new)>(
+lemma PrivateQuestionFromSum<Q(!new)>(
     candidates:set<Candidate<Q>>, question:Q, multiplicity:map<Candidate<Q>, nat>,
-    totalMass:nat, privateMass:nat, lower:real, upper:real)
+    totalSum:nat, privateSum:nat, lower:real, upper:real)
   requires candidates <= multiplicity.Keys
-  requires PrivateMass(candidates, question, multiplicity, privateMass)
-  ensures (exists mass:nat | PrivateMass(candidates, question, multiplicity, mass) ::
-    lower * (totalMass as real) <= (mass as real) <= upper * (totalMass as real)) ==
-    (lower * (totalMass as real) <= (privateMass as real) <= upper * (totalMass as real))
+  requires PrivateSum(candidates, question, multiplicity, privateSum)
+  ensures (exists sum:nat | PrivateSum(candidates, question, multiplicity, sum) ::
+    lower * (totalSum as real) <= (sum as real) <= upper * (totalSum as real)) ==
+    (lower * (totalSum as real) <= (privateSum as real) <= upper * (totalSum as real))
 {
-  if exists mass:nat | PrivateMass(candidates, question, multiplicity, mass) ::
-      lower * (totalMass as real) <= (mass as real) <= upper * (totalMass as real) {
-    var mass:nat :| PrivateMass(candidates, question, multiplicity, mass) &&
-      lower * (totalMass as real) <= (mass as real) <= upper * (totalMass as real);
-    PrivateMassUnique(candidates, question, multiplicity, privateMass, mass);
+  if exists sum:nat | PrivateSum(candidates, question, multiplicity, sum) ::
+      lower * (totalSum as real) <= (sum as real) <= upper * (totalSum as real) {
+    var sum:nat :| PrivateSum(candidates, question, multiplicity, sum) &&
+      lower * (totalSum as real) <= (sum as real) <= upper * (totalSum as real);
+    PrivateSumUnique(candidates, question, multiplicity, privateSum, sum);
   }
 }
 
 lemma PrivateSafeFromTotal<Q(!new)>(
     candidates:set<Candidate<Q>>, multiplicity:map<Candidate<Q>, nat>,
-    privateQuestions:set<Q>, totalMass:nat, lower:real, upper:real)
+    privateQuestions:set<Q>, totalSum:nat, lower:real, upper:real)
   requires candidates != {}
   requires candidates <= multiplicity.Keys
-  requires WeightedMass(candidates, multiplicity, totalMass)
+  requires MultiplicitySum(candidates, multiplicity, totalSum)
   ensures PrivateSafe(candidates, multiplicity, privateQuestions, lower, upper) ==
     (forall question | question in privateQuestions ::
-      exists mass:nat | PrivateMass(candidates, question, multiplicity, mass) ::
-        lower * (totalMass as real) <= (mass as real) <= upper * (totalMass as real))
+      exists sum:nat | PrivateSum(candidates, question, multiplicity, sum) ::
+        lower * (totalSum as real) <= (sum as real) <= upper * (totalSum as real))
 {
   reveal PrivateSafe();
   if PrivateSafe(candidates, multiplicity, privateQuestions, lower, upper) {
-    var semanticTotal:nat :| WeightedMass(candidates, multiplicity, semanticTotal) &&
+    var semanticTotal:nat :| MultiplicitySum(candidates, multiplicity, semanticTotal) &&
       (forall question | question in privateQuestions ::
-        exists mass:nat | PrivateMass(candidates, question, multiplicity, mass) ::
-          lower * (semanticTotal as real) <= (mass as real) <= upper * (semanticTotal as real));
-    WeightedMassUnique(candidates, multiplicity, totalMass, semanticTotal);
+        exists sum:nat | PrivateSum(candidates, question, multiplicity, sum) ::
+          lower * (semanticTotal as real) <= (sum as real) <= upper * (semanticTotal as real));
+    MultiplicitySumUnique(candidates, multiplicity, totalSum, semanticTotal);
   }
 }
 
@@ -386,12 +385,13 @@ lemma PrivateSafeFromTotal<Q(!new)>(
 lemma TreeCostCombine(
     nodes:nat, trueNodes:nat, falseNodes:nat, nodeCost:nat, branchFactor:nat,
     counterBase:nat, setupCounter:nat, afterTrueCounter:nat, counter:nat)
+  requires afterTrueCounter <= setupCounter + branchFactor * trueNodes * nodeCost
   requires nodes == 1 + trueNodes + falseNodes
   requires setupCounter <= counterBase + nodeCost
-  requires afterTrueCounter <= setupCounter + branchFactor * trueNodes * nodeCost
   requires counter <= afterTrueCounter + branchFactor * falseNodes * nodeCost
   ensures counter <= counterBase + (branchFactor * (nodes - 1) + 1) * nodeCost
 {}
+
 
 lemma BranchCostCombine(
     nodes:nat, nodeCost:nat, counterBase:nat, setupCounter:nat, counter:nat)
@@ -408,7 +408,7 @@ lemma BranchOwnCostFits(
   ensures counter <= counterBase + 2 * nodes * nodeCost
 {}
 
-ghost function poly_ComputeWeightedMass<Q(!new)>(
+ghost function poly_ComputeMultiplicitySum<Q(!new)>(
     candidates:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>):nat
 {
@@ -432,7 +432,7 @@ ghost function poly_FilterCandidates<Q(!new)>(
      cost_MapMapTEmpty(candidates))
 }
 
-ghost function poly_ComputeFitMass<Q(!new)>(
+ghost function poly_ComputeFitSum<Q(!new)>(
     candidates:Map_Map_T<Q, bool, bool>,
     fitness:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>):nat
@@ -446,7 +446,7 @@ ghost function poly_ComputeFitMass<Q(!new)>(
      cost_MapMapTEmpty(candidates))
 }
 
-ghost function poly_ComputePrivateMass<Q(!new)>(
+ghost function poly_ComputePrivateSum<Q(!new)>(
     candidates:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>):nat
 {
@@ -459,58 +459,21 @@ ghost function poly_ComputePrivateMass<Q(!new)>(
      cost_MapMapTEmpty(candidates))
 }
 
-ghost function {:opaque} LinearLoopBudget(
-    base:nat, step:nat, processed:nat):nat
-{
-  base + processed * step
-}
-
-lemma LinearLoopBudgetZero(base:nat, step:nat)
-  ensures LinearLoopBudget(base, step, 0) == base
-{
-  reveal LinearLoopBudget();
-}
-
-lemma LinearLoopBudgetAdvance(
-    base:nat,
-    step:nat,
-    processed:nat,
-    counterBase:nat,
-    counterBefore:nat,
-    counterAfter:nat)
-  requires counterBefore <= counterBase +
-    LinearLoopBudget(base, step, processed)
-  requires counterAfter <= counterBefore + step
-  ensures counterAfter <= counterBase +
-    LinearLoopBudget(base, step, processed + 1)
-{
-  reveal LinearLoopBudget();
-}
-
-lemma LinearLoopBudgetBound(
-    base:nat, step:nat, processed:nat, bound:nat)
-  requires processed <= bound
-  ensures LinearLoopBudget(base, step, processed) <=
-          base + bound * step
-{
-  reveal LinearLoopBudget();
-  mult_preserves_order(processed, step, bound, step);
-}
 
 ghost function poly_CheckClassification<Q(!new)>(
     candidates:Map_Map_T<Q, bool, bool>,
     fitness:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>):nat
 {
-  poly_ComputeWeightedMass(candidates, multiplicity) +
-  poly_ComputeFitMass(candidates, fitness, multiplicity) + 1
+  poly_ComputeMultiplicitySum(candidates, multiplicity) +
+  poly_ComputeFitSum(candidates, fitness, multiplicity) + 1
 }
 
 ghost function poly_CheckPrivateQuestion<Q(!new)>(
     candidates:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>):nat
 {
-  poly_ComputePrivateMass(candidates, multiplicity) + 1
+  poly_ComputePrivateSum(candidates, multiplicity) + 1
 }
 
 ghost function poly_CheckPrivateSafe<Q(!new)>(
@@ -518,8 +481,8 @@ ghost function poly_CheckPrivateSafe<Q(!new)>(
     privateQuestions:Set<Q>,
     multiplicity:Map_Map_T<Q, bool, nat>):nat
 {
-  poly_ComputeWeightedMass(candidates, multiplicity) +
-  cost_SetCopyUniverse(privateQuestions) + cost_SetEmpty(privateQuestions) +
+  poly_ComputeMultiplicitySum(candidates, multiplicity) +
+  cost_SetEmpty(privateQuestions) +
   privateQuestions.UBCardinality() *
     (cost_SetPick(privateQuestions) +
      poly_CheckPrivateQuestion(candidates, multiplicity) +
@@ -528,34 +491,27 @@ ghost function poly_CheckPrivateSafe<Q(!new)>(
 }
 
 ghost function cost_CheckInterviewFitsNode<Q(!new)>(
-    rootQuestions:Map<Q, bool>):nat
+    rootQuestions:Set<Q>):nat
 {
   cost_InterviewIsEnd() + cost_InterviewQuestion() +
-  cost_MapContainsKeyUniverse(rootQuestions) +
-  cost_MapRemoveUniverse(rootQuestions) +
+  cost_SetContainsUniverse(rootQuestions) +
+  cost_SetRemoveUniverse(rootQuestions) +
   2 * cost_InterviewBranch()
 }
 
-ghost function poly_CheckInterviewFits<Q(!new)>(
-    rootQuestions:Map<Q, bool>, interview:Interview<Q>):nat
+lemma CDPCStructureCostBound<Q(!new)>(fitness:Map_Map_T<Q, bool, bool>, questions:Set<Q>, interview:Interview<Q>)
+  requires questions.Valid()
+  requires interview.NodeCount() <= 2*fitness.Cardinality()*questions.Cardinality()+1
+  ensures interview.NodeCount()*cost_CheckInterviewFitsNode(questions) <=
+    (2*fitness.Cardinality()*questions.UBSize0()+1)*cost_CheckInterviewFitsNode(questions)
 {
-  interview.NodeCount() * cost_CheckInterviewFitsNode(rootQuestions)
-}
-
-ghost function cost_CDPCInterviewNode<Q(!new)>(fitness:Map_Map_T<Q, bool, bool>):nat
-{
-  cost_InterviewIsEnd() + cost_InterviewQuestion() +
-  2 * (fitness.UBSize_Keys() + 1) + 2 * cost_InterviewBranch()
-}
-
-lemma CDPCInterviewCostBound<Q(!new)>(fitness:Map_Map_T<Q, bool, bool>, questions:Map<Q, bool>, interview:Interview<Q>)
-  requires questions.UBSize() <= fitness.UBSize_Keys()
-  ensures poly_CheckInterviewFits(questions, interview) <=
-    interview.NodeCount() * cost_CDPCInterviewNode(fitness)
-{
-  mult_preserves_order(
-    interview.NodeCount(), cost_CheckInterviewFitsNode(questions),
-    interview.NodeCount(), cost_CDPCInterviewNode(fitness));
+  assert questions.Cardinality() <= questions.UBSize0();
+  mult_preserves_order(fitness.Cardinality(), questions.Cardinality(),
+    fitness.Cardinality(), questions.UBSize0());
+  assert interview.NodeCount() <= 2*fitness.Cardinality()*questions.UBSize0()+1;
+  mult_preserves_order(interview.NodeCount(), cost_CheckInterviewFitsNode(questions),
+    2*fitness.Cardinality()*questions.UBSize0()+1,
+    cost_CheckInterviewFitsNode(questions));
 }
 
 lemma CDPCCandidateCostMonotonic<Q(!new)>(
@@ -565,12 +521,12 @@ lemma CDPCCandidateCostMonotonic<Q(!new)>(
     multiplicity:Map_Map_T<Q, bool, nat>,
     privateQuestions:Set<Q>)
   requires in_universe_Map_Map_T(smaller, larger)
-  ensures poly_ComputeWeightedMass(smaller, multiplicity) <=
-          poly_ComputeWeightedMass(larger, multiplicity)
-  ensures poly_ComputeFitMass(smaller, fitness, multiplicity) <=
-          poly_ComputeFitMass(larger, fitness, multiplicity)
-  ensures poly_ComputePrivateMass(smaller, multiplicity) <=
-          poly_ComputePrivateMass(larger, multiplicity)
+  ensures poly_ComputeMultiplicitySum(smaller, multiplicity) <=
+          poly_ComputeMultiplicitySum(larger, multiplicity)
+  ensures poly_ComputeFitSum(smaller, fitness, multiplicity) <=
+          poly_ComputeFitSum(larger, fitness, multiplicity)
+  ensures poly_ComputePrivateSum(smaller, multiplicity) <=
+          poly_ComputePrivateSum(larger, multiplicity)
   ensures poly_FilterCandidates(smaller) <=
           poly_FilterCandidates(larger)
   ensures poly_CheckClassification(smaller, fitness, multiplicity) <=
@@ -637,12 +593,12 @@ lemma CDPCCandidateCostMonotonic<Q(!new)>(
       2 * cost_MapMapTRemoveUniverse(larger) +
       cost_MapMapTEmpty(larger));
 
-  assert poly_ComputeWeightedMass(smaller, multiplicity) <=
-         poly_ComputeWeightedMass(larger, multiplicity);
-  assert poly_ComputeFitMass(smaller, fitness, multiplicity) <=
-         poly_ComputeFitMass(larger, fitness, multiplicity);
-  assert poly_ComputePrivateMass(smaller, multiplicity) <=
-         poly_ComputePrivateMass(larger, multiplicity);
+  assert poly_ComputeMultiplicitySum(smaller, multiplicity) <=
+         poly_ComputeMultiplicitySum(larger, multiplicity);
+  assert poly_ComputeFitSum(smaller, fitness, multiplicity) <=
+         poly_ComputeFitSum(larger, fitness, multiplicity);
+  assert poly_ComputePrivateSum(smaller, multiplicity) <=
+         poly_ComputePrivateSum(larger, multiplicity);
   assert poly_FilterCandidates(smaller) <= poly_FilterCandidates(larger);
   assert poly_CheckClassification(smaller, fitness, multiplicity) <=
          poly_CheckClassification(larger, fitness, multiplicity);
@@ -659,6 +615,105 @@ lemma CDPCCandidateCostMonotonic<Q(!new)>(
       poly_CheckPrivateQuestion(larger, multiplicity) +
       cost_SetRemoveUniverse(privateQuestions) +
       cost_SetEmpty(privateQuestions));
+}
+
+// Internal instance budget in collection measures; no tree argument.
+ghost function {:opaque} {:isolate_assertions} poly_VerifyCDPC<Q(!new)>(fitness:Map_Map_T<Q, bool, bool>,
+    multiplicity:Map_Map_T<Q, bool, nat>, privateQuestions:Set<Q>, questions:Set<Q>):(cost:nat)
+  ensures cost == (var b := 2*fitness.Cardinality()*questions.UBSize0()+1;
+    b*cost_CheckInterviewFitsNode(questions) +
+    2*b*cost_VerifyCDPCCertificateNode(fitness, fitness, multiplicity, privateQuestions))
+{
+  var b := 2*fitness.Cardinality()*questions.UBSize0()+1;
+  b*cost_CheckInterviewFitsNode(questions) +
+    2*b*cost_VerifyCDPCCertificateNode(fitness, fitness, multiplicity, privateQuestions)
+}
+
+// Fixed numerical envelope; n bounds candidates, questions and private questions.
+ghost function CDPCVerificationNodePolynomial(n:nat):nat
+{
+  var c := n*n+1;
+  var d := n+1;
+  var sum := c+1+n*(d+2*c+1);
+  var filter := 2*c+1+n*(3*d+2*c+1);
+  var fit := c+1+n*(d+3*c+1);
+  var privateSum := c+1+n*(3*d+2*c+1);
+  6+2*filter+(sum+fit+1)+(sum+1+n*(privateSum+n+4))
+}
+
+ghost function CDPCVerificationPolynomial(n:nat):nat
+{
+  var nodes := 2*n*n+1;
+  nodes*(2*n+6) + 2*nodes*CDPCVerificationNodePolynomial(n)
+}
+
+lemma {:isolate_assertions} CDPCVerificationCostBound<Q(!new)>(
+    fitness:Map_Map_T<Q, bool, bool>, multiplicity:Map_Map_T<Q, bool, nat>,
+    privateQuestions:Set<Q>, questions:Set<Q>, n:nat)
+  requires init_Set(questions) && init_Map_Map_T(fitness) && init_Map_Map_T(multiplicity) && init_Set(privateQuestions)
+  requires fitness.Cardinality() <= n && multiplicity.Cardinality() <= n
+  requires privateQuestions.Cardinality() <= n
+  requires fitness.UBSize_Keys() <= n && multiplicity.UBSize_Keys() <= n
+  requires questions.Cardinality() <= n
+  ensures poly_VerifyCDPC(fitness, multiplicity, privateQuestions, questions) <= CDPCVerificationPolynomial(n)
+{
+  assert questions.UBSize0() == questions.Cardinality();
+  mult_preserves_order(fitness.Cardinality(), fitness.UBSize_Keys(), n, n);
+  mult_preserves_order(fitness.Cardinality(), questions.UBSize0(), n, n);
+  mult_preserves_order(multiplicity.Cardinality(), multiplicity.UBSize_Keys(), n, n);
+  var c := n*n+1;
+  var d := n+1;
+  var sum := c+1+n*(d+2*c+1);
+  var filter := 2*c+1+n*(3*d+2*c+1);
+  var fit := c+1+n*(d+3*c+1);
+  var privateSum := c+1+n*(3*d+2*c+1);
+  mult_preserves_order(fitness.UBCardinality(),
+    cost_MapMapTPickKeyUniverse(fitness)+cost_MapMapTGetUniverse(multiplicity)+
+      cost_MapMapTRemoveUniverse(fitness)+1, n, d+2*c+1);
+  assert poly_ComputeMultiplicitySum(fitness, multiplicity) <= sum;
+  mult_preserves_order(fitness.UBCardinality(),
+    cost_MapMapTPickKeyUniverse(fitness)+2*(fitness.UBSize_Keys()+1)+
+      2*cost_MapMapTRemoveUniverse(fitness)+1, n, 3*d+2*c+1);
+  assert poly_FilterCandidates(fitness) <= filter;
+  mult_preserves_order(fitness.UBCardinality(),
+    cost_MapMapTPickKeyUniverse(fitness)+cost_MapMapTGetUniverse(fitness)+
+      cost_MapMapTGetUniverse(multiplicity)+cost_MapMapTRemoveUniverse(fitness)+1,
+    n, d+3*c+1);
+  assert poly_ComputeFitSum(fitness, fitness, multiplicity) <= fit;
+  mult_preserves_order(fitness.UBCardinality(),
+    cost_MapMapTPickKeyUniverse(fitness)+2*(fitness.UBSize_Keys()+1)+
+      cost_MapMapTGetUniverse(multiplicity)+cost_MapMapTRemoveUniverse(fitness)+1,
+    n, 3*d+2*c+1);
+  assert poly_ComputePrivateSum(fitness, multiplicity) <= privateSum;
+  mult_preserves_order(privateQuestions.UBCardinality(),
+    poly_ComputePrivateSum(fitness, multiplicity)+privateQuestions.UBSize0()+4,
+    n, privateSum+n+4);
+  assert cost_VerifyCDPCCertificateNode(fitness, fitness, multiplicity, privateQuestions) <=
+    CDPCVerificationNodePolynomial(n);
+  associativity(2, fitness.Cardinality(), questions.UBSize0());
+  associativity(2, n, n);
+  assert 2*fitness.Cardinality()*questions.UBSize0()+1 <= 2*n*n+1;
+  mult_preserves_order(2*fitness.Cardinality()*questions.UBSize0()+1,
+    cost_CheckInterviewFitsNode(questions),
+    2*n*n+1, 2*n+6);
+  mult_preserves_order(2*(2*fitness.Cardinality()*questions.UBSize0()+1),
+    cost_VerifyCDPCCertificateNode(fitness, fitness, multiplicity, privateQuestions),
+    2*(2*n*n+1), CDPCVerificationNodePolynomial(n));
+}
+
+lemma CDPCCheckingCostBound<Q(!new)>(questions:Set<Q>, fitness:Map_Map_T<Q, bool, bool>,
+    multiplicity:Map_Map_T<Q, bool, nat>, privateQuestions:Set<Q>, interview:Interview<Q>)
+  requires interview.NodeCount() <= 2*fitness.Cardinality()*questions.UBSize0()+1
+  ensures poly_VerifyCDPCCertificate(fitness, fitness, multiplicity, privateQuestions, interview) <=
+    2*(2*fitness.Cardinality()*questions.UBSize0()+1)*
+      cost_VerifyCDPCCertificateNode(fitness, fitness, multiplicity, privateQuestions)
+{
+  if interview.NodeCount() > 0 {
+    mult_preserves_order(2*interview.NodeCount()-1,
+      cost_VerifyCDPCCertificateNode(fitness, fitness, multiplicity, privateQuestions),
+      2*(2*fitness.Cardinality()*questions.UBSize0()+1),
+      cost_VerifyCDPCCertificateNode(fitness, fitness, multiplicity, privateQuestions));
+  }
 }
 
 ghost function cost_VerifyCDPCCertificateNode<Q(!new)>(
@@ -701,20 +756,4 @@ ghost function {:opaque} poly_CheckCDPCBranch<Q(!new)>(
     2 * interview.NodeCount() * cost_VerifyCDPCCertificateNode(rootCandidates, fitness, multiplicity, privateQuestions)
 {
   2 * interview.NodeCount() * cost_VerifyCDPCCertificateNode(rootCandidates, fitness, multiplicity, privateQuestions)
-}
-
-ghost function {:opaque} poly_VerifyCDPC<Q(!new)>(
-    fitness:Map_Map_T<Q, bool, bool>,
-    multiplicity:Map_Map_T<Q, bool, nat>,
-    privateQuestions:Set<Q>,
-    interview:Interview<Q>):nat
-  ensures poly_VerifyCDPC(
-    fitness, multiplicity, privateQuestions, interview) ==
-    cost_MapMapTPickKeyUniverse(fitness) +
-    interview.NodeCount() * cost_CDPCInterviewNode(fitness) +
-    poly_VerifyCDPCCertificate(fitness, fitness, multiplicity, privateQuestions, interview)
-{
-  cost_MapMapTPickKeyUniverse(fitness) +
-  interview.NodeCount() * cost_CDPCInterviewNode(fitness) +
-  poly_VerifyCDPCCertificate(fitness, fitness, multiplicity, privateQuestions, interview)
 }
