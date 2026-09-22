@@ -1,7 +1,7 @@
 include "../Problems/SetCover.dfy"
 
 
-method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) returns (accepted:bool)   
+method VerifySetCover_base(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) returns (accepted:bool)
   requires SetCoverValidInstance(U, S)
   requires |I| <= |S|
   requires forall s | s in I :: |s| <= |U|
@@ -16,22 +16,22 @@ method verifySetCover(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) retur
   while (U' != {} && b1)
     decreases |U'|
     invariant U' <= U 
-    invariant b1 == isCover(U-U',I)
+    invariant b1 == IsCover(U-U',I)
   {
-    b1, U' := verifySetCover_outer_loop(U, S, k, I, U');
+    b1, U' := CheckUniverseElement_base(U, S, k, I, U');
   }
   assert b1 ==> U-U' == U;
   accepted := b1;
 }
 
 
-method verifySetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, U':set<int>) returns (b2:bool, U'':set<int>)
+method CheckUniverseElement_base(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, U':set<int>) returns (b2:bool, U'':set<int>)
   requires U' != {}
   requires U' <= U
-  requires isCover(U - U', I)
+  requires IsCover(U - U', I)
   ensures |U''| < |U'|
   ensures U'' <= U
-  ensures b2 == isCover(U - U'', I)
+  ensures b2 == IsCover(U - U'', I)
 {
   var u :| u in U'; 
   U'' := U' - {u};  
@@ -42,13 +42,13 @@ method verifySetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<i
     invariant I' <= I
     invariant b2 == (exists i' | i' in I - I' :: u in i')
   {
-    b2, I' := verifySetCover_inner_loop(U, S, k, I, I', u);
+    b2, I' := CheckCoverSet_base(U, S, k, I, I', u);
   }
   assert U - U'' == U - U' + {u};
 }
 
 
-method verifySetCover_inner_loop(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, I':set<set<int>>, u:int) returns (b2:bool, I'':set<set<int>>)
+method CheckCoverSet_base(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, I':set<set<int>>, u:int) returns (b2:bool, I'':set<set<int>>)
   requires I' != {}
   requires I' <= I
   requires !(exists i' | i' in I - I' :: u in i')

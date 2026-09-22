@@ -2,23 +2,23 @@ include "../Problems/HittingSet.dfy"
 include "../Problems/SetCover.dfy"
 
 
-ghost function HittingSet_to_SetCover(U:set<int>, S:set<set<int>>, k:nat) : (r:(set<set<int>>, set<set<set<int>>>, nat))
+ghost function HittingSetToSetCover(U:set<int>, S:set<set<int>>, k:nat) : (r:(set<set<int>>, set<set<set<int>>>, nat))
   requires HittingSetValidInstance(U, S)
   ensures SetCoverValidInstance(r.0, r.1)
 {
   var newS: set<set<set<int>>> := (set u | u in U :: (set s | s in S && u in s));
   if ({} in S) then (S, (set s | s in S :: {s}), 0) //que devuelva falso siempre
   else
-   tisCover(U,S);
+   IncidenceFamilyCovers(U,S);
    (S, newS, k)
 }
 
-lemma tisCover(U: set<int>, S: set<set<int>>) 
+lemma IncidenceFamilyCovers(U: set<int>, S: set<set<int>>)
   requires HittingSetValidInstance(U, S)
   requires {} !in S
  ensures 
    var newS: set<set<set<int>>> := (set u | u in U :: (set s | s in S && u in s));
-   isCover(S,newS)
+   IsCover(S,newS)
 { var newS: set<set<set<int>>> := (set u | u in U :: (set s | s in S && u in s));
   forall e | e in S ensures (exists s | s in newS :: e in s)
   {    assert e != {};
@@ -30,7 +30,7 @@ lemma tisCover(U: set<int>, S: set<set<int>>)
     
 }
 
-lemma {:induction C} cardinal_of_sets1(U: set<int>, S:set<set<int>>, C:set<int>, CS:set<set<set<int>>>)
+lemma {:induction C} IncidenceFamilyCardinalityBound(U: set<int>, S:set<set<int>>, C:set<int>, CS:set<set<set<int>>>)
   requires C <= U 
   requires CS == (set x | x in C :: (set ys | ys in S && x in ys))
   ensures |CS| <= |C|
@@ -58,7 +58,7 @@ lemma {:induction C} cardinal_of_sets1(U: set<int>, S:set<set<int>>, C:set<int>,
     else {
       assert |CS| == |CS'| + 1; 
     }
-    cardinal_of_sets1(U,S,C-{x},CS');
+    IncidenceFamilyCardinalityBound(U,S,C-{x},CS');
     assert |CS'| <= |C-{x}|;
     assert |CS| <= |C|;
   }
@@ -71,7 +71,7 @@ lemma {:induction C} cardinal_of_sets1(U: set<int>, S:set<set<int>>, C:set<int>,
 // C={1,2,3,4} con esta definicion pero debería ser {1,3} por ejemplo
 //Uno del mismo tamaño que CS
 
-ghost function min(s:set<int>) : (x:int)
+ghost function Minimum(s:set<int>) : (x:int)
   requires s != {}
   ensures x in s && (forall y | y in s :: x <= y)
   decreases |s|
@@ -81,7 +81,7 @@ ghost function min(s:set<int>) : (x:int)
     candidate
   else
     assert s - {candidate} != {};
-    var restMin := min(s - {candidate});
+    var restMin := Minimum(s - {candidate});
     if candidate <= restMin then
       assert forall y | y in s :: candidate <= y by {
         forall y | y in s
@@ -107,22 +107,22 @@ ghost function min(s:set<int>) : (x:int)
 }
 
 
-lemma HittingSet_SetCover(U:set<int>, S:set<set<int>>, k:nat)
+lemma HittingSetToSetCoverCorrect(U:set<int>, S:set<set<int>>, k:nat)
   requires HittingSetValidInstance(U, S)
-  ensures var (SU,SS,Sk) := HittingSet_to_SetCover(U,S,k);
+  ensures var (SU,SS,Sk) := HittingSetToSetCover(U,S,k);
           HittingSet(U,S,k) <==> SetCover(SU,SS,Sk)
 {
-  var (SU,SS,Sk) := HittingSet_to_SetCover(U,S,k);
-  HittingSet_SetCover1(U,S,k);
-  HittingSet_SetCover2(U,S,k);
+  var (SU,SS,Sk) := HittingSetToSetCover(U,S,k);
+  HittingSetToSetCoverForward(U,S,k);
+  HittingSetToSetCoverBackward(U,S,k);
 }
 
-lemma HittingSet_SetCover1(U:set<int>, S:set<set<int>>, k:nat)
+lemma HittingSetToSetCoverForward(U:set<int>, S:set<set<int>>, k:nat)
   requires HittingSetValidInstance(U, S)
-  ensures var (US,SS,kS) := HittingSet_to_SetCover(U,S,k);
+  ensures var (US,SS,kS) := HittingSetToSetCover(U,S,k);
           HittingSet(U,S,k) ==> SetCover(US,SS,kS)
 {
-  var (US,SS,kS) := HittingSet_to_SetCover(U,S,k);
+  var (US,SS,kS) := HittingSetToSetCover(U,S,k);
   if (HittingSet(U,S,k)) {
     if ({} in S) { assert false; }
     else { 
@@ -139,70 +139,70 @@ lemma HittingSet_SetCover1(U:set<int>, S:set<set<int>>, k:nat)
      var ss := (set ys | ys in US && y in ys);
      assert ss in CS && s in ss;
      }
-     cardinal_of_sets1(U,S,C,CS);
+     IncidenceFamilyCardinalityBound(U,S,C,CS);
      assert |CS| <= |C| <= k;
      assert SetCoverCertificate(US, SS, kS, CS);
      //Idea de demo, la funcion es inyectiva 
  }
 }
 }
-ghost function setsElem(U:set<int>, S: set<set<int>>, e:int): (r:set<set<int>>)
+ghost function IncidentSets(U:set<int>, S: set<set<int>>, e:int): (r:set<set<int>>)
   requires HittingSetValidInstance(U, S)
 { set s | s in S && e in s}
 
 //lemma extensionality(s1:set<set<int>>, s2:set<set<int>>)
 //ensures s1 == s2 <==> forall xs | xs in s1 :: xs in s2 && forall xs | xs in s2 :: xs in s1
 
-ghost function minSetsElem(U:set<int>, S: set<set<int>>, e:int): (m:int)
+ghost function MinimumEquivalentElement(U:set<int>, S: set<set<int>>, e:int): (m:int)
   requires HittingSetValidInstance(U, S)
-  requires e in U && setsElem(U,S,e) != {}
+  requires e in U && IncidentSets(U,S,e) != {}
 { 
-  assert e in U && setsElem(U,S,e) == setsElem(U,S,e);
-  var allEs:set<int> := set e' | e' in U && setsElem(U,S,e') == setsElem(U,S,e);
-  assert e in U && setsElem(U,S,e) == setsElem(U,S,e);
+  assert e in U && IncidentSets(U,S,e) == IncidentSets(U,S,e);
+  var allEs:set<int> := set e' | e' in U && IncidentSets(U,S,e') == IncidentSets(U,S,e);
+  assert e in U && IncidentSets(U,S,e) == IncidentSets(U,S,e);
   assert e in allEs;
-  min(allEs)  
+  Minimum(allEs)
 }
 
-ghost function minCSElem(U:set<int>, S:set<set<int>>,k:nat,CS: set<set<set<int>>>, xs:set<int>): (m:int)
+ghost function MinimumCoveredElement(U:set<int>, S:set<set<int>>,k:nat,CS: set<set<set<int>>>, xs:set<int>): (m:int)
   requires HittingSetValidInstance(U, S)
   requires xs in S 
-  requires exists e :: e in U && xs in setsElem(U,S,e) && setsElem(U,S,e) in CS
-  requires var (US,SS,kS) := HittingSet_to_SetCover(U,S,k);
-           CS <= SS && isCover(US, CS) && {} !in CS && |CS| <= kS
+  requires exists e :: e in U && xs in IncidentSets(U,S,e) && IncidentSets(U,S,e) in CS
+  requires var (US,SS,kS) := HittingSetToSetCover(U,S,k);
+           CS <= SS && IsCover(US, CS) && {} !in CS && |CS| <= kS
 { 
-  var allEs:set<int> := set e' | e' in U && xs in setsElem(U,S,e') && setsElem(U,S,e') in CS;
-  assert exists e :: e in U && xs in setsElem(U,S,e) && setsElem(U,S,e) in CS;
-  var e:int :| e in U && xs in setsElem(U,S,e) && setsElem(U,S,e) in CS;
+  var allEs:set<int> := set e' | e' in U && xs in IncidentSets(U,S,e') && IncidentSets(U,S,e') in CS;
+  assert exists e :: e in U && xs in IncidentSets(U,S,e) && IncidentSets(U,S,e) in CS;
+  var e:int :| e in U && xs in IncidentSets(U,S,e) && IncidentSets(U,S,e) in CS;
   assert e in allEs;
-  min(allEs)  
+  Minimum(allEs)
 }
 
 
-lemma {:induction C,CS} cardinal_of_sets2(U:set<int>, S:set<set<int>>, k:nat, C:set<int>,CS:set<set<set<int>>>)
+lemma {:induction C,CS} CanonicalRepresentativesCardinality(U:set<int>, S:set<set<int>>, k:nat, C:set<int>,CS:set<set<set<int>>>)
   requires HittingSetValidInstance(U, S)
   requires C <= U 
   requires CS <= (set u | u in U :: (set s | s in S && u in s)) && {} !in CS
-  requires C == set e | e in U  && (set s | s in S && e in s) in CS :: minSetsElem(U,S,e)
+  requires C == set e | e in U  && (set s | s in S && e in s) in CS :: MinimumEquivalentElement(U,S,e)
   ensures |C| == |CS|
 {
   if CS== {} {}
   else {
     var cs:| cs in CS;
     var ecs :| ecs in U && (set s | s in S && ecs in s) == cs && ecs in C ;
-    assert C - {ecs} == set e | e in U  && (set s | s in S && e in s) in CS-{cs} :: minSetsElem(U,S,e);
-    cardinal_of_sets2(U,S,k,C-{ecs},CS-{cs});
+    assert C - {ecs} == set e | e in U  && (set s | s in S && e in s) in CS-{cs} :: MinimumEquivalentElement(U,S,e);
+    CanonicalRepresentativesCardinality(U,S,k,C-{ecs},CS-{cs});
   }
 }
 
 
 
-lemma HittingSet_SetCover2(U:set<int>, S:set<set<int>>, k:nat)
+lemma HittingSetToSetCoverBackward(U:set<int>, S:set<set<int>>, k:nat)
   requires HittingSetValidInstance(U, S)
-  ensures var (US,SS,kS) := HittingSet_to_SetCover(U,S,k);
+  ensures var (US,SS,kS) := HittingSetToSetCover(U,S,k);
           HittingSet(U,S,k) <== SetCover(US,SS,kS)
 {
-  var (US,SS,kS) := HittingSet_to_SetCover(U,S,k);
+  var (US,SS,kS) := HittingSetToSetCover(U,S,k);
   if (SetCover(US,SS,kS)) {
     var CS':set<set<set<int>>> :| SetCoverCertificate(US, SS, kS, CS'); // { {{1,2,3},{2,4}}, {{2,4},{3,4},{4,5}} }
     
@@ -210,31 +210,31 @@ lemma HittingSet_SetCover2(U:set<int>, S:set<set<int>>, k:nat)
     if ({} in S) { 
       //Hay que demostrar que SetCover devuelve falso
       // para (S, (set s | s in S :: {s}), 0)
-      assert !isCover(S,{});
+      assert !IsCover(S,{});
     }
     else { 
       var CS :set<set<set<int>>> := CS' -{{}};
-      assert CS <= SS && isCover(US, CS) && |CS| <= kS && {} !in CS;
+      assert CS <= SS && IsCover(US, CS) && |CS| <= kS && {} !in CS;
 
-      var C:set<int> := set e | e in U  && (set s | s in S && e in s) in CS :: minSetsElem(U,S,e);
+      var C:set<int> := set e | e in U  && (set s | s in S && e in s) in CS :: MinimumEquivalentElement(U,S,e);
       forall xs | xs in S
       ensures xs * C != {} 
       {
         var cs :| cs in CS && xs in cs;
-        var intersection := minCSElem(U,S,k,CS,xs);
+        var intersection := MinimumCoveredElement(U,S,k,CS,xs);
         assert intersection in xs;
         assert intersection in U;
         assert (set s | s in S && intersection in s) in CS;
-        assert xs in setsElem(U,S,intersection) && setsElem(U,S,intersection) in CS;
+        assert xs in IncidentSets(U,S,intersection) && IncidentSets(U,S,intersection) in CS;
         
-        var mse := minSetsElem(U,S,intersection);
-        var allEs:set<int> := set e' | e' in U && setsElem(U,S,e') == setsElem(U,S,intersection);
+        var mse := MinimumEquivalentElement(U,S,intersection);
+        var allEs:set<int> := set e' | e' in U && IncidentSets(U,S,e') == IncidentSets(U,S,intersection);
         assert intersection in allEs;
         assert allEs != {};
-        assert intersection >= min(allEs) == mse;
+        assert intersection >= Minimum(allEs) == mse;
         
-        var allCs:set<int> := set e' | e' in U && xs in setsElem(U,S,e') && setsElem(U,S,e') in CS;
-        assert mse in U && xs in setsElem(U,S,mse) && setsElem(U,S,mse) in CS;
+        var allCs:set<int> := set e' | e' in U && xs in IncidentSets(U,S,e') && IncidentSets(U,S,e') in CS;
+        assert mse in U && xs in IncidentSets(U,S,mse) && IncidentSets(U,S,mse) in CS;
         assert mse in allCs;
         assert intersection <= mse;
         assert intersection == mse;
@@ -242,8 +242,8 @@ lemma HittingSet_SetCover2(U:set<int>, S:set<set<int>>, k:nat)
         assert intersection in C;
         assert intersection in xs * C;
       }
-      assert hitsSets(S, C);
-      cardinal_of_sets2(U,S,k,C,CS);
+      assert HitsAllSets(S, C);
+      CanonicalRepresentativesCardinality(U,S,k,C,CS);
       assert |C| ==|CS|;
       assert HittingSetCertificate(U, S, k, C);
     }

@@ -4,10 +4,10 @@ include "../Reductions/ReductionHittingSetToSetCover.dfy"
 include "../Auxiliary/Lemmas.dfy"
 
 
-method HittingSet_to_SetCover_Method(U:set<int>, S:set<set<int>>, k:nat) returns (r:(set<set<int>>, set<set<set<int>>>, nat), ghost counter:nat)
+method TransformHittingSetToSetCover_simple(U:set<int>, S:set<set<int>>, k:nat) returns (r:(set<set<int>>, set<set<set<int>>>, nat), ghost counter:nat)
   requires HittingSetValidInstance(U, S)
-  ensures r == HittingSet_to_SetCover(U, S, k)
-  ensures counter <= poly(U, S, k)
+  ensures r == HittingSetToSetCover(U, S, k)
+  ensures counter <= PolyTransformHittingSetToSetCover_simple(U, S, k)
 {
   counter := 0;
   var SS:set<set<set<int>>> := {}; counter := counter + 1;
@@ -19,13 +19,13 @@ method HittingSet_to_SetCover_Method(U:set<int>, S:set<set<int>>, k:nat) returns
       decreases |S'|
       invariant S' <= S
       invariant SS == (set s | s in (S - S') :: {s})
-      invariant counter <= 2*|S|*|U| + 1 + (|S| - |S'|)*(poly_edge_case_loop(U, S, k) + 1)
+      invariant counter <= 2*|S|*|U| + 1 + (|S| - |S'|)*(PolyAddSingletonSourceSet_simple(U, S, k) + 1)
     {
       counter := counter + 1;
-      S', SS, counter := HittingSet_to_SetCover_edge_case_loop(U, S, k, S', SS, counter);
+      S', SS, counter := AddSingletonSourceSet_simple(U, S, k, S', SS, counter);
     }
     counter := counter + 1;
-    identity_substraction_lemma(S, S');
+    SubtractionIdentity(S, S');
     return (S, SS, 0), counter;
   }
   // Regular case
@@ -34,19 +34,19 @@ method HittingSet_to_SetCover_Method(U:set<int>, S:set<set<int>>, k:nat) returns
     decreases |U'|
     invariant U' <= U
     invariant SS == (set u | u in (U - U') :: (set s | s in S && u in s))
-    invariant counter <= |S|*|U| + |U| + 1 + (|U| - |U'|)*(poly_outer_loop(U, S, k) + 1)
+    invariant counter <= |S|*|U| + |U| + 1 + (|U| - |U'|)*(PolyBuildIncidenceSet_simple(U, S, k) + 1)
   {
     counter := counter + 1;
-    U', SS, counter := HittingSet_to_SetCover_outer_loop(U, S, k, U', SS, counter);
+    U', SS, counter := BuildIncidenceSet_simple(U, S, k, U', SS, counter);
   }
   counter := counter + 1;
-  identity_substraction_lemma(U, U');
+  SubtractionIdentity(U, U');
   
   return (S, SS, k), counter;
 }
 
 
-method HittingSet_to_SetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, U':set<int>, SS:set<set<set<int>>>, ghost counter_in:nat) returns (U'':set<int>, SS':set<set<set<int>>>, ghost counter:nat)
+method BuildIncidenceSet_simple(U:set<int>, S:set<set<int>>, k:nat, U':set<int>, SS:set<set<set<int>>>, ghost counter_in:nat) returns (U'':set<int>, SS':set<set<set<int>>>, ghost counter:nat)
 // Problem requirements
 requires U' != {}
 requires HittingSetValidInstance(U, S)
@@ -55,7 +55,7 @@ requires SS == (set u | u in (U - U') :: (set s | s in S && u in s))
 ensures |U''| == |U'| - 1
 ensures U'' <= U
 ensures SS' == (set u | u in (U - U'') :: (set s | s in S && u in s))
-ensures counter <= counter_in + poly_outer_loop(U, S, k)
+ensures counter <= counter_in + PolyBuildIncidenceSet_simple(U, S, k)
 {
   counter := counter_in;
   var u :| u in U';
@@ -70,10 +70,10 @@ ensures counter <= counter_in + poly_outer_loop(U, S, k)
     decreases |S'|
     invariant S' <= S
     invariant sets_in_S_that_contain_u == (set s | s in (S - S') && u in s)
-    invariant counter <= counter_in + |S| + |U| + 1 + (|S| - |S'|)*(poly_middle_loop(U, S, k) + 1)
+    invariant counter <= counter_in + |S| + |U| + 1 + (|S| - |S'|)*(PolyAddIncidentSourceSet_simple(U, S, k) + 1)
   {
     counter := counter + 1;
-    S', sets_in_S_that_contain_u, counter := HittingSet_to_SetCover_middle_loop(U, S, k, S', u, sets_in_S_that_contain_u, counter);
+    S', sets_in_S_that_contain_u, counter := AddIncidentSourceSet_simple(U, S, k, S', u, sets_in_S_that_contain_u, counter);
   }
   counter := counter + 1;
   SS' := SS + {sets_in_S_that_contain_u};
@@ -81,9 +81,9 @@ ensures counter <= counter_in + poly_outer_loop(U, S, k)
 
   calc <= {
     counter;
-    counter_in + |S| + |U| + 2 + |S|*(poly_middle_loop(U, S, k) + 1) + |S|*|U|*|U|;
+    counter_in + |S| + |U| + 2 + |S|*(PolyAddIncidentSourceSet_simple(U, S, k) + 1) + |S|*|U|*|U|;
     counter_in + 3*|S|*|S|*|U| + |S|*|U|*|U| + 2*|S|*|U| + 3*|S| + |U| + 2;
-    counter_in + poly_outer_loop(U, S, k);
+    counter_in + PolyBuildIncidenceSet_simple(U, S, k);
   }
   assert SS' == (set v | v in (U - U'') :: (set s | s in S && v in s)) by {
   calc {
@@ -99,7 +99,7 @@ ensures counter <= counter_in + poly_outer_loop(U, S, k)
 }
 
 
-method HittingSet_to_SetCover_middle_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, u:int, sets_in_S_that_contain_u:set<set<int>>, ghost counter_in:nat) returns (S'':set<set<int>>, sets_in_S_that_contain_u':set<set<int>>, ghost counter:nat)
+method AddIncidentSourceSet_simple(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, u:int, sets_in_S_that_contain_u:set<set<int>>, ghost counter_in:nat) returns (S'':set<set<int>>, sets_in_S_that_contain_u':set<set<int>>, ghost counter:nat)
 // Problem requirements
 requires S' != {}
 requires HittingSetValidInstance(U, S)
@@ -108,7 +108,7 @@ requires sets_in_S_that_contain_u == (set s | s in (S - S') && u in s)
 ensures |S''| == |S'| - 1
 ensures S'' <= S
 ensures sets_in_S_that_contain_u' == (set s | s in (S - S'') && u in s)
-ensures counter <= counter_in + poly_middle_loop(U, S, k)
+ensures counter <= counter_in + PolyAddIncidentSourceSet_simple(U, S, k)
 {
   counter := counter_in;
   sets_in_S_that_contain_u' := sets_in_S_that_contain_u;
@@ -129,7 +129,7 @@ ensures counter <= counter_in + poly_middle_loop(U, S, k)
 }
 
 
-method HittingSet_to_SetCover_edge_case_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, SS:set<set<set<int>>>, ghost counter_in:nat) returns (S'':set<set<int>>, SS':set<set<set<int>>>, ghost counter:nat)
+method AddSingletonSourceSet_simple(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, SS:set<set<set<int>>>, ghost counter_in:nat) returns (S'':set<set<int>>, SS':set<set<set<int>>>, ghost counter:nat)
 // Problem requirements
 requires S' != {}
 requires HittingSetValidInstance(U, S)
@@ -138,7 +138,7 @@ requires SS == (set s | s in (S - S') :: {s})
 ensures |S''| == |S'| - 1
 ensures S'' <= S
 ensures SS' == (set s | s in (S - S'') :: {s})
-ensures counter == counter_in + poly_edge_case_loop(U, S, k)
+ensures counter == counter_in + PolyAddSingletonSourceSet_simple(U, S, k)
 {
   counter := counter_in;
   var s :| s in S';
@@ -152,36 +152,36 @@ ensures counter == counter_in + poly_edge_case_loop(U, S, k)
 }
 
 
-ghost function poly_middle_loop(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
+ghost function PolyAddIncidentSourceSet_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
 {
   3*|S|*|U| + 2*|U| + 1
 }
-ghost function poly_outer_loop(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
+ghost function PolyBuildIncidenceSet_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
 {
   3*|S|*|S|*|U| + 2*|S|*|U|*|U| + 4*|S|*|U| + 3*|S| + |U| + 2
 }
-ghost function poly_contains_empty_loop(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
+ghost function PolyContainsEmptySetLoop_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
 {
   |S|*|U| + |U| + 1
 }
-ghost function poly_edge_case_loop(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
+ghost function PolyAddSingletonSourceSet_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
 {
   2*|S|*|U| + 2*|U|
 }
 
 
-ghost function poly(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
-  ensures 2*|S|*|U| + 2 + |S|*(poly_edge_case_loop(U, S, k) + 1) <= o
-  ensures |S|*|U| + |U| + 2 + |U|*(poly_outer_loop(U, S, k) + 1) <= o
+ghost function PolyTransformHittingSetToSetCover_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
+  ensures 2*|S|*|U| + 2 + |S|*(PolyAddSingletonSourceSet_simple(U, S, k) + 1) <= o
+  ensures |S|*|U| + |U| + 2 + |U|*(PolyBuildIncidenceSet_simple(U, S, k) + 1) <= o
 {
   calc == {
-    |S|*|U| + |U| + 2 + |U|*(poly_outer_loop(U, S, k) + 1);
+    |S|*|U| + |U| + 2 + |U|*(PolyBuildIncidenceSet_simple(U, S, k) + 1);
     |S|*|U| + |U| + 2 + |U|*(3*|S|*|S|*|U| + 2*|S|*|U|*|U| + 4*|S|*|U| + 3*|S| + |U| + 3);
     |S|*|U| + |U| + 2 + (3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 4*|S|*|U|*|U| + 3*|S|*|U| + |U|*|U| + 3*|U|);
     3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 4*|S|*|U|*|U| + 4*|S|*|U| + |U|*|U| + 4*|U| + 2;
   }
   calc == {
-    2*|S|*|U| + 2 + |S|*(poly_edge_case_loop(U, S, k) + 1);
+    2*|S|*|U| + 2 + |S|*(PolyAddSingletonSourceSet_simple(U, S, k) + 1);
     2*|S|*|U| + 2 + |S|*(2*|S|*|U| + 2*|U| + 1);
     2*|S|*|U| + 2 + (2*|S|*|S|*|U| + 2*|S|*|U| + |S|);
     2*|S|*|S|*|U| + 4*|S|*|U| + |S| + 2;

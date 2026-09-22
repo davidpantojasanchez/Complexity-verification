@@ -20,7 +20,7 @@ proof bypasses.
 | `NPMembership/` | Representation contracts for NP arguments; Set Cover uses an ordered family and Boolean selection certificates. Construction and the composed checker are pending. |
 | `Reductions/` | Mathematical transformations and correctness arguments, including unfinished Set Cover → CDPC. |
 | `PolyTransformations/` | Executable Hitting Set → Set Cover and Set Cover → CDPC transformations, with cost analyses. |
-| `Auxiliary/` | Abstract traits, immutable implementations, cost models and reusable lemmas; `Example.dfy` is a standalone Fibonacci example. |
+| `Auxiliary/` | Abstract traits, immutable implementations, cost models and reusable lemmas grouped into arithmetic, native-collection, trait and cost layers; `Example.dfy` is a standalone Fibonacci example. |
 
 The Set Cover checker and Hitting Set → Set Cover transformation have three
 variants: `_base` has functional correctness without costs, `_simple` has explicit
@@ -37,9 +37,10 @@ its functional correctness remains pending.
 
 Set Cover instances require the complete set family to cover the universe; the
 budget `k` may be any natural number. Each problem exposes instance validity and
-certificate correctness. Checkers assume simple certificate-size bounds and
-verify correctness within that domain. Lemmas prove that every correct
-certificate satisfies the size bounds. Public cost bounds depend only on the
+certificate correctness. Set Cover checkers assume simple certificate-size bounds;
+the CDPC checker rejects oversized interviews with an initial bounded traversal.
+Lemmas prove that every correct certificate satisfies the size bounds, so this
+rejection preserves positive certificates. Public cost bounds depend only on the
 instance; efficient validation or construction of the required representations
 remains a separate obligation for a complete NP argument.
 Correct CDPC interviews have at most `2*M*Q + 1` nodes, for `M` candidate types

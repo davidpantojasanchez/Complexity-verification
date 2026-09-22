@@ -12,10 +12,10 @@ ghost predicate HittingSetValidInstance<T>(universe:set<T>, sets:set<set<T>>)
 
 ghost predicate HittingSetCertificate<T>(universe:set<T>, sets:set<set<T>>, cardinality:nat, hittingSet:set<T>)
 {
-  hittingSet <= universe && hitsSets(sets, hittingSet) && |hittingSet| <= cardinality
+  hittingSet <= universe && HitsAllSets(sets, hittingSet) && |hittingSet| <= cardinality
 }
 
-ghost predicate hitsSets<T>(sets:set<set<T>>, s:set<T>)
+ghost predicate HitsAllSets<T>(sets:set<set<T>>, s:set<T>)
 {
   forall s1 | s1 in sets :: s * s1 != {}
 }

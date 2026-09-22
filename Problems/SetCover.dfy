@@ -12,15 +12,15 @@ ghost predicate SetCover<T>(universe:set<T>, sets: set<set<T>>, cardinality:nat)
 
 ghost predicate SetCoverValidInstance<T>(universe:set<T>, sets:set<set<T>>)
 {
-  (forall s | s in sets :: s <= universe) && isCover(universe, sets)
+  (forall s | s in sets :: s <= universe) && IsCover(universe, sets)
 }
 
 ghost predicate SetCoverCertificate<T>(universe:set<T>, sets:set<set<T>>, cardinality:nat, cover:set<set<T>>)
 {
-  cover <= sets && isCover(universe, cover) && |cover| <= cardinality
+  cover <= sets && IsCover(universe, cover) && |cover| <= cardinality
 }
 
-ghost predicate isCover<T>(universe:set<T>, sets:set<set<T>>)
+ghost predicate IsCover<T>(universe:set<T>, sets:set<set<T>>)
 {
   forall e | e in universe :: (exists s | s in sets :: e in s)
 }

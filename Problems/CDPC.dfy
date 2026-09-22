@@ -233,7 +233,7 @@ lemma CDPCValidInstanceQuestionsDetermined<Q(!new)>(
   reveal CDPCValidInstance();
 }
 
-lemma CDPCQuestionDomainRegressions()
+lemma CDPCQuestionDomainRegressionCases()
 {
   var first := map[0 := true, 1 := false];
   var second := map[0 := false, 1 := true];

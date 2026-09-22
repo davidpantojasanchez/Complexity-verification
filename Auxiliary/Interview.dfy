@@ -117,7 +117,8 @@ trait Interview<Q(==)> {
   ghost function QuestionDomain():set<Q>                          // Todas las preguntas que pueden haber en la totalidad de la entrevista
   ghost function RemainingQuestions():set<Q>                      // Preguntas que pueden (o no) aparecer a partir de este punto (sin las del resto del path)
 
-  ghost function Valid():bool
+  // The outer relations are transparent; recursive InterviewFits stays opaque.
+  ghost predicate Valid()
   {
     RemainingQuestions() <= QuestionDomain() &&
     InterviewFits(Model(), RemainingQuestions())
@@ -129,12 +130,12 @@ trait Interview<Q(==)> {
 
   method IsEnd(ghost counter_in:nat) returns (isEnd:bool, ghost counter_out:nat)
     ensures isEnd == Model().End?
-    ensures counter_out == counter_in + cost_InterviewIsEnd()
+    ensures counter_out == counter_in + CostIsEnd_Interview()
 
   method Question(ghost counter_in:nat) returns (question:Q, ghost counter_out:nat)
     requires Model().Ask?
     ensures question == Model().question
-    ensures counter_out == counter_in + cost_InterviewQuestion()
+    ensures counter_out == counter_in + CostQuestion_Interview()
 
   method Branch(answer:bool, ghost counter_in:nat) returns (branch:Interview<Q>, ghost counter_out:nat)
     requires Model().Ask?
@@ -145,7 +146,7 @@ trait Interview<Q(==)> {
     ensures branch.QuestionDomain() == QuestionDomain()
     ensures branch.RemainingQuestions() ==
             RemainingQuestions() - {Model().question}
-    ensures counter_out == counter_in + cost_InterviewBranch()
+    ensures counter_out == counter_in + CostBranch_Interview()
 }
 
 
@@ -163,7 +164,7 @@ lemma InterviewBounds<Q>(interview:Interview<Q>)
 }
 
 
-ghost function cost_InterviewIsEnd():nat { 1 }
-ghost function cost_InterviewQuestion():nat { 1 }
-ghost function cost_InterviewBranch():nat { 1 }
-ghost function cost_NewInterview():nat { 1 }
+ghost function CostIsEnd_Interview():nat { 1 }
+ghost function CostQuestion_Interview():nat { 1 }
+ghost function CostBranch_Interview():nat { 1 }
+ghost function CostNew_Interview():nat { 1 }

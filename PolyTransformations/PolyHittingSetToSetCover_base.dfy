@@ -4,9 +4,9 @@ include "../Reductions/ReductionHittingSetToSetCover.dfy"
 include "../Auxiliary/Lemmas.dfy"
 
 
-method HittingSet_to_SetCover_Method(U:set<int>, S:set<set<int>>, k:nat) returns (r:(set<set<int>>, set<set<set<int>>>, nat))
+method TransformHittingSetToSetCover_base(U:set<int>, S:set<set<int>>, k:nat) returns (r:(set<set<int>>, set<set<set<int>>>, nat))
   requires HittingSetValidInstance(U, S)
-  ensures r == HittingSet_to_SetCover(U, S, k)
+  ensures r == HittingSetToSetCover(U, S, k)
 {
   var SS:set<set<set<int>>> := {};
   // Edge case
@@ -19,9 +19,9 @@ method HittingSet_to_SetCover_Method(U:set<int>, S:set<set<int>>, k:nat) returns
       invariant S' <= S
       invariant SS == (set s | s in (S - S') :: {s})
     {
-      S', SS := HittingSet_to_SetCover_edge_case_loop(U, S, k, S', SS);
+      S', SS := AddSingletonSourceSet_base(U, S, k, S', SS);
     }
-    identity_substraction_lemma(S, S');
+    SubtractionIdentity(S, S');
     return (S, SS, 0);
   }
   // Regular case
@@ -31,15 +31,15 @@ method HittingSet_to_SetCover_Method(U:set<int>, S:set<set<int>>, k:nat) returns
     invariant U' <= U
     invariant SS == (set u | u in (U - U') :: (set s | s in S && u in s))
   {
-    U', SS := HittingSet_to_SetCover_outer_loop(U, S, k, U', SS);
+    U', SS := BuildIncidenceSet_base(U, S, k, U', SS);
   }
-  identity_substraction_lemma(U, U');
+  SubtractionIdentity(U, U');
 
   return (S, SS, k);
 }
 
 
-method HittingSet_to_SetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, U':set<int>, SS:set<set<set<int>>>) returns (U'':set<int>, SS':set<set<set<int>>>)
+method BuildIncidenceSet_base(U:set<int>, S:set<set<int>>, k:nat, U':set<int>, SS:set<set<set<int>>>) returns (U'':set<int>, SS':set<set<set<int>>>)
   requires U' != {}
   requires U' <= U
   requires SS == (set u | u in (U - U') :: (set s | s in S && u in s))
@@ -57,7 +57,7 @@ method HittingSet_to_SetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, U':
     invariant S' <= S
     invariant sets_in_S_that_contain_u == (set s | s in (S - S') && u in s)
   {
-    S', sets_in_S_that_contain_u := HittingSet_to_SetCover_middle_loop(U, S, k, S', u, sets_in_S_that_contain_u);
+    S', sets_in_S_that_contain_u := AddIncidentSourceSet_base(U, S, k, S', u, sets_in_S_that_contain_u);
   }
 
   SS' := SS + {sets_in_S_that_contain_u};
@@ -76,7 +76,7 @@ method HittingSet_to_SetCover_outer_loop(U:set<int>, S:set<set<int>>, k:nat, U':
 }
 
 
-method HittingSet_to_SetCover_middle_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, u:int, sets_in_S_that_contain_u:set<set<int>>) returns (S'':set<set<int>>, sets_in_S_that_contain_u':set<set<int>>)
+method AddIncidentSourceSet_base(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, u:int, sets_in_S_that_contain_u:set<set<int>>) returns (S'':set<set<int>>, sets_in_S_that_contain_u':set<set<int>>)
   requires S' != {}
   requires S' <= S
   requires sets_in_S_that_contain_u == (set s | s in (S - S') && u in s)
@@ -98,7 +98,7 @@ method HittingSet_to_SetCover_middle_loop(U:set<int>, S:set<set<int>>, k:nat, S'
 }
 
 
-method HittingSet_to_SetCover_edge_case_loop(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, SS:set<set<set<int>>>) returns (S'':set<set<int>>, SS':set<set<set<int>>>)
+method AddSingletonSourceSet_base(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, SS:set<set<set<int>>>) returns (S'':set<set<int>>, SS':set<set<set<int>>>)
   requires S' != {}
   requires S' <= S
   requires SS == (set s | s in (S - S') :: {s})
