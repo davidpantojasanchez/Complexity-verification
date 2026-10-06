@@ -1,5 +1,5 @@
 include "../Problems/SetCover.dfy"
-include "../Auxiliary/Lemmas.dfy"
+include "../Lemmas/Lemmas.dfy"
 
 
 method VerifySetCover_simple(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) returns (accepted:bool, ghost counter:nat)

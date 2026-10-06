@@ -1,7 +1,7 @@
 include "../Problems/HittingSet.dfy"
 include "../Problems/SetCover.dfy"
 include "../Reductions/ReductionHittingSetToSetCover.dfy"
-include "../Auxiliary/Lemmas.dfy"
+include "../Lemmas/Lemmas.dfy"
 
 
 method TransformHittingSetToSetCover_base(U:set<int>, S:set<set<int>>, k:nat) returns (r:(set<set<int>>, set<set<set<int>>>, nat))

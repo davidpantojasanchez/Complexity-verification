@@ -17,12 +17,12 @@ method VerifyCDPC<Q(!new)>(
   ensures accepted ==> CDPC(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
     privateLower, privateUpper, fitnessLower, fitnessUpper)
   // Counter
-  ensures counter <= PolyCDPCVerification(fitness.Cardinality() + questions.Cardinality() + 1)
+  ensures counter <= PolyCDPCVerification(fitness.Cardinality() + questions.Cardinality0() + 1)
 {
   SubsetCardinalityBound(privateQuestions.Model(), questions.Model());
-  UniverseKeySizeBound_Map_Map_T(fitness, questions.Cardinality());
-  UniverseKeySizeBound_Map_Map_T(multiplicity, questions.Cardinality());
-  CostCDPCVerificationBound(fitness, multiplicity, privateQuestions, questions, fitness.Cardinality() + questions.Cardinality() + 1);
+  UniverseKeySizeBound_Map_Map_T(fitness, questions.Cardinality0());
+  UniverseKeySizeBound_Map_Map_T(multiplicity, questions.Cardinality0());
+  CostCDPCVerificationBound(fitness, multiplicity, privateQuestions, questions, fitness.Cardinality() + questions.Cardinality0() + 1);
   var population, questionCount, size:nat;
   population, counter := fitness.Count(0);
   questionCount, counter := questions.Count(counter);
@@ -32,6 +32,8 @@ method VerifyCDPC<Q(!new)>(
   if size > limit {
     CDPCOversizedNotCertificate(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
       privateLower, privateUpper, fitnessLower, fitnessUpper, interview.Model());
+    NatMultiplicationMonotonic(limit, 0, CostCheckInterviewFitsNode(questions));
+    NatMultiplicationMonotonic(2*limit, 0, CostVerifyCDPCCertificateNode(fitness, fitness, multiplicity, privateQuestions));
     return false, counter;
   }
   assert {:split_here} interview.NodeCount() <= limit;
@@ -361,7 +363,7 @@ method {:isolate_assertions} CheckPrivateSafe<Q(!new)>(
   LinearLoopBudgetZero(baseCost, stepCost);
   while !empty
     // Termination
-    decreases remaining.Cardinality()
+    decreases remaining.Cardinality0()
     invariant empty == (remaining.Model() == {})
     // Types
     invariant InUniverse_Set(remaining, privateQuestions)
@@ -377,7 +379,7 @@ method {:isolate_assertions} CheckPrivateSafe<Q(!new)>(
     // Counter
     invariant counter <= counter_in + LinearLoopBudget(
       baseCost, stepCost,
-      privateQuestions.Cardinality() - remaining.Cardinality())
+      privateQuestions.Cardinality0() - remaining.Cardinality0())
   {
     InUniverseBounds_Set(remaining, privateQuestions);
     ghost var iterationCounter := counter;
@@ -393,7 +395,7 @@ method {:isolate_assertions} CheckPrivateSafe<Q(!new)>(
     empty, counter := remaining.IsEmpty(counter);
 
     assert counter <= iterationCounter + stepCost;
-    LinearLoopBudgetStep(baseCost, stepCost, privateQuestions.Cardinality() - previousRemaining.Cardinality());
+    LinearLoopBudgetStep(baseCost, stepCost, privateQuestions.Cardinality0() - previousRemaining.Cardinality0());
 
     assert privateQuestions.Model() - remaining.Model() ==
       (privateQuestions.Model() - previousRemaining.Model()) + {question};
@@ -404,7 +406,7 @@ method {:isolate_assertions} CheckPrivateSafe<Q(!new)>(
     totalSum, privateLower, privateUpper);
   LinearLoopBudgetBound(
     baseCost, stepCost,
-    privateQuestions.Cardinality(), privateQuestions.UCardinality());
+    privateQuestions.Cardinality0(), privateQuestions.UCardinality0());
 }
 
 method CheckPrivateQuestion<Q(!new)>(
@@ -445,7 +447,7 @@ method CheckPrivateQuestion<Q(!new)>(
 
 // Population filtering and multiplicity-based sums
 
-method {:isolate_assertions} FilterCandidateMap<Q(!new)>(
+method FilterCandidateMap<Q(!new)>(
     candidates:Map_Map_T<Q, bool, bool>,
     question:Q,
     answer:bool,
@@ -475,7 +477,7 @@ method {:isolate_assertions} FilterCandidateMap<Q(!new)>(
     2 * UCostCopy_Map_Map_T(candidates) + CostIsEmpty_Map_Map_T(candidates);
   ghost var stepCost :=
     UCostPickKey_Map_Map_T(candidates) +
-    2 * (candidates.USize_Keys() + 1) +
+    2 * (candidates.UCardinalityKeys() + 1) +
     2 * UCostRemove_Map_Map_T(candidates) + CostIsEmpty_Map_Map_T(candidates);
   LinearLoopBudgetZero(baseCost, stepCost);
   while !empty
@@ -493,48 +495,82 @@ method {:isolate_assertions} FilterCandidateMap<Q(!new)>(
     invariant counter <= counter_in + LinearLoopBudget(
       baseCost, stepCost, candidates.Cardinality() - remaining.Cardinality())
   {
-    InUniverseBounds_Map_Map_T(remaining, candidates);
-    InUniverseBounds_Map_Map_T(filtered, candidates);
-    ghost var iterationCounter := counter;
-    ghost var previousRemaining := remaining;
-    var candidate:Map<Q, bool>;
-    candidate, counter := remaining.PickKey(counter);
-    remaining, counter := remaining.Remove(candidate, counter);
-
-    var keep:bool;
-    keep, counter := candidate.ContainsKey(question, counter);
-    if keep {
-      var candidateAnswer:bool;
-      candidateAnswer, counter := candidate.Get(question, counter);
-      keep := candidateAnswer == answer;
-    }
-    if !keep {
-      filtered, counter := filtered.Remove(candidate, counter);
-    }
-    empty, counter := remaining.IsEmpty(counter);
-
-    assert candidates.Cardinality() - remaining.Cardinality() ==
-      candidates.Cardinality() - previousRemaining.Cardinality() + 1;
-    assert counter <= iterationCounter + stepCost;
-    LinearLoopBudgetStep(baseCost, stepCost, candidates.Cardinality() - previousRemaining.Cardinality());
-    assert counter <= counter_in + LinearLoopBudget(
-      baseCost, stepCost, candidates.Cardinality() - remaining.Cardinality());
-
-    assert candidates.Keys() - remaining.Keys() ==
-      (candidates.Keys() - previousRemaining.Keys()) + {candidate.Model()};
-    assert FilterCandidates(
-      candidates.Keys() - remaining.Keys(), question, answer) ==
-      if keep then
-        FilterCandidates(
-          candidates.Keys() - previousRemaining.Keys(), question, answer) +
-        {candidate.Model()}
-      else
-        FilterCandidates(
-          candidates.Keys() - previousRemaining.Keys(), question, answer);
+    LinearLoopBudgetStep(baseCost, stepCost, candidates.Cardinality() - remaining.Cardinality());
+    remaining, filtered, empty, counter :=
+      FilterCandidateMapLoop(candidates, remaining, filtered, question, answer, counter);
   }
   InUniverseBounds_Map_Map_T(filtered, candidates);
   LinearLoopBudgetBound(
     baseCost, stepCost, candidates.Cardinality(), candidates.UCardinality());
+}
+
+// Filter one candidate and advance the traversal.
+method FilterCandidateMapLoop<Q(!new)>(
+    candidates:Map_Map_T<Q, bool, bool>,
+    remaining_in:Map_Map_T<Q, bool, bool>,
+    filtered_in:Map_Map_T<Q, bool, bool>,
+    question:Q,
+    answer:bool,
+    ghost counter_in:nat)
+    returns (remaining:Map_Map_T<Q, bool, bool>,
+             filtered:Map_Map_T<Q, bool, bool>,
+             empty:bool, ghost counter:nat)
+  // Termination in
+  requires remaining_in.Model() != map[]
+  // Types in
+  requires InUniverse_Map_Map_T(remaining_in, candidates)
+  requires InUniverse_Map_Map_T(filtered_in, candidates)
+  // Invariant in
+  requires filtered_in.Keys() ==
+    FilterCandidates(candidates.Keys() - remaining_in.Keys(), question, answer) +
+    remaining_in.Keys()
+  // Termination out
+  ensures remaining.Cardinality() == remaining_in.Cardinality() - 1
+  ensures empty == (remaining.Model() == map[])
+  // Types out
+  ensures InUniverse_Map_Map_T(remaining, candidates)
+  ensures InUniverse_Map_Map_T(filtered, candidates)
+  // Invariant out
+  ensures filtered.Keys() ==
+    FilterCandidates(candidates.Keys() - remaining.Keys(), question, answer) +
+    remaining.Keys()
+  // Counter
+  ensures counter <= counter_in + (
+    UCostPickKey_Map_Map_T(candidates) +
+    2 * (candidates.UCardinalityKeys() + 1) +
+    2 * UCostRemove_Map_Map_T(candidates) + CostIsEmpty_Map_Map_T(candidates))
+{
+  InUniverseBounds_Map_Map_T(remaining_in, candidates);
+  InUniverseBounds_Map_Map_T(filtered_in, candidates);
+  remaining := remaining_in;
+  filtered := filtered_in;
+  counter := counter_in;
+  var candidate:Map<Q, bool>;
+  candidate, counter := remaining.PickKey(counter);
+  remaining, counter := remaining.Remove(candidate, counter);
+
+  var keep:bool;
+  keep, counter := candidate.ContainsKey(question, counter);
+  if keep {
+    var candidateAnswer:bool;
+    candidateAnswer, counter := candidate.Get(question, counter);
+    keep := candidateAnswer == answer;
+  }
+  if !keep {
+    filtered, counter := filtered.Remove(candidate, counter);
+  }
+  empty, counter := remaining.IsEmpty(counter);
+  assert candidates.Keys() - remaining.Keys() ==
+    (candidates.Keys() - remaining_in.Keys()) + {candidate.Model()};
+  assert FilterCandidates(
+    candidates.Keys() - remaining.Keys(), question, answer) ==
+    if keep then
+      FilterCandidates(
+        candidates.Keys() - remaining_in.Keys(), question, answer) +
+      {candidate.Model()}
+    else
+      FilterCandidates(
+        candidates.Keys() - remaining_in.Keys(), question, answer);
 }
 
 method ComputeMultiplicitySum<Q(!new)>(
@@ -742,7 +778,7 @@ method {:isolate_assertions} ComputePrivateSum<Q(!new)>(
     UCostCopy_Map_Map_T(candidates) + CostIsEmpty_Map_Map_T(candidates);
   ghost var stepCost :=
     UCostPickKey_Map_Map_T(candidates) +
-    2 * (candidates.USize_Keys() + 1) +
+    2 * (candidates.UCardinalityKeys() + 1) +
     UCostGet_Map_Map_T(multiplicity) +
     UCostRemove_Map_Map_T(candidates) +
     CostIsEmpty_Map_Map_T(candidates);

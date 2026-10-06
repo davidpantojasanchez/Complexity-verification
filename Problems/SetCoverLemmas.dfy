@@ -1,5 +1,5 @@
 include "SetCover.dfy"
-include "../Auxiliary/ArithmeticLemmas.dfy"
+include "../Lemmas/ArithmeticLemmas.dfy"
 
 lemma SetCoverCertificateSizeBound<T>(universe:set<T>, sets:set<set<T>>, cardinality:nat, cover:set<set<T>>)
   requires SetCoverValidInstance(universe, sets)

@@ -23,11 +23,9 @@ trait Map<T0(==), T1(==)> {
 
   ghost function Size():nat { Cardinality() }
   ghost function USize():nat { UCardinality() }
-  ghost function UCardinality():nat { |Universe()| }
 
-  ghost function Cardinality():(cardinality:nat)
-    ensures 0 <= cardinality
-  { |Model()| }
+  ghost function Cardinality():(cardinality:nat) { |Model()| }
+  ghost function UCardinality():nat { |Universe()| }
 
   method Get(key:T0, ghost counter_in:nat) returns (value:T1, ghost counter_out:nat)
     requires Valid()
@@ -100,25 +98,22 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> {
   ghost function Keys():set<map<T0, T1>> { Model().Keys }
   ghost function Values():set<T2> { Model().Values }
 
-  // Transparent: existing clients consume representation inclusion directly.
   ghost predicate Valid()
   {
     Model().Keys <= Universe().Keys &&
     (forall key | key in Model().Keys :: Model()[key] == Universe()[key]) &&
-    Cardinality() <= UCardinality() &&
-    (forall key | key in Universe().Keys :: |key| <= USize_Keys())
+    Cardinality() <= UCardinality()
   }
 
-  ghost function Size_Keys():nat { MaxCardinality_map(Model().Keys) }
-  ghost function Size():nat { Cardinality() * Size_Keys() }
-  ghost function USize():nat { UCardinality() * USize_Keys() }
-  // Keep universe maxima out of client cost proofs; use the size-bound lemmas.
-  ghost function {:opaque} USize_Keys():nat { MaxCardinality_map(Universe().Keys) }
-  ghost function UCardinality():nat { |Universe()| }
+  ghost function Size():nat { Cardinality() * CardinalityKeys() }
+  ghost function USize():nat { UCardinality() * UCardinalityKeys() }
+  ghost function SizeKeys():nat { CardinalityKeys() }
+  ghost function USizeKeys():nat { UCardinalityKeys() }
 
-  ghost function Cardinality():(cardinality:nat)
-    ensures 0 <= cardinality
-  { |Model()| }
+  ghost function Cardinality():(cardinality:nat) { |Model()| }
+  ghost function UCardinality():nat { |Universe()| }
+  ghost function CardinalityKeys():nat { MaxCardinality_map(Model().Keys) }
+  ghost function {:opaque} UCardinalityKeys():nat { MaxCardinality_map(Universe().Keys) }
 
   method Get(key:Map<T0, T1>, ghost counter_in:nat) returns (value:T2, ghost counter_out:nat)
     requires Valid()
@@ -132,11 +127,11 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> {
     requires key.Valid()
     ensures result.Valid()
     ensures result.Cardinality() <= Cardinality() + 1
-    ensures if key.Size() <= USize_Keys()
-            then result.USize_Keys() == USize_Keys()
-            else result.USize_Keys() == key.Size()
-    ensures result.USize_Keys() == USize_Keys() ||
-            result.USize_Keys() == key.Size()
+    ensures if key.Size() <= UCardinalityKeys()
+            then result.UCardinalityKeys() == UCardinalityKeys()
+            else result.UCardinalityKeys() == key.Size()
+    ensures result.UCardinalityKeys() == UCardinalityKeys() ||
+            result.UCardinalityKeys() == key.Size()
     ensures result.Model() == Model()[key.Model() := value]
     ensures result.Universe() == Universe()[key.Model() := value]
     ensures result.Keys() == Keys() + {key.Model()}
@@ -146,7 +141,7 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> {
   method Remove(key:Map<T0, T1>, ghost counter_in:nat) returns (result:Map_Map_T<T0, T1, T2>, ghost counter_out:nat)
     requires Valid()
     ensures result.Valid()
-    ensures result.USize_Keys() <= USize_Keys()
+    ensures result.UCardinalityKeys() <= UCardinalityKeys()
     ensures if key.Model() in Keys()
             then result.Cardinality() == Cardinality() - 1
             else result.Cardinality() == Cardinality()
@@ -160,8 +155,8 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> {
     requires Model() != map[]
     requires Valid()
     ensures key.Valid()
-    ensures key.Size() <= USize_Keys()
-    ensures key.USize() <= USize_Keys()
+    ensures key.Size() <= UCardinalityKeys()
+    ensures key.USize() <= UCardinalityKeys()
     ensures key.Model() in Model().Keys
     ensures key.Universe() == key.Model()
     ensures counter_out == counter_in + CostPickKey_Map_Map_T(this, key)
@@ -186,8 +181,8 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> {
   method Copy(ghost counter_in:nat) returns (result:Map_Map_T<T0, T1, T2>, ghost counter_out:nat)
     requires Valid()
     ensures result.Valid()
-    ensures result.USize_Keys() == Size_Keys()
-    ensures result.USize_Keys() <= USize_Keys()
+    ensures result.UCardinalityKeys() == CardinalityKeys()
+    ensures result.UCardinalityKeys() <= UCardinalityKeys()
     ensures result.Model() == Model()
     ensures result.Universe() == Model()
     ensures counter_out == counter_in + CostCopy_Map_Map_T(this)
@@ -200,20 +195,22 @@ trait Map_Set_T<K(==), V(==)> {
   function Repr():map<set<K>, V>
   ghost function {:opaque} Model():map<set<K>, V> { Repr() }
   ghost function Universe():map<set<K>, V>
-  ghost function Cardinality():nat { |Model()| }
-  ghost function UCardinality():nat { |Universe()| }
-  ghost function Size_Keys():nat { MaxCardinality_set(Model().Keys) }
-  // Keep universe maxima out of client cost proofs; use the size-bound lemmas.
-  ghost function {:opaque} USize_Keys():nat { MaxCardinality_set(Universe().Keys) }
-  ghost function Size():nat { Cardinality() * Size_Keys() }
-  ghost function USize():nat { UCardinality() * USize_Keys() }
-  // Quantified representation facts are exposed through explicit connection lemmas.
-  ghost predicate {:opaque} Valid() {
+
+  ghost predicate Valid() {
     Model().Keys <= Universe().Keys &&
     (forall key | key in Model().Keys :: Model()[key] == Universe()[key]) &&
-    Cardinality() <= UCardinality() &&
-    (forall key | key in Universe().Keys :: |key| <= USize_Keys())
+    Cardinality() <= UCardinality()
   }
+
+  ghost function Size():nat { Cardinality() * CardinalityKeys() }
+  ghost function USize():nat { UCardinality() * UCardinalityKeys() }
+  ghost function SizeKeys():nat { CardinalityKeys() }
+  ghost function USizeKeys():nat { UCardinalityKeys() }
+
+  ghost function Cardinality():nat { |Model()| }
+  ghost function UCardinality():nat { |Universe()| }
+  ghost function CardinalityKeys():nat { MaxCardinality_set(Model().Keys) }
+  ghost function {:opaque} UCardinalityKeys():nat { MaxCardinality_set(Universe().Keys) }
 
   method Get(key:Set<K>, ghost counter_in:nat) returns (value:V, ghost counter_out:nat)
     requires Valid()
@@ -232,7 +229,7 @@ trait Map_Set_T<K(==), V(==)> {
     requires Valid() && key.Valid()
     ensures result.Valid()
     ensures result.Cardinality() <= Cardinality() + 1
-    ensures result.USize_Keys() == (if key.Size0() <= USize_Keys() then USize_Keys() else key.Size0())
+    ensures result.UCardinalityKeys() == (if key.Size0() <= UCardinalityKeys() then UCardinalityKeys() else key.Size0())
     ensures result.Model() == Model()[key.Model() := value]
     ensures result.Universe() == Universe()[key.Model() := value]
     ensures counter_out == counter_in + CostInsert_Map_Set_T(this)
@@ -246,24 +243,26 @@ trait Map_MapSet_T<K(==), V(==), R(==)> {
   function Repr():map<map<set<K>, V>, R>
   ghost function {:opaque} Model():map<map<set<K>, V>, R> { Repr() }
   ghost function Universe():map<map<set<K>, V>, R>
-  ghost function Cardinality():nat { |Model()| }
-  ghost function UCardinality():nat { |Universe()| }
-  ghost function Size_Keys():nat { MaxCardinality_map(Model().Keys) }
-  // Both universe maxima stay behind the explicit size-bound lemmas.
-  ghost function {:opaque} USize_Keys():nat { MaxCardinality_map(Universe().Keys) }
-  ghost function Size_Keys_Keys():nat { MaxSetKeyCardinality_map_set_t(Model().Keys) }
-  ghost function {:opaque} USize_Keys_Keys():nat { MaxSetKeyCardinality_map_set_t(Universe().Keys) }
-  ghost function Size():nat { Cardinality() * Size_Keys() * Size_Keys_Keys() }
-  ghost function USize():nat { UCardinality() * USize_Keys() * USize_Keys_Keys() }
-  // Quantified representation facts are exposed through explicit connection lemmas.
-  ghost predicate {:opaque} Valid() {
+  
+  ghost predicate Valid() {
     Model().Keys <= Universe().Keys &&
     (forall key | key in Model().Keys :: Model()[key] == Universe()[key]) &&
-    Cardinality() <= UCardinality() &&
-    (forall key | key in Universe().Keys :: |key| <= USize_Keys()) &&
-    (forall key | key in Universe().Keys :: forall question | question in key.Keys ::
-      |question| <= USize_Keys_Keys())
+    Cardinality() <= UCardinality()
   }
+
+  ghost function Size():nat { Cardinality() * SizeKeys() }
+  ghost function USize():nat { UCardinality() * USizeKeys() }
+  ghost function SizeKeys():nat { CardinalityKeys() * CardinalityKeysKeys() }
+  ghost function USizeKeys():nat { UCardinalityKeys() * UCardinalityKeysKeys() }
+  ghost function SizeKeysKeys():nat { CardinalityKeysKeys() }
+  ghost function USizeKeysKeys():nat { UCardinalityKeysKeys() }
+  
+  ghost function Cardinality():nat { |Model()| }
+  ghost function UCardinality():nat { |Universe()| }
+  ghost function CardinalityKeys():nat { MaxCardinality_map(Model().Keys) }
+  ghost function {:opaque} UCardinalityKeys():nat { MaxCardinality_map(Universe().Keys) }
+  ghost function CardinalityKeysKeys():nat { MaxSetKeyCardinality_map_set_t(Model().Keys) }
+  ghost function {:opaque} UCardinalityKeysKeys():nat { MaxSetKeyCardinality_map_set_t(Universe().Keys) }
 
   method Get(key:Map_Set_T<K, V>, ghost counter_in:nat) returns (value:R, ghost counter_out:nat)
     requires Valid()
@@ -282,8 +281,8 @@ trait Map_MapSet_T<K(==), V(==), R(==)> {
     requires Valid() && key.Valid()
     ensures result.Valid()
     ensures result.Cardinality() <= Cardinality() + 1
-    ensures result.USize_Keys() == (if key.Cardinality() <= USize_Keys() then USize_Keys() else key.Cardinality())
-    ensures result.USize_Keys_Keys() == (if key.Size_Keys() <= USize_Keys_Keys() then USize_Keys_Keys() else key.Size_Keys())
+    ensures result.UCardinalityKeys() == (if key.Cardinality() <= UCardinalityKeys() then UCardinalityKeys() else key.Cardinality())
+    ensures result.UCardinalityKeysKeys() == (if key.CardinalityKeys() <= UCardinalityKeysKeys() then UCardinalityKeysKeys() else key.CardinalityKeys())
     ensures result.Model() == Model()[key.Model() := value]
     ensures result.Universe() == Universe()[key.Model() := value]
     ensures counter_out == counter_in + CostInsert_Map_MapSet_T(this)
@@ -343,22 +342,22 @@ ghost predicate InUniverse_Map_Map_T(M:Map_Map_T, U:Map_Map_T)
 {
   M.Valid() && U.Valid() &&
   M.Universe().Keys <= U.Model().Keys &&
-  M.USize_Keys() <= U.USize_Keys() &&
+  M.UCardinalityKeys() <= U.UCardinalityKeys() &&
   (forall key | key in M.Universe().Keys :: M.Universe()[key] == U.Model()[key])
 }
 ghost predicate InUniverse_Map_Set_T(M:Map_Set_T, U:Map_Set_T)
 {
   M.Valid() && U.Valid() &&
   M.Universe().Keys <= U.Model().Keys &&
-  M.USize_Keys() <= U.USize_Keys() &&
+  M.UCardinalityKeys() <= U.UCardinalityKeys() &&
   (forall key | key in M.Universe().Keys :: M.Universe()[key] == U.Model()[key])
 }
 ghost predicate InUniverse_Map_MapSet_T(M:Map_MapSet_T, U:Map_MapSet_T)
 {
   M.Valid() && U.Valid() &&
   M.Universe().Keys <= U.Model().Keys &&
-  M.USize_Keys() <= U.USize_Keys() &&
-  M.USize_Keys_Keys() <= U.USize_Keys_Keys() &&
+  M.UCardinalityKeys() <= U.UCardinalityKeys() &&
+  M.UCardinalityKeysKeys() <= U.UCardinalityKeysKeys() &&
   (forall key | key in M.Universe().Keys :: M.Universe()[key] == U.Model()[key])
 }
 
@@ -390,7 +389,7 @@ ghost function UCostRemove_Map_Map_T<K, V, R>(M:Map_Map_T<K, V, R>):nat
 ghost function CostPickKey_Map_Map_T<K, V, R>(M:Map_Map_T<K, V, R>, key:Map<K, V>):nat
 { key.Size() + 1 }
 ghost function UCostPickKey_Map_Map_T<K, V, R>(M:Map_Map_T<K, V, R>):nat
-{ M.USize_Keys() + 1 }
+{ M.UCardinalityKeys() + 1 }
 ghost function CostCount_Map_Map_T<K, V, R>(M:Map_Map_T<K, V, R>):nat { 1 }
 ghost function CostContainsKey_Map_Map_T<K, V, R>(M:Map_Map_T<K, V, R>):nat
 { M.Size() + 1 }

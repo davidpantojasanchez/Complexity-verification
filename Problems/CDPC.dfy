@@ -1,4 +1,4 @@
-include "../Auxiliary/Interview.dfy"
+include "../Collections/Interview.dfy"
 
 /*
 Multiplicity-based semantics of the binary Classification problem with private

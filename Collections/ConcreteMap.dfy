@@ -1,5 +1,5 @@
 include "Map.dfy"
-include "Lemmas.dfy"
+include "../Lemmas/Lemmas.dfy"
 
 
 class ConcreteMap<K(==), V(==)> extends Map<K, V> {
@@ -156,9 +156,7 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     entries := entries_in;
     universe := universe_in;
     reveal Model();
-    reveal USize_Keys();
     SubsetCardinalityBound(entries_in.Keys, universe_in.Keys);
-    MaxCardinalityProperties_map(universe_in.Keys);
   }
 
   function Repr():map<map<K, V>, R> { entries }
@@ -173,7 +171,7 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     ensures counter_out <= counter_in + UCostGet_Map_Map_T(this)
   {
     reveal Model();
-    reveal USize_Keys();
+    reveal UCardinalityKeys();
     ModelSizeBound_Map_Map_T(this);
     reveal key.Model();
     var concrete_key := key.Repr();
@@ -187,11 +185,11 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     requires key.Valid()
     ensures result.Valid()
     ensures result.Cardinality() <= Cardinality() + 1
-    ensures if key.Size() <= USize_Keys()
-            then result.USize_Keys() == USize_Keys()
-            else result.USize_Keys() == key.Size()
-    ensures result.USize_Keys() == USize_Keys() ||
-            result.USize_Keys() == key.Size()
+    ensures if key.Size() <= UCardinalityKeys()
+            then result.UCardinalityKeys() == UCardinalityKeys()
+            else result.UCardinalityKeys() == key.Size()
+    ensures result.UCardinalityKeys() == UCardinalityKeys() ||
+            result.UCardinalityKeys() == key.Size()
     ensures result.Model() == Model()[key.Model() := value]
     ensures result.Universe() == Universe()[key.Model() := value]
     ensures result.Keys() == Keys() + {key.Model()}
@@ -199,7 +197,7 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     ensures counter_out <= counter_in + UCostInsert_Map_Map_T(this)
   {
     reveal Model();
-    reveal USize_Keys();
+    reveal UCardinalityKeys();
     ModelSizeBound_Map_Map_T(this);
     reveal Valid();
     reveal key.Model();
@@ -215,7 +213,7 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
       returns (result:Map_Map_T<K, V, R>, ghost counter_out:nat)
     requires Valid()
     ensures result.Valid()
-    ensures result.USize_Keys() <= USize_Keys()
+    ensures result.UCardinalityKeys() <= UCardinalityKeys()
     ensures if key.Model() in Keys()
             then result.Cardinality() == Cardinality() - 1
             else result.Cardinality() == Cardinality()
@@ -226,13 +224,13 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     ensures counter_out <= counter_in + UCostRemove_Map_Map_T(this)
   {
     reveal Model();
-    reveal USize_Keys();
+    reveal UCardinalityKeys();
     ModelSizeBound_Map_Map_T(this);
     reveal Valid();
     reveal key.Model();
     var concrete_key := key.Repr();
     result := new ConcreteMap_Map_T(entries - {concrete_key}, universe);
-    reveal result.USize_Keys();
+    reveal result.UCardinalityKeys();
     counter_out := counter_in + CostRemove_Map_Map_T(this);
   }
 
@@ -241,15 +239,15 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     requires Model() != map[]
     requires Valid()
     ensures key.Valid()
-    ensures key.Size() <= USize_Keys()
-    ensures key.USize() <= USize_Keys()
+    ensures key.Size() <= UCardinalityKeys()
+    ensures key.USize() <= UCardinalityKeys()
     ensures key.Model() in Model().Keys
     ensures key.Universe() == key.Model()
     ensures counter_out == counter_in + CostPickKey_Map_Map_T(this, key)
     ensures counter_out <= counter_in + UCostPickKey_Map_Map_T(this)
   {
     reveal Model();
-    reveal USize_Keys();
+    reveal UCardinalityKeys();
     reveal Valid();
     var chosen:map<K, V> :| chosen in entries.Keys;
     MaxCardinalityMember_map(universe.Keys, chosen);
@@ -264,7 +262,7 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     ensures counter_out == counter_in + CostCount_Map_Map_T(this)
   {
     reveal Model();
-    reveal USize_Keys();
+    reveal UCardinalityKeys();
     size := |entries|;
     counter_out := counter_in + CostCount_Map_Map_T(this);
   }
@@ -277,7 +275,7 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     ensures counter_out <= counter_in + UCostContainsKey_Map_Map_T(this)
   {
     reveal Model();
-    reveal USize_Keys();
+    reveal UCardinalityKeys();
     ModelSizeBound_Map_Map_T(this);
     reveal key.Model();
     var concrete_key := key.Repr();
@@ -292,7 +290,7 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     ensures counter_out == counter_in + CostIsEmpty_Map_Map_T(this)
   {
     reveal Model();
-    reveal USize_Keys();
+    reveal UCardinalityKeys();
     empty := entries == map[];
     counter_out := counter_in + CostIsEmpty_Map_Map_T(this);
   }
@@ -301,19 +299,19 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
       returns (result:Map_Map_T<K, V, R>, ghost counter_out:nat)
     requires Valid()
     ensures result.Valid()
-    ensures result.USize_Keys() == Size_Keys()
-    ensures result.USize_Keys() <= USize_Keys()
+    ensures result.UCardinalityKeys() == CardinalityKeys()
+    ensures result.UCardinalityKeys() <= UCardinalityKeys()
     ensures result.Model() == Model()
     ensures result.Universe() == Model()
     ensures counter_out == counter_in + CostCopy_Map_Map_T(this)
     ensures counter_out <= counter_in + UCostCopy_Map_Map_T(this)
   {
     reveal Model();
-    reveal USize_Keys();
+    reveal UCardinalityKeys();
     ModelSizeBound_Map_Map_T(this);
     reveal Valid();
     result := new ConcreteMap_Map_T(entries, entries);
-    reveal result.USize_Keys();
+    reveal result.UCardinalityKeys();
     counter_out := counter_in + CostCopy_Map_Map_T(this);
   }
 }
@@ -343,14 +341,14 @@ method NewWithUniverse_Map<K(==), V(==)>(ghost universe:map<K, V>, ghost counter
 
 method New_Map_Map_T<K(==), V(==), R(==)>(ghost counter_in:nat)
     returns (result:Map_Map_T<K, V, R>, ghost counter_out:nat)
-  ensures result.USize_Keys() == 0
+  ensures result.UCardinalityKeys() == 0
   ensures result.Valid()
   ensures result.Model() == map[]
   ensures result.Universe() == map[]
   ensures counter_out == counter_in + CostNew_Map_Map_T()
 {
   result := new ConcreteMap_Map_T(map[], map[]);
-  reveal result.USize_Keys();
+  reveal result.UCardinalityKeys();
   counter_out := counter_in + CostNew_Map_Map_T();
 }
 
@@ -378,9 +376,8 @@ class ConcreteMap_Set_T<K(==), V(==)> extends Map_Set_T<K, V> {
   {
     entries := entries_in;
     universe := universe_in;
-    reveal Model(), Valid(), USize_Keys();
+    reveal Model();
     SubsetCardinalityBound(entries_in.Keys, universe_in.Keys);
-    MaxCardinalityProperties_set(universe_in.Keys);
   }
 
   function Repr():map<set<K>, V> { entries }
@@ -415,7 +412,7 @@ class ConcreteMap_Set_T<K(==), V(==)> extends Map_Set_T<K, V> {
     requires Valid() && key.Valid()
     ensures result.Valid()
     ensures result.Cardinality() <= Cardinality() + 1
-    ensures result.USize_Keys() == (if key.Size0() <= USize_Keys() then USize_Keys() else key.Size0())
+    ensures result.UCardinalityKeys() == (if key.Size0() <= UCardinalityKeys() then UCardinalityKeys() else key.Size0())
     ensures result.Model() == Model()[key.Model() := value]
     ensures result.Universe() == Universe()[key.Model() := value]
     ensures counter_out == counter_in + CostInsert_Map_Set_T(this)
@@ -434,12 +431,12 @@ class ConcreteMap_Set_T<K(==), V(==)> extends Map_Set_T<K, V> {
 
 method New_Map_Set_T<K(==), V(==)>(ghost counter_in:nat) returns (result:Map_Set_T<K, V>, ghost counter_out:nat)
   ensures Init_Map_Set_T(result)
-  ensures result.USize_Keys() == 0
+  ensures result.UCardinalityKeys() == 0
   ensures result.Model() == map[] && result.Universe() == map[]
   ensures counter_out == counter_in + CostNew_Map_Set_T()
 {
   result := new ConcreteMap_Set_T(map[], map[]);
-  reveal result.USize_Keys();
+  reveal result.UCardinalityKeys();
   counter_out := counter_in + CostNew_Map_Set_T();
 }
 
@@ -455,10 +452,8 @@ class ConcreteMap_MapSet_T<K(==), V(==), R(==)> extends Map_MapSet_T<K, V, R> {
   {
     entries := entries_in;
     universe := universe_in;
-    reveal Model(), Valid(), USize_Keys(), USize_Keys_Keys();
+    reveal Model();
     SubsetCardinalityBound(entries_in.Keys, universe_in.Keys);
-    MaxCardinalityProperties_map(universe_in.Keys);
-    MaxSetKeyCardinalityProperties_map_set_t(universe_in.Keys);
   }
 
   function Repr():map<map<set<K>, V>, R> { entries }
@@ -493,8 +488,8 @@ class ConcreteMap_MapSet_T<K(==), V(==), R(==)> extends Map_MapSet_T<K, V, R> {
     requires Valid() && key.Valid()
     ensures result.Valid()
     ensures result.Cardinality() <= Cardinality() + 1
-    ensures result.USize_Keys() == (if key.Cardinality() <= USize_Keys() then USize_Keys() else key.Cardinality())
-    ensures result.USize_Keys_Keys() == (if key.Size_Keys() <= USize_Keys_Keys() then USize_Keys_Keys() else key.Size_Keys())
+    ensures result.UCardinalityKeys() == (if key.Cardinality() <= UCardinalityKeys() then UCardinalityKeys() else key.Cardinality())
+    ensures result.UCardinalityKeysKeys() == (if key.CardinalityKeys() <= UCardinalityKeysKeys() then UCardinalityKeysKeys() else key.CardinalityKeys())
     ensures result.Model() == Model()[key.Model() := value]
     ensures result.Universe() == Universe()[key.Model() := value]
     ensures counter_out == counter_in + CostInsert_Map_MapSet_T(this)
@@ -516,12 +511,12 @@ class ConcreteMap_MapSet_T<K(==), V(==), R(==)> extends Map_MapSet_T<K, V, R> {
 
 method New_Map_MapSet_T<K(==), V(==), R(==)>(ghost counter_in:nat) returns (result:Map_MapSet_T<K, V, R>, ghost counter_out:nat)
   ensures Init_Map_MapSet_T(result)
-  ensures result.USize_Keys() == 0
-  ensures result.USize_Keys_Keys() == 0
+  ensures result.UCardinalityKeys() == 0
+  ensures result.UCardinalityKeysKeys() == 0
   ensures result.Model() == map[] && result.Universe() == map[]
   ensures counter_out == counter_in + CostNew_Map_MapSet_T()
 {
   result := new ConcreteMap_MapSet_T(map[], map[]);
-  reveal result.USize_Keys(), result.USize_Keys_Keys();
+  reveal result.UCardinalityKeys(), result.UCardinalityKeysKeys();
   counter_out := counter_in + CostNew_Map_MapSet_T();
 }

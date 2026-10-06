@@ -1,6 +1,6 @@
 include "../Problems/SetCover.dfy"
-include "../Auxiliary/Set.dfy"
-include "../Auxiliary/Lemmas.dfy"
+include "../Collections/Set.dfy"
+include "../Lemmas/Lemmas.dfy"
 
 
 method VerifySetCover(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>) returns (accepted:bool, ghost counter:nat)
@@ -8,7 +8,7 @@ method VerifySetCover(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>) returns (
   requires SetCoverValidInstance(U.Model(), S.Model())
   requires Init_Set(U) && Init_SetSet(S) && Init_SetSet(I)
   requires I.USize1() <= U.USize0()
-  requires I.Cardinality() <= S.Cardinality()
+  requires I.Cardinality0() <= S.Cardinality0()
   // Invariant out
   ensures accepted == SetCoverCertificate(U.Model(), S.Model(), k, I.Model())
   ensures accepted ==> SetCover(U.Model(), S.Model(), k)
@@ -43,29 +43,29 @@ method VerifySetCover(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>) returns (
   LinearLoopBudgetZero(loopBase, PolyCheckUniverseElement(U, S, k, I));
   while (!U'_empty && accepted)
     // Termination
-    decreases U'.Cardinality()
+    decreases U'.Cardinality0()
     invariant U'_empty == (U'.Model() == {})
     // Types
     invariant InUniverse_Set(U', U)
     invariant I.Valid()
     invariant S.Valid()
     invariant I.Model() <= S.Model()
-    invariant I.Cardinality() <= S.Cardinality()
+    invariant I.Cardinality0() <= S.Cardinality0()
     invariant I.USize1() <= U.USize0()
     invariant U'.Valid()
     // Regular invariants
     invariant accepted == IsCover(U.Model() - U'.Model() , I.Model())
     // Counter
     invariant counter <= LinearLoopBudget(loopBase, PolyCheckUniverseElement(U, S, k, I),
-      U.Cardinality() - U'.Cardinality())
+      U.Cardinality0() - U'.Cardinality0())
   {
-    LinearLoopBudgetStep(loopBase, PolyCheckUniverseElement(U, S, k, I), U.Cardinality() - U'.Cardinality());
+    LinearLoopBudgetStep(loopBase, PolyCheckUniverseElement(U, S, k, I), U.Cardinality0() - U'.Cardinality0());
     accepted, U', U'_empty, counter := CheckUniverseElement(U, S, k, I, U', counter);
   }
   assert accepted ==> U.Model() - U'.Model() == U.Model();
-  LinearLoopBudgetBound(loopBase, PolyCheckUniverseElement(U, S, k, I), U.Cardinality() - U'.Cardinality(), U.UCardinality());
-  LinearLoopBudgetTransfer(counter, LinearLoopBudget(loopBase, PolyCheckUniverseElement(U, S, k, I), U.Cardinality() - U'.Cardinality()),
-    loopBase + (U.UCardinality())*(PolyCheckUniverseElement(U, S, k, I)), 0, PolyVerifySetCover(U, S, k, I));
+  LinearLoopBudgetBound(loopBase, PolyCheckUniverseElement(U, S, k, I), U.Cardinality0() - U'.Cardinality0(), U.UCardinality0());
+  LinearLoopBudgetTransfer(counter, LinearLoopBudget(loopBase, PolyCheckUniverseElement(U, S, k, I), U.Cardinality0() - U'.Cardinality0()),
+    loopBase + (U.UCardinality0())*(PolyCheckUniverseElement(U, S, k, I)), 0, PolyVerifySetCover(U, S, k, I));
 }
 
 
@@ -88,7 +88,7 @@ method IsSubset(S1:SetSet<int>, S2:SetSet<int>, ghost counter_in:nat) returns (b
   LinearLoopBudgetZero(loopBase, PolyIsSubsetStep(S1, S2));
   while (!S1'_empty)
   // Termination
-  decreases S1'.Cardinality()
+  decreases S1'.Cardinality0()
   invariant S1'_empty == (S1'.Model() == {})
   // Types
   invariant S1'.Valid()
@@ -97,14 +97,14 @@ method IsSubset(S1:SetSet<int>, S2:SetSet<int>, ghost counter_in:nat) returns (b
   invariant b == ((S1.Model() - S1'.Model()) <= S2.Model())
   // Counter
   invariant counter <= LinearLoopBudget(loopBase, PolyIsSubsetStep(S1, S2),
-    S1.Cardinality() - S1'.Cardinality())
+    S1.Cardinality0() - S1'.Cardinality0())
   {
-    LinearLoopBudgetStep(loopBase, PolyIsSubsetStep(S1, S2), S1.Cardinality() - S1'.Cardinality());
+    LinearLoopBudgetStep(loopBase, PolyIsSubsetStep(S1, S2), S1.Cardinality0() - S1'.Cardinality0());
     S1', S1'_empty, b, counter := IsSubsetStep(S1, S2, S1', counter, b);
   }
-  LinearLoopBudgetBound(loopBase, PolyIsSubsetStep(S1, S2), S1.Cardinality() - S1'.Cardinality(), S1.UCardinality());
-  LinearLoopBudgetTransfer(counter, LinearLoopBudget(loopBase, PolyIsSubsetStep(S1, S2), S1.Cardinality() - S1'.Cardinality()),
-    loopBase + (S1.UCardinality())*(PolyIsSubsetStep(S1, S2)), 0, counter_in + PolyIsSubset(S1, S2));
+  LinearLoopBudgetBound(loopBase, PolyIsSubsetStep(S1, S2), S1.Cardinality0() - S1'.Cardinality0(), S1.UCardinality0());
+  LinearLoopBudgetTransfer(counter, LinearLoopBudget(loopBase, PolyIsSubsetStep(S1, S2), S1.Cardinality0() - S1'.Cardinality0()),
+    loopBase + (S1.UCardinality0())*(PolyIsSubsetStep(S1, S2)), 0, counter_in + PolyIsSubset(S1, S2));
 }
 
 
@@ -113,7 +113,7 @@ method IsSubsetStep(S1:SetSet<int>, S2:SetSet<int>, S1':SetSet<int>, ghost count
   requires InUniverse_SetSet(S1', S1)
   requires S2.Valid()
   requires b == ((S1.Model() - S1'.Model()) <= S2.Model())
-  ensures S1''.Cardinality() == S1'.Cardinality() - 1
+  ensures S1''.Cardinality0() == S1'.Cardinality0() - 1
   ensures S1'_empty == (S1''.Model() == {})
   ensures S1''.Valid()
   ensures InUniverse_SetSet(S1'', S1)
@@ -145,12 +145,12 @@ method CheckUniverseElement(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>, U':
   requires Init_SetSet(I)
   requires InUniverse_Set(U', U)
   requires I.Model() <= S.Model()
-  requires I.Cardinality() <= S.Cardinality()
+  requires I.Cardinality0() <= S.Cardinality0()
   requires I.USize1() <= U.USize0()
   // Invariant in
   requires IsCover(U.Model() - U'.Model(), I.Model())
   // Termination out
-  ensures U''.Cardinality() == U'.Cardinality() - 1
+  ensures U''.Cardinality0() == U'.Cardinality0() - 1
   ensures U''_empty == (U''.Model() == {})
   // Types out
   ensures U''.Valid()
@@ -177,21 +177,21 @@ method CheckUniverseElement(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>, U':
   
   while (!I'_empty && !b2)
     // Termination
-    decreases I'.Cardinality()
+    decreases I'.Cardinality0()
     invariant I'_empty == (I'.Model() == {})
     // Types
     invariant I'.Valid()
     invariant InUniverse_SetSet(I', I)
     invariant Init_SetSet(I)
     invariant S.Valid()
-    invariant I.Cardinality() <= S.Cardinality()
+    invariant I.Cardinality0() <= S.Cardinality0()
     invariant I.USize1() <= U.USize0()
     // Regular invariants
     invariant b2 == (exists i' | i' in I.Model() - I'.Model() :: u in i')
     // Counter
     invariant counter <= counter_in + CostPick_Set(U) + UCostRemove_Set(U) +
                          CostIsEmpty_SetSet(I) +
-                         (I.Cardinality()-I'.Cardinality())*
+                         (I.Cardinality0()-I'.Cardinality0())*
                            PolyCheckCoverSet(U, S, k, I)
   {
     b2, I', I'_empty, counter := CheckCoverSet(U, S, k, I, I', u, counter);
@@ -203,11 +203,11 @@ method CheckUniverseElement(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>, U':
   assert U.Model() - U''.Model() == U.Model() - U'.Model() + {u};
   assert counter <= counter_in + CostPick_Set(U) + UCostRemove_Set(U) +
                        CostIsEmpty_SetSet(I) +
-                       I.Cardinality()*PolyCheckCoverSet(U, S, k, I) +
+                       I.Cardinality0()*PolyCheckCoverSet(U, S, k, I) +
                        CostIsEmpty_Set(U);
-  MultiplicationPreservesOrder(I.Cardinality(),
+  MultiplicationPreservesOrder(I.Cardinality0(),
                        PolyCheckCoverSet(U, S, k, I),
-                       I.UCardinality(),
+                       I.UCardinality0(),
                        PolyCheckCoverSet(U, S, k, I));
 }
 
@@ -218,10 +218,10 @@ method CheckCoverSet(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int>, I':SetSet<
   requires S.Valid()
   requires I.Valid()
   requires InUniverse_SetSet(I', I)
-  requires I.Cardinality() <= S.Cardinality()
+  requires I.Cardinality0() <= S.Cardinality0()
   requires I.USize1() <= U.USize0()
   requires !(exists i' | i' in I.Model() - I'.Model() :: u in i')
-  ensures I''.Cardinality() == I'.Cardinality() - 1
+  ensures I''.Cardinality0() == I'.Cardinality0() - 1
   ensures I''_empty == (I''.Model() == {})
   ensures I''.Valid()
   ensures InUniverse_SetSet(I'', I)
@@ -249,7 +249,7 @@ ghost function PolyCheckUniverseElement(U:Set<int>, S:SetSet<int>, k:nat, I:SetS
 {
   CostPick_Set(U) + UCostRemove_Set(U) +
   CostIsEmpty_SetSet(I) +
-  I.UCardinality()*PolyCheckCoverSet(U, S, k, I) +
+  I.UCardinality0()*PolyCheckCoverSet(U, S, k, I) +
   CostIsEmpty_Set(U)
 }
 ghost function PolyIsSubsetStep(S1:SetSet<int>, S2:SetSet<int>) : (o:nat)
@@ -259,10 +259,10 @@ ghost function PolyIsSubsetStep(S1:SetSet<int>, S2:SetSet<int>) : (o:nat)
 }
 ghost function {:opaque} PolyIsSubset(S1:SetSet<int>, S2:SetSet<int>) : (o:nat)
   ensures o == CostIsEmpty_SetSet(S1) +
-               S1.UCardinality()*PolyIsSubsetStep(S1, S2)
+               S1.UCardinality0()*PolyIsSubsetStep(S1, S2)
 {
   CostIsEmpty_SetSet(S1) +
-  S1.UCardinality()*PolyIsSubsetStep(S1, S2)
+  S1.UCardinality0()*PolyIsSubsetStep(S1, S2)
 }
 
 
@@ -274,7 +274,7 @@ ghost function PolyVerifySetCover(U:Set<int>, S:SetSet<int>, k:nat, I:SetSet<int
 {
   CostCount_SetSet(I) + PolyIsSubset(I, S) +
   CostIsEmpty_Set(U) +
-  U.UCardinality()*PolyCheckUniverseElement(U, S, k, I)
+  U.UCardinality0()*PolyCheckUniverseElement(U, S, k, I)
 }
 
 
@@ -289,7 +289,7 @@ lemma {:isolate_assertions} CostSetCoverVerificationBound(U:Set<int>, S:SetSet<i
   requires Init_Set(U) && Init_SetSet(S) && Init_SetSet(I)
   requires S.USize1() <= U.USize0()
   requires I.USize1() <= U.USize0()
-  requires I.Cardinality() <= S.Cardinality()
+  requires I.Cardinality0() <= S.Cardinality0()
   ensures PolyVerifySetCover(U, S, k, I) <= PolySetCoverVerification(|U.Model()| + |S.Model()| + 1)
 {
   var n := |U.Model()| + |S.Model()| + 1;
@@ -297,12 +297,12 @@ lemma {:isolate_assertions} CostSetCoverVerificationBound(U:Set<int>, S:SetSet<i
   UniverseSizeBound_SetSet(S, n, n);
   assert n*n + n*n == 2*n*n by { MultiplicationAssociative(2, n, n); }
   assert PolyIsSubsetStep(I, S) <= 2*n*n + n + 4;
-  MultiplicationPreservesOrder(I.UCardinality(), PolyIsSubsetStep(I, S), n, 2*n*n + n + 4);
+  MultiplicationPreservesOrder(I.UCardinality0(), PolyIsSubsetStep(I, S), n, 2*n*n + n + 4);
   assert PolyIsSubset(I, S) <= n*n + 2 + n*(2*n*n + n + 4);
   assert PolyCheckCoverSet(U, S, k, I) <= n*n + 2*n + 5;
-  MultiplicationPreservesOrder(I.UCardinality(), PolyCheckCoverSet(U, S, k, I),
+  MultiplicationPreservesOrder(I.UCardinality0(), PolyCheckCoverSet(U, S, k, I),
                        n, n*n + 2*n + 5);
   assert PolyCheckUniverseElement(U, S, k, I) <= n + 4 + n*n + n*(n*n + 2*n + 5);
-  MultiplicationPreservesOrder(U.UCardinality(), PolyCheckUniverseElement(U, S, k, I),
+  MultiplicationPreservesOrder(U.UCardinality0(), PolyCheckUniverseElement(U, S, k, I),
                        n, n + 4 + n*n + n*(n*n + 2*n + 5));
 }

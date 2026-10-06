@@ -242,18 +242,12 @@ lemma SetCoverToCDPCForward<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
           SetCover(U, S, k) ==> CDPC(
             questions, fitness, multiplicity, privateQuestions,
             privateLower, privateUpper, fitnessLower, fitnessUpper)
-{
   // Caso trivial: usar la postcondicion de SetCoverToCDPCPositiveInstance.
   // Elegir cover <= S - {{}} con |cover| <= k y usar SetCoverToCDPCInterview.
   // Demostrar las sumas ponderadas despues de cada respuesta.
   // Con j respuestas false y r elementos compatibles: suma privada s-j, suma total r*omega + omega^2 + s-j.
   // Una rama true tiene aptitud cero y proporcion privada 1/(r*omega+1). Probar privacidad y clasificacion.
-  if |S| <= k {}
-  else {
-    //assert exists C:set<set<T>> | C <= S :: IsCover(U, C) && |C| <= k;
-    assume false;
-  }
-}
+
 
 lemma SetCoverToCDPCBackward<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
   requires SetCoverValidInstance(U, S)
