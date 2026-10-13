@@ -393,123 +393,121 @@ lemma CostTreeCombine(
 {}
 
 
-lemma CostBranchCombine(
-    nodes:nat, nodeCost:nat, counterBase:nat, setupCounter:nat, counter:nat)
+lemma CostBranchCombine(nodes:nat, nodeCost:nat, counterBase:nat, setupCounter:nat, counter:nat)
   requires 1 <= nodes
   requires setupCounter <= counterBase + nodeCost
   requires counter <= setupCounter + (2 * nodes - 1) * nodeCost
   ensures counter <= counterBase + 2 * nodes * nodeCost
 {}
 
-lemma CostBranchOwnFits(
-    nodes:nat, nodeCost:nat, counterBase:nat, counter:nat)
+lemma CostBranchOwnFits(nodes:nat, nodeCost:nat, counterBase:nat, counter:nat)
   requires 1 <= nodes
   requires counter <= counterBase + nodeCost
   ensures counter <= counterBase + 2 * nodes * nodeCost
 {}
 
-ghost function PolyComputeMultiplicitySum<Q(!new)>(
+// Polynomial ghost functions that serve as cost aggregators
+
+ghost function CostComputeMultiplicitySum<Q(!new)>(
     candidates:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>):nat
 {
-  UCostCopy_Map_Map_T(candidates) + CostIsEmpty_Map_Map_T(candidates) +
+  candidates.UCostCopy() + candidates.CostIsEmpty() +
   candidates.UCardinality() *
-    (UCostPickKey_Map_Map_T(candidates) +
-     UCostGet_Map_Map_T(multiplicity) +
-     UCostRemove_Map_Map_T(candidates) +
-     CostIsEmpty_Map_Map_T(candidates))
+    (candidates.UCostPickKey() +
+     multiplicity.UCostGet() +
+     candidates.UCostRemove() +
+     candidates.CostIsEmpty())
 }
 
-ghost function PolyFilterCandidates<Q(!new)>(
+ghost function CostFilterCandidates<Q(!new)>(
     candidates:Map_Map_T<Q, bool, bool>):nat
 {
-  2 * UCostCopy_Map_Map_T(candidates) +
-  CostIsEmpty_Map_Map_T(candidates) +
+  2 * candidates.UCostCopy() +
+  candidates.CostIsEmpty() +
   candidates.UCardinality() *
-    (UCostPickKey_Map_Map_T(candidates) +
+    (candidates.UCostPickKey() +
      2 * (candidates.UCardinalityKeys() + 1) +
-     2 * UCostRemove_Map_Map_T(candidates) +
-     CostIsEmpty_Map_Map_T(candidates))
+     2 * candidates.UCostRemove() +
+     candidates.CostIsEmpty())
 }
 
-ghost function PolyComputeFitSum<Q(!new)>(
+ghost function CostComputeFitSum<Q(!new)>(
     candidates:Map_Map_T<Q, bool, bool>,
     fitness:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>):nat
 {
-  UCostCopy_Map_Map_T(candidates) + CostIsEmpty_Map_Map_T(candidates) +
+  candidates.UCostCopy() + candidates.CostIsEmpty() +
   candidates.UCardinality() *
-    (UCostPickKey_Map_Map_T(candidates) +
-     UCostGet_Map_Map_T(fitness) +
-     UCostGet_Map_Map_T(multiplicity) +
-     UCostRemove_Map_Map_T(candidates) +
-     CostIsEmpty_Map_Map_T(candidates))
+    (candidates.UCostPickKey() +
+     fitness.UCostGet() +
+     multiplicity.UCostGet() +
+     candidates.UCostRemove() +
+     candidates.CostIsEmpty())
 }
 
-ghost function PolyComputePrivateSum<Q(!new)>(
+ghost function CostComputePrivateSum<Q(!new)>(
     candidates:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>):nat
 {
-  UCostCopy_Map_Map_T(candidates) + CostIsEmpty_Map_Map_T(candidates) +
+  candidates.UCostCopy() + candidates.CostIsEmpty() +
   candidates.UCardinality() *
-    (UCostPickKey_Map_Map_T(candidates) +
+    (candidates.UCostPickKey() +
      2 * (candidates.UCardinalityKeys() + 1) +
-     UCostGet_Map_Map_T(multiplicity) +
-     UCostRemove_Map_Map_T(candidates) +
-     CostIsEmpty_Map_Map_T(candidates))
+     multiplicity.UCostGet() +
+     candidates.UCostRemove() +
+     candidates.CostIsEmpty())
 }
 
-
-ghost function PolyCheckClassification<Q(!new)>(
+ghost function CostCheckClassification<Q(!new)>(
     candidates:Map_Map_T<Q, bool, bool>,
     fitness:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>):nat
 {
-  PolyComputeMultiplicitySum(candidates, multiplicity) +
-  PolyComputeFitSum(candidates, fitness, multiplicity) + 1
+  CostComputeMultiplicitySum(candidates, multiplicity) +
+  CostComputeFitSum(candidates, fitness, multiplicity) + 1
 }
 
-ghost function PolyCheckPrivateQuestion<Q(!new)>(
+ghost function CostCheckPrivateQuestion<Q(!new)>(
     candidates:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>):nat
 {
-  PolyComputePrivateSum(candidates, multiplicity) + 1
+  CostComputePrivateSum(candidates, multiplicity) + 1
 }
 
-ghost function PolyCheckPrivateSafe<Q(!new)>(
+ghost function CostCheckPrivateSafe<Q(!new)>(
     candidates:Map_Map_T<Q, bool, bool>,
     privateQuestions:Set<Q>,
     multiplicity:Map_Map_T<Q, bool, nat>):nat
 {
-  PolyComputeMultiplicitySum(candidates, multiplicity) +
-  CostIsEmpty_Set(privateQuestions) +
-  privateQuestions.UCardinality0() *
-    (CostPick_Set(privateQuestions) +
-     PolyCheckPrivateQuestion(candidates, multiplicity) +
-     UCostRemove_Set(privateQuestions) +
-     CostIsEmpty_Set(privateQuestions))
+  CostComputeMultiplicitySum(candidates, multiplicity) +
+  privateQuestions.CostIsEmpty() +
+  privateQuestions.UCardinality() *
+    (privateQuestions.CostPick() +
+     CostCheckPrivateQuestion(candidates, multiplicity) +
+     privateQuestions.UCostRemove() +
+     privateQuestions.CostIsEmpty())
 }
 
-ghost function CostCheckInterviewFitsNode<Q(!new)>(
-    rootQuestions:Set<Q>):nat
+ghost function CostCheckInterviewFitsNode<Q(!new)>(rootQuestions:Set<Q>):nat
 {
   CostIsEnd_Interview() + CostQuestion_Interview() +
-  UCostContains_Set(rootQuestions) +
-  UCostRemove_Set(rootQuestions) +
+  rootQuestions.UCostContains() +
+  rootQuestions.UCostRemove() +
   2 * CostBranch_Interview()
 }
 
 lemma CostCDPCStructureBound<Q(!new)>(fitness:Map_Map_T<Q, bool, bool>, questions:Set<Q>, interview:Interview<Q>)
   requires questions.Valid()
-  requires interview.NodeCount() <= 2*fitness.Cardinality()*questions.Cardinality0()+1
+  requires interview.NodeCount() <= 2*fitness.Cardinality()*questions.Cardinality()+1
   ensures interview.NodeCount()*CostCheckInterviewFitsNode(questions) <=
-    (2*fitness.Cardinality()*questions.USize0()+1)*CostCheckInterviewFitsNode(questions)
+    (2*fitness.Cardinality()*questions.USize()+1)*CostCheckInterviewFitsNode(questions)
 {
-  MultiplicationPreservesOrder(fitness.Cardinality(), questions.Cardinality0(),
-    fitness.Cardinality(), questions.USize0());
-  assert interview.NodeCount() <= 2*fitness.Cardinality()*questions.USize0()+1;
+  MultiplicationPreservesOrder(fitness.Cardinality(), questions.Cardinality(),
+    fitness.Cardinality(), questions.USize());
+  assert interview.NodeCount() <= 2*fitness.Cardinality()*questions.USize()+1;
   MultiplicationPreservesOrder(interview.NodeCount(), CostCheckInterviewFitsNode(questions),
-    2*fitness.Cardinality()*questions.USize0()+1,
+    2*fitness.Cardinality()*questions.USize()+1,
     CostCheckInterviewFitsNode(questions));
 }
 
@@ -519,101 +517,101 @@ lemma CostCDPCCandidateMonotonic<Q(!new)>(
     fitness:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>,
     privateQuestions:Set<Q>)
-  requires InUniverse_Map_Map_T(smaller, larger)
-  ensures PolyComputeMultiplicitySum(smaller, multiplicity) <=
-          PolyComputeMultiplicitySum(larger, multiplicity)
-  ensures PolyComputeFitSum(smaller, fitness, multiplicity) <=
-          PolyComputeFitSum(larger, fitness, multiplicity)
-  ensures PolyComputePrivateSum(smaller, multiplicity) <=
-          PolyComputePrivateSum(larger, multiplicity)
-  ensures PolyFilterCandidates(smaller) <=
-          PolyFilterCandidates(larger)
-  ensures PolyCheckClassification(smaller, fitness, multiplicity) <=
-          PolyCheckClassification(larger, fitness, multiplicity)
-  ensures PolyCheckPrivateQuestion(smaller, multiplicity) <=
-          PolyCheckPrivateQuestion(larger, multiplicity)
-  ensures PolyCheckPrivateSafe(smaller, privateQuestions, multiplicity) <=
-          PolyCheckPrivateSafe(larger, privateQuestions, multiplicity)
+  requires smaller.UniverseWithin(larger)
+  ensures CostComputeMultiplicitySum(smaller, multiplicity) <=
+          CostComputeMultiplicitySum(larger, multiplicity)
+  ensures CostComputeFitSum(smaller, fitness, multiplicity) <=
+          CostComputeFitSum(larger, fitness, multiplicity)
+  ensures CostComputePrivateSum(smaller, multiplicity) <=
+          CostComputePrivateSum(larger, multiplicity)
+  ensures CostFilterCandidates(smaller) <=
+          CostFilterCandidates(larger)
+  ensures CostCheckClassification(smaller, fitness, multiplicity) <=
+          CostCheckClassification(larger, fitness, multiplicity)
+  ensures CostCheckPrivateQuestion(smaller, multiplicity) <=
+          CostCheckPrivateQuestion(larger, multiplicity)
+  ensures CostCheckPrivateSafe(smaller, privateQuestions, multiplicity) <=
+          CostCheckPrivateSafe(larger, privateQuestions, multiplicity)
 {
-  InUniverseBounds_Map_Map_T(smaller, larger);
-  assert UCostCopy_Map_Map_T(smaller) <=
-         UCostCopy_Map_Map_T(larger);
-  assert UCostRemove_Map_Map_T(smaller) <=
-         UCostRemove_Map_Map_T(larger);
-  assert UCostPickKey_Map_Map_T(smaller) <=
-         UCostPickKey_Map_Map_T(larger);
+  smaller.UniverseWithinBound(larger);
+  assert smaller.UCostCopy() <=
+         larger.UCostCopy();
+  assert smaller.UCostRemove() <=
+         larger.UCostRemove();
+  assert smaller.UCostPickKey() <=
+         larger.UCostPickKey();
 
   MultiplicationPreservesOrder(
     smaller.UCardinality(),
-    UCostPickKey_Map_Map_T(smaller) +
-      UCostGet_Map_Map_T(multiplicity) +
-      UCostRemove_Map_Map_T(smaller) +
-      CostIsEmpty_Map_Map_T(smaller),
+    smaller.UCostPickKey() +
+      multiplicity.UCostGet() +
+      smaller.UCostRemove() +
+      smaller.CostIsEmpty(),
     larger.UCardinality(),
-    UCostPickKey_Map_Map_T(larger) +
-      UCostGet_Map_Map_T(multiplicity) +
-      UCostRemove_Map_Map_T(larger) +
-      CostIsEmpty_Map_Map_T(larger));
+    larger.UCostPickKey() +
+      multiplicity.UCostGet() +
+      larger.UCostRemove() +
+      larger.CostIsEmpty());
   MultiplicationPreservesOrder(
     smaller.UCardinality(),
-    UCostPickKey_Map_Map_T(smaller) +
-      UCostGet_Map_Map_T(fitness) +
-      UCostGet_Map_Map_T(multiplicity) +
-      UCostRemove_Map_Map_T(smaller) +
-      CostIsEmpty_Map_Map_T(smaller),
+    smaller.UCostPickKey() +
+      fitness.UCostGet() +
+      multiplicity.UCostGet() +
+      smaller.UCostRemove() +
+      smaller.CostIsEmpty(),
     larger.UCardinality(),
-    UCostPickKey_Map_Map_T(larger) +
-      UCostGet_Map_Map_T(fitness) +
-      UCostGet_Map_Map_T(multiplicity) +
-      UCostRemove_Map_Map_T(larger) +
-      CostIsEmpty_Map_Map_T(larger));
+    larger.UCostPickKey() +
+      fitness.UCostGet() +
+      multiplicity.UCostGet() +
+      larger.UCostRemove() +
+      larger.CostIsEmpty());
   MultiplicationPreservesOrder(
     smaller.UCardinality(),
-    UCostPickKey_Map_Map_T(smaller) +
+    smaller.UCostPickKey() +
       2 * (smaller.UCardinalityKeys() + 1) +
-      UCostGet_Map_Map_T(multiplicity) +
-      UCostRemove_Map_Map_T(smaller) +
-      CostIsEmpty_Map_Map_T(smaller),
+      multiplicity.UCostGet() +
+      smaller.UCostRemove() +
+      smaller.CostIsEmpty(),
     larger.UCardinality(),
-    UCostPickKey_Map_Map_T(larger) +
+    larger.UCostPickKey() +
       2 * (larger.UCardinalityKeys() + 1) +
-      UCostGet_Map_Map_T(multiplicity) +
-      UCostRemove_Map_Map_T(larger) +
-      CostIsEmpty_Map_Map_T(larger));
+      multiplicity.UCostGet() +
+      larger.UCostRemove() +
+      larger.CostIsEmpty());
   MultiplicationPreservesOrder(
     smaller.UCardinality(),
-    UCostPickKey_Map_Map_T(smaller) +
+    smaller.UCostPickKey() +
       2 * (smaller.UCardinalityKeys() + 1) +
-      2 * UCostRemove_Map_Map_T(smaller) +
-      CostIsEmpty_Map_Map_T(smaller),
+      2 * smaller.UCostRemove() +
+      smaller.CostIsEmpty(),
     larger.UCardinality(),
-    UCostPickKey_Map_Map_T(larger) +
+    larger.UCostPickKey() +
       2 * (larger.UCardinalityKeys() + 1) +
-      2 * UCostRemove_Map_Map_T(larger) +
-      CostIsEmpty_Map_Map_T(larger));
+      2 * larger.UCostRemove() +
+      larger.CostIsEmpty());
 
-  assert PolyComputeMultiplicitySum(smaller, multiplicity) <=
-         PolyComputeMultiplicitySum(larger, multiplicity);
-  assert PolyComputeFitSum(smaller, fitness, multiplicity) <=
-         PolyComputeFitSum(larger, fitness, multiplicity);
-  assert PolyComputePrivateSum(smaller, multiplicity) <=
-         PolyComputePrivateSum(larger, multiplicity);
-  assert PolyFilterCandidates(smaller) <= PolyFilterCandidates(larger);
-  assert PolyCheckClassification(smaller, fitness, multiplicity) <=
-         PolyCheckClassification(larger, fitness, multiplicity);
-  assert PolyCheckPrivateQuestion(smaller, multiplicity) <=
-         PolyCheckPrivateQuestion(larger, multiplicity);
+  assert CostComputeMultiplicitySum(smaller, multiplicity) <=
+         CostComputeMultiplicitySum(larger, multiplicity);
+  assert CostComputeFitSum(smaller, fitness, multiplicity) <=
+         CostComputeFitSum(larger, fitness, multiplicity);
+  assert CostComputePrivateSum(smaller, multiplicity) <=
+         CostComputePrivateSum(larger, multiplicity);
+  assert CostFilterCandidates(smaller) <= CostFilterCandidates(larger);
+  assert CostCheckClassification(smaller, fitness, multiplicity) <=
+         CostCheckClassification(larger, fitness, multiplicity);
+  assert CostCheckPrivateQuestion(smaller, multiplicity) <=
+         CostCheckPrivateQuestion(larger, multiplicity);
   MultiplicationPreservesOrder(
-    privateQuestions.UCardinality0(),
-    CostPick_Set(privateQuestions) +
-      PolyCheckPrivateQuestion(smaller, multiplicity) +
-      UCostRemove_Set(privateQuestions) +
-      CostIsEmpty_Set(privateQuestions),
-    privateQuestions.UCardinality0(),
-    CostPick_Set(privateQuestions) +
-      PolyCheckPrivateQuestion(larger, multiplicity) +
-      UCostRemove_Set(privateQuestions) +
-      CostIsEmpty_Set(privateQuestions));
+    privateQuestions.UCardinality(),
+    privateQuestions.CostPick() +
+      CostCheckPrivateQuestion(smaller, multiplicity) +
+      privateQuestions.UCostRemove() +
+      privateQuestions.CostIsEmpty(),
+    privateQuestions.UCardinality(),
+    privateQuestions.CostPick() +
+      CostCheckPrivateQuestion(larger, multiplicity) +
+      privateQuestions.UCostRemove() +
+      privateQuestions.CostIsEmpty());
 }
 
 // Internal instance budget in collection measures; no tree argument.
@@ -622,21 +620,21 @@ ghost function CostCountInterviewNode():nat
   CostIsEnd_Interview() + 2*CostBranch_Interview()
 }
 
-ghost function {:opaque} {:isolate_assertions} PolyVerifyCDPC<Q(!new)>(fitness:Map_Map_T<Q, bool, bool>,
+ghost function {:opaque} {:isolate_assertions} CostVerifyCDPC<Q(!new)>(fitness:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>, privateQuestions:Set<Q>, questions:Set<Q>):(cost:nat)
-  ensures cost == (var b := 2*fitness.Cardinality()*questions.USize0()+1;
-    CostCount_Map_Map_T(fitness) + CostCount_Set(questions) + (b+1)*CostCountInterviewNode() +
+  ensures fitness.CostCount() + questions.CostCount() + (2*fitness.Cardinality()*questions.USize()+2)*CostCountInterviewNode() <= cost
+  ensures cost == (var b := 2*fitness.Cardinality()*questions.USize()+1;
+    fitness.CostCount() + questions.CostCount() + (b+1)*CostCountInterviewNode() +
     b*CostCheckInterviewFitsNode(questions) +
     2*b*CostVerifyCDPCCertificateNode(fitness, fitness, multiplicity, privateQuestions))
 {
-  var b := 2*fitness.Cardinality()*questions.USize0()+1;
-  CostCount_Map_Map_T(fitness) + CostCount_Set(questions) + (b+1)*CostCountInterviewNode() +
-  b*CostCheckInterviewFitsNode(questions) +
-    2*b*CostVerifyCDPCCertificateNode(fitness, fitness, multiplicity, privateQuestions)
+  var b := 2*fitness.Cardinality()*questions.USize()+1;
+  fitness.CostCount() + questions.CostCount() + (b+1)*CostCountInterviewNode() +
+  b*CostCheckInterviewFitsNode(questions) + 2*b*CostVerifyCDPCCertificateNode(fitness, fitness, multiplicity, privateQuestions)
 }
 
 // Fixed numerical envelope; n bounds candidates, questions and private questions.
-ghost function PolyCDPCVerificationNode(n:nat):nat
+ghost function PolynomialVerifyCDPCNode(n:nat):nat
 {
   var c := n*n+1;
   var d := n+1;
@@ -647,26 +645,25 @@ ghost function PolyCDPCVerificationNode(n:nat):nat
   6+2*filter+(sum+fit+1)+(sum+1+n*(privateSum+n+4))
 }
 
-ghost function PolyCDPCVerification(n:nat):nat
+ghost function PolynomialVerifyCDPC(n:nat):nat
 {
   var nodes := 2*n*n+1;
-  2 + (nodes+1)*CostCountInterviewNode() +
-    nodes*(2*n+6) + 2*nodes*PolyCDPCVerificationNode(n)
+  2 + (nodes+1)*CostCountInterviewNode() + nodes*(2*n+6) + 2*nodes*PolynomialVerifyCDPCNode(n)
 }
 
-lemma {:isolate_assertions} CostCDPCVerificationBound<Q(!new)>(
+lemma {:isolate_assertions} CostVerifyCDPCToPolynomial<Q(!new)>(
     fitness:Map_Map_T<Q, bool, bool>, multiplicity:Map_Map_T<Q, bool, nat>,
     privateQuestions:Set<Q>, questions:Set<Q>, n:nat)
   requires Init_Set(questions) && Init_Map_Map_T(fitness) && Init_Map_Map_T(multiplicity) && Init_Set(privateQuestions)
   requires fitness.Cardinality() <= n && multiplicity.Cardinality() <= n
-  requires privateQuestions.Cardinality0() <= n
+  requires privateQuestions.Cardinality() <= n
   requires fitness.UCardinalityKeys() <= n && multiplicity.UCardinalityKeys() <= n
-  requires questions.Cardinality0() <= n
-  ensures PolyVerifyCDPC(fitness, multiplicity, privateQuestions, questions) <= PolyCDPCVerification(n)
+  requires questions.Cardinality() <= n
+  ensures CostVerifyCDPC(fitness, multiplicity, privateQuestions, questions) <= PolynomialVerifyCDPC(n)
 {
-  assert questions.USize0() == questions.Cardinality0();
+  assert questions.USize() == questions.Cardinality();
   MultiplicationPreservesOrder(fitness.Cardinality(), fitness.UCardinalityKeys(), n, n);
-  MultiplicationPreservesOrder(fitness.Cardinality(), questions.USize0(), n, n);
+  MultiplicationPreservesOrder(fitness.Cardinality(), questions.USize(), n, n);
   MultiplicationPreservesOrder(multiplicity.Cardinality(), multiplicity.UCardinalityKeys(), n, n);
   var c := n*n+1;
   var d := n+1;
@@ -675,50 +672,50 @@ lemma {:isolate_assertions} CostCDPCVerificationBound<Q(!new)>(
   var fit := c+1+n*(d+3*c+1);
   var privateSum := c+1+n*(3*d+2*c+1);
   MultiplicationPreservesOrder(fitness.UCardinality(),
-    UCostPickKey_Map_Map_T(fitness)+UCostGet_Map_Map_T(multiplicity)+
-      UCostRemove_Map_Map_T(fitness)+1, n, d+2*c+1);
-  assert PolyComputeMultiplicitySum(fitness, multiplicity) <= sum;
+    fitness.UCostPickKey()+multiplicity.UCostGet()+
+      fitness.UCostRemove()+1, n, d+2*c+1);
+  assert CostComputeMultiplicitySum(fitness, multiplicity) <= sum;
   MultiplicationPreservesOrder(fitness.UCardinality(),
-    UCostPickKey_Map_Map_T(fitness)+2*(fitness.UCardinalityKeys()+1)+
-      2*UCostRemove_Map_Map_T(fitness)+1, n, 3*d+2*c+1);
-  assert PolyFilterCandidates(fitness) <= filter;
+    fitness.UCostPickKey()+2*(fitness.UCardinalityKeys()+1)+
+      2*fitness.UCostRemove()+1, n, 3*d+2*c+1);
+  assert CostFilterCandidates(fitness) <= filter;
   MultiplicationPreservesOrder(fitness.UCardinality(),
-    UCostPickKey_Map_Map_T(fitness)+UCostGet_Map_Map_T(fitness)+
-      UCostGet_Map_Map_T(multiplicity)+UCostRemove_Map_Map_T(fitness)+1,
+    fitness.UCostPickKey()+fitness.UCostGet()+
+      multiplicity.UCostGet()+fitness.UCostRemove()+1,
     n, d+3*c+1);
-  assert PolyComputeFitSum(fitness, fitness, multiplicity) <= fit;
+  assert CostComputeFitSum(fitness, fitness, multiplicity) <= fit;
   MultiplicationPreservesOrder(fitness.UCardinality(),
-    UCostPickKey_Map_Map_T(fitness)+2*(fitness.UCardinalityKeys()+1)+
-      UCostGet_Map_Map_T(multiplicity)+UCostRemove_Map_Map_T(fitness)+1,
+    fitness.UCostPickKey()+2*(fitness.UCardinalityKeys()+1)+
+      multiplicity.UCostGet()+fitness.UCostRemove()+1,
     n, 3*d+2*c+1);
-  assert PolyComputePrivateSum(fitness, multiplicity) <= privateSum;
-  MultiplicationPreservesOrder(privateQuestions.UCardinality0(),
-    PolyComputePrivateSum(fitness, multiplicity)+privateQuestions.USize0()+4,
+  assert CostComputePrivateSum(fitness, multiplicity) <= privateSum;
+  MultiplicationPreservesOrder(privateQuestions.UCardinality(),
+    CostComputePrivateSum(fitness, multiplicity)+privateQuestions.USize()+4,
     n, privateSum+n+4);
   assert CostVerifyCDPCCertificateNode(fitness, fitness, multiplicity, privateQuestions) <=
-    PolyCDPCVerificationNode(n);
-  MultiplicationAssociative(2, fitness.Cardinality(), questions.USize0());
+    PolynomialVerifyCDPCNode(n);
+  MultiplicationAssociative(2, fitness.Cardinality(), questions.USize());
   MultiplicationAssociative(2, n, n);
-  assert 2*fitness.Cardinality()*questions.USize0()+1 <= 2*n*n+1;
-  MultiplicationPreservesOrder(2*fitness.Cardinality()*questions.USize0()+1,
+  assert 2*fitness.Cardinality()*questions.USize()+1 <= 2*n*n+1;
+  MultiplicationPreservesOrder(2*fitness.Cardinality()*questions.USize()+1,
     CostCheckInterviewFitsNode(questions),
     2*n*n+1, 2*n+6);
-  MultiplicationPreservesOrder(2*(2*fitness.Cardinality()*questions.USize0()+1),
+  MultiplicationPreservesOrder(2*(2*fitness.Cardinality()*questions.USize()+1),
     CostVerifyCDPCCertificateNode(fitness, fitness, multiplicity, privateQuestions),
-    2*(2*n*n+1), PolyCDPCVerificationNode(n));
+    2*(2*n*n+1), PolynomialVerifyCDPCNode(n));
 }
 
 lemma CostCDPCCheckingBound<Q(!new)>(questions:Set<Q>, fitness:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>, privateQuestions:Set<Q>, interview:Interview<Q>)
-  requires interview.NodeCount() <= 2*fitness.Cardinality()*questions.USize0()+1
-  ensures PolyVerifyCDPCCertificate(fitness, fitness, multiplicity, privateQuestions, interview) <=
-    2*(2*fitness.Cardinality()*questions.USize0()+1)*
+  requires interview.NodeCount() <= 2*fitness.Cardinality()*questions.USize()+1
+  ensures CostVerifyCDPCCertificate(fitness, fitness, multiplicity, privateQuestions, interview) <=
+    2*(2*fitness.Cardinality()*questions.USize()+1)*
       CostVerifyCDPCCertificateNode(fitness, fitness, multiplicity, privateQuestions)
 {
   if interview.NodeCount() > 0 {
     MultiplicationPreservesOrder(2*interview.NodeCount()-1,
       CostVerifyCDPCCertificateNode(fitness, fitness, multiplicity, privateQuestions),
-      2*(2*fitness.Cardinality()*questions.USize0()+1),
+      2*(2*fitness.Cardinality()*questions.USize()+1),
       CostVerifyCDPCCertificateNode(fitness, fitness, multiplicity, privateQuestions));
   }
 }
@@ -730,19 +727,19 @@ ghost function CostVerifyCDPCCertificateNode<Q(!new)>(
     privateQuestions:Set<Q>):nat
 {
   CostIsEnd_Interview() + CostQuestion_Interview() +
-  2 * PolyFilterCandidates(rootCandidates) +
-  2 * CostBranch_Interview() + CostIsEmpty_Map_Map_T(rootCandidates) +
-  PolyCheckClassification(rootCandidates, fitness, multiplicity) +
-  PolyCheckPrivateSafe(rootCandidates, privateQuestions, multiplicity) + 1
+  2 * CostFilterCandidates(rootCandidates) +
+  2 * CostBranch_Interview() + rootCandidates.CostIsEmpty() +
+  CostCheckClassification(rootCandidates, fitness, multiplicity) +
+  CostCheckPrivateSafe(rootCandidates, privateQuestions, multiplicity) + 1
 }
 
-ghost function {:opaque} PolyVerifyCDPCCertificate<Q(!new)>(
+ghost function {:opaque} CostVerifyCDPCCertificate<Q(!new)>(
     rootCandidates:Map_Map_T<Q, bool, bool>,
     fitness:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>,
     privateQuestions:Set<Q>,
     interview:Interview<Q>):nat
-  ensures PolyVerifyCDPCCertificate(
+  ensures CostVerifyCDPCCertificate(
     rootCandidates, fitness, multiplicity, privateQuestions, interview) ==
     if interview.NodeCount() == 0 then 0
     else (2 * interview.NodeCount() - 1) * CostVerifyCDPCCertificateNode(rootCandidates, fitness, multiplicity, privateQuestions)
@@ -754,13 +751,13 @@ ghost function {:opaque} PolyVerifyCDPCCertificate<Q(!new)>(
     (2 * interview.NodeCount() - 1) * CostVerifyCDPCCertificateNode(rootCandidates, fitness, multiplicity, privateQuestions)
 }
 
-ghost function {:opaque} PolyCheckCDPCBranch<Q(!new)>(
+ghost function {:opaque} CostCheckCDPCBranch<Q(!new)>(
     rootCandidates:Map_Map_T<Q, bool, bool>,
     fitness:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>,
     privateQuestions:Set<Q>,
     interview:Interview<Q>):nat
-  ensures PolyCheckCDPCBranch(
+  ensures CostCheckCDPCBranch(
     rootCandidates, fitness, multiplicity, privateQuestions, interview) ==
     2 * interview.NodeCount() * CostVerifyCDPCCertificateNode(rootCandidates, fitness, multiplicity, privateQuestions)
 {

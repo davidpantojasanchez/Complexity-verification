@@ -1,6 +1,8 @@
 include "../Problems/HittingSet.dfy"
 include "../Problems/SetCover.dfy"
-
+/*
+Reduction Hitting Set -> Set Cover
+*/
 
 ghost function HittingSetToSetCover(U:set<int>, S:set<set<int>>, k:nat) : (r:(set<set<int>>, set<set<set<int>>>, nat))
   requires HittingSetValidInstance(U, S)

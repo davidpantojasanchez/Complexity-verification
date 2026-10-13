@@ -1,10 +1,8 @@
 include "../Problems/SetCover.dfy"
 include "../Problems/CDPC.dfy"
-
 /*
-Reduccion matemática Set Cover -> CDPC
-
-Las preguntas son los propios conjuntos de S. Tras eliminar el conjunto vacío de S, {} queda reservado como pregunta privada
+Reduction Set Cover -> CDPC
+The questions are the sets in S. After removing the empty set from S, {} is reserved as the private question
 */
 
 ghost function SetCoverToCDPC<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)

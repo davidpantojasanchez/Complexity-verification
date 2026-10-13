@@ -1,11 +1,16 @@
 /*
-Abstract interface for finite binary CDPC interviews.
+Trait for finite binary CDPC interviews.
 
-The immutable model is specialized to interviews: an internal node asks a
-question and its two children correspond to the Boolean answer.  The complete
-question domain is stable, while RemainingQuestions records the context of the
-current subtree. Candidate populations deliberately do not form part of this
-abstraction; a verifier must carry and filter them separately.
+Its immutable model is defined with the datatype InterviewModel: an internal
+node asks a question and its two children correspond to the Boolean answer.
+Every finite tree is representable and traversable, including inadmissible
+certificates. There is no nontrivial representation invariant beyond this
+structural model, so the interface has no Valid predicate. Contextual
+certificate admissibility is expressed separately by InterviewFits(tree,
+remaining). A verifier carries the question context and candidate populations
+independently of the tree.
+
+The concrete implementation is defined in ConcreteInterview.dfy.
 */
 
 datatype InterviewModel<Q(==)> =
@@ -44,7 +49,7 @@ ghost function {:opaque} InterviewDepth<Q>(tree:InterviewModel<Q>):nat
         else InterviewDepth(whenFalse)
 }
 
-// Questions may occur in different branches, but never twice on one path.
+// Questions may occur in different branches, but never twice on one path
 ghost predicate {:opaque} InterviewFits<Q>(tree:InterviewModel<Q>, remaining:set<Q>)
   decreases tree
 {
@@ -112,17 +117,9 @@ lemma InterviewDepthBound<Q>(tree:InterviewModel<Q>, remaining:set<Q>)
 
 
 trait Interview<Q(==)> {
-  function Repr():InterviewModel<Q>
-  ghost function {:opaque} Model():InterviewModel<Q> { Repr() }
-  ghost function QuestionDomain():set<Q>                          // Todas las preguntas que pueden haber en la totalidad de la entrevista
-  ghost function RemainingQuestions():set<Q>                      // Preguntas que pueden (o no) aparecer a partir de este punto (sin las del resto del path)
 
-  // The outer relations are transparent; recursive InterviewFits stays opaque.
-  ghost predicate Valid()
-  {
-    RemainingQuestions() <= QuestionDomain() &&
-    InterviewFits(Model(), RemainingQuestions())
-  }
+  function ExecutableModel():InterviewModel<Q>
+  ghost function {:opaque} Model():InterviewModel<Q> { ExecutableModel() }
 
   ghost function Questions():set<Q> { InterviewQuestions(Model()) }
   ghost function NodeCount():nat { InterviewNodes(Model()) }
@@ -139,28 +136,22 @@ trait Interview<Q(==)> {
 
   method Branch(answer:bool, ghost counter_in:nat) returns (branch:Interview<Q>, ghost counter_out:nat)
     requires Model().Ask?
-    ensures Valid() ==> branch.Valid()
     ensures branch.NodeCount() < NodeCount()
     ensures branch.Model() ==
             if answer then Model().trueBranch else Model().falseBranch
-    ensures branch.QuestionDomain() == QuestionDomain()
-    ensures branch.RemainingQuestions() ==
-            RemainingQuestions() - {Model().question}
     ensures counter_out == counter_in + CostBranch_Interview()
 }
 
 
-lemma InterviewBounds<Q>(interview:Interview<Q>)
-  requires interview.Valid()
-  ensures interview.Questions() <= interview.RemainingQuestions()
-  ensures interview.RemainingQuestions() <= interview.QuestionDomain()
-  ensures interview.Depth() <= |interview.RemainingQuestions()|
+lemma InterviewBound<Q>(interview:Interview<Q>, remaining:set<Q>)
+  requires InterviewFits(interview.Model(), remaining)
+  ensures interview.Questions() <= remaining
+  ensures interview.Depth() <= |remaining|
 {
-  reveal interview.Valid();
   reveal interview.Questions();
   reveal interview.Depth();
-  InterviewQuestionsBound(interview.Model(), interview.RemainingQuestions());
-  InterviewDepthBound(interview.Model(), interview.RemainingQuestions());
+  InterviewQuestionsBound(interview.Model(), remaining);
+  InterviewDepthBound(interview.Model(), remaining);
 }
 
 

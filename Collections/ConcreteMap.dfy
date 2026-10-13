@@ -1,4 +1,5 @@
 include "Map.dfy"
+include "ConcreteSet.dfy"
 include "../Lemmas/Lemmas.dfy"
 
 
@@ -20,7 +21,7 @@ class ConcreteMap<K(==), V(==)> extends Map<K, V> {
     SubsetCardinalityBound(entries_in.Keys, universe_in.Keys);
   }
 
-  function Repr():map<K, V> { entries }
+  function ExecutableModel():map<K, V> { entries }
   ghost function Universe():map<K, V> { universe }
 
   method Get(key:K, ghost counter_in:nat)
@@ -28,13 +29,12 @@ class ConcreteMap<K(==), V(==)> extends Map<K, V> {
     requires Valid()
     requires key in Model().Keys
     ensures value == Model()[key]
-    ensures counter_out == counter_in + CostGet_Map(this)
-    ensures counter_out <= counter_in + UCostGet_Map(this)
+    ensures counter_out == counter_in + CostGet()
+    ensures counter_out <= counter_in + UCostGet()
   {
     reveal Model();
-    ModelSizeBound_Map(this);
     value := entries[key];
-    counter_out := counter_in + CostGet_Map(this);
+    counter_out := counter_in + CostGet();
   }
 
   method Insert(key:K, value:V, ghost counter_in:nat)
@@ -45,14 +45,13 @@ class ConcreteMap<K(==), V(==)> extends Map<K, V> {
     ensures result.Model() == Model()[key := value]
     ensures result.Universe() == Universe()[key := value]
     ensures result.Keys() == Keys() + {key}
-    ensures counter_out == counter_in + CostInsert_Map(this)
-    ensures counter_out <= counter_in + UCostInsert_Map(this)
+    ensures counter_out == counter_in + CostInsert()
+    ensures counter_out <= counter_in + UCostInsert()
   {
     reveal Model();
-    ModelSizeBound_Map(this);
     reveal Valid();
     result := new ConcreteMap(entries[key := value], universe[key := value]);
-    counter_out := counter_in + CostInsert_Map(this);
+    counter_out := counter_in + CostInsert();
   }
 
   method Remove(key:K, ghost counter_in:nat)
@@ -65,14 +64,13 @@ class ConcreteMap<K(==), V(==)> extends Map<K, V> {
     ensures result.Model() == Model() - {key}
     ensures result.Universe() == Universe()
     ensures result.Keys() == Keys() - {key}
-    ensures counter_out == counter_in + CostRemove_Map(this)
-    ensures counter_out <= counter_in + UCostRemove_Map(this)
+    ensures counter_out == counter_in + CostRemove()
+    ensures counter_out <= counter_in + UCostRemove()
   {
     reveal Model();
-    ModelSizeBound_Map(this);
     reveal Valid();
     result := new ConcreteMap(entries - {key}, universe);
-    counter_out := counter_in + CostRemove_Map(this);
+    counter_out := counter_in + CostRemove();
   }
 
   method PickKey(ghost counter_in:nat)
@@ -81,47 +79,46 @@ class ConcreteMap<K(==), V(==)> extends Map<K, V> {
     requires Valid()
     ensures key in Model().Keys
     ensures key in Universe().Keys
-    ensures counter_out == counter_in + CostPickKey_Map(this)
+    ensures counter_out == counter_in + CostPickKey()
   {
     reveal Model();
     reveal Valid();
     key :| key in entries.Keys;
-    counter_out := counter_in + CostPickKey_Map(this);
+    counter_out := counter_in + CostPickKey();
   }
 
   method Count(ghost counter_in:nat)
       returns (size:nat, ghost counter_out:nat)
     requires Valid()
     ensures size == Cardinality()
-    ensures counter_out == counter_in + CostCount_Map(this)
+    ensures counter_out == counter_in + CostCount()
   {
     reveal Model();
     size := |entries|;
-    counter_out := counter_in + CostCount_Map(this);
+    counter_out := counter_in + CostCount();
   }
 
   method ContainsKey(key:K, ghost counter_in:nat)
       returns (contains:bool, ghost counter_out:nat)
     requires Valid()
     ensures contains == (key in Model().Keys)
-    ensures counter_out == counter_in + CostContainsKey_Map(this)
-    ensures counter_out <= counter_in + UCostContainsKey_Map(this)
+    ensures counter_out == counter_in + CostContainsKey()
+    ensures counter_out <= counter_in + UCostContainsKey()
   {
     reveal Model();
-    ModelSizeBound_Map(this);
     contains := key in entries;
-    counter_out := counter_in + CostContainsKey_Map(this);
+    counter_out := counter_in + CostContainsKey();
   }
 
   method IsEmpty(ghost counter_in:nat)
       returns (empty:bool, ghost counter_out:nat)
     requires Valid()
     ensures empty == (Model() == map[])
-    ensures counter_out == counter_in + CostIsEmpty_Map(this)
+    ensures counter_out == counter_in + CostIsEmpty()
   {
     reveal Model();
     empty := entries == map[];
-    counter_out := counter_in + CostIsEmpty_Map(this);
+    counter_out := counter_in + CostIsEmpty();
   }
 
   method Copy(ghost counter_in:nat)
@@ -130,13 +127,12 @@ class ConcreteMap<K(==), V(==)> extends Map<K, V> {
     ensures result.Valid()
     ensures result.Model() == Model()
     ensures result.Universe() == Model()
-    ensures counter_out == counter_in + CostCopy_Map(this)
-    ensures counter_out <= counter_in + UCostCopy_Map(this)
+    ensures counter_out == counter_in + CostCopy()
+    ensures counter_out <= counter_in + UCostCopy()
   {
     reveal Model();
-    ModelSizeBound_Map(this);
     result := new ConcreteMap(entries, entries);
-    counter_out := counter_in + CostCopy_Map(this);
+    counter_out := counter_in + CostCopy();
   }
 }
 
@@ -157,9 +153,12 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     universe := universe_in;
     reveal Model();
     SubsetCardinalityBound(entries_in.Keys, universe_in.Keys);
+    reveal UCardinalityKeys();
+    MaxByMonotonic(entries_in.Keys, universe_in.Keys, item => |item|);
+    MultiplicationPreservesOrder(|entries_in|, MaxCardinality_map(entries_in.Keys), |universe_in|, MaxCardinality_map(universe_in.Keys));
   }
 
-  function Repr():map<map<K, V>, R> { entries }
+  function ExecutableModel():map<map<K, V>, R> { entries }
   ghost function Universe():map<map<K, V>, R> { universe }
 
   method Get(key:Map<K, V>, ghost counter_in:nat)
@@ -167,16 +166,15 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     requires Valid()
     requires key.Model() in Model().Keys
     ensures value == Model()[key.Model()]
-    ensures counter_out == counter_in + CostGet_Map_Map_T(this)
-    ensures counter_out <= counter_in + UCostGet_Map_Map_T(this)
+    ensures counter_out == counter_in + CostGet()
+    ensures counter_out <= counter_in + UCostGet()
   {
     reveal Model();
     reveal UCardinalityKeys();
-    ModelSizeBound_Map_Map_T(this);
     reveal key.Model();
-    var concrete_key := key.Repr();
+    var concrete_key := key.ExecutableModel();
     value := entries[concrete_key];
-    counter_out := counter_in + CostGet_Map_Map_T(this);
+    counter_out := counter_in + CostGet();
   }
 
   method Insert(key:Map<K, V>, value:R, ghost counter_in:nat)
@@ -193,20 +191,19 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     ensures result.Model() == Model()[key.Model() := value]
     ensures result.Universe() == Universe()[key.Model() := value]
     ensures result.Keys() == Keys() + {key.Model()}
-    ensures counter_out == counter_in + CostInsert_Map_Map_T(this)
-    ensures counter_out <= counter_in + UCostInsert_Map_Map_T(this)
+    ensures counter_out == counter_in + CostInsert()
+    ensures counter_out <= counter_in + UCostInsert()
   {
     reveal Model();
     reveal UCardinalityKeys();
-    ModelSizeBound_Map_Map_T(this);
     reveal Valid();
     reveal key.Model();
-    var concrete_key := key.Repr();
+    var concrete_key := key.ExecutableModel();
     result := new ConcreteMap_Map_T(
       entries[concrete_key := value],
       universe[concrete_key := value]);
     InsertUniverseMeasures_Map_Map_T(this, result, key, value);
-    counter_out := counter_in + CostInsert_Map_Map_T(this);
+    counter_out := counter_in + CostInsert();
   }
 
   method Remove(key:Map<K, V>, ghost counter_in:nat)
@@ -220,18 +217,17 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     ensures result.Model() == Model() - {key.Model()}
     ensures result.Universe() == Universe()
     ensures result.Keys() == Keys() - {key.Model()}
-    ensures counter_out == counter_in + CostRemove_Map_Map_T(this)
-    ensures counter_out <= counter_in + UCostRemove_Map_Map_T(this)
+    ensures counter_out == counter_in + CostRemove()
+    ensures counter_out <= counter_in + UCostRemove()
   {
     reveal Model();
     reveal UCardinalityKeys();
-    ModelSizeBound_Map_Map_T(this);
     reveal Valid();
     reveal key.Model();
-    var concrete_key := key.Repr();
+    var concrete_key := key.ExecutableModel();
     result := new ConcreteMap_Map_T(entries - {concrete_key}, universe);
     reveal result.UCardinalityKeys();
-    counter_out := counter_in + CostRemove_Map_Map_T(this);
+    counter_out := counter_in + CostRemove();
   }
 
   method PickKey(ghost counter_in:nat)
@@ -243,56 +239,55 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     ensures key.USize() <= UCardinalityKeys()
     ensures key.Model() in Model().Keys
     ensures key.Universe() == key.Model()
-    ensures counter_out == counter_in + CostPickKey_Map_Map_T(this, key)
-    ensures counter_out <= counter_in + UCostPickKey_Map_Map_T(this)
+    ensures counter_out == counter_in + CostPickKey(key)
+    ensures counter_out <= counter_in + UCostPickKey()
   {
     reveal Model();
     reveal UCardinalityKeys();
     reveal Valid();
     var chosen:map<K, V> :| chosen in entries.Keys;
-    MaxCardinalityMember_map(universe.Keys, chosen);
+    MaxByMember(universe.Keys, chosen, item => |item|);
     key := new ConcreteMap(chosen, chosen);
-    counter_out := counter_in + CostPickKey_Map_Map_T(this, key);
+    counter_out := counter_in + CostPickKey(key);
   }
 
   method Count(ghost counter_in:nat)
       returns (size:nat, ghost counter_out:nat)
     requires Valid()
     ensures size == Cardinality()
-    ensures counter_out == counter_in + CostCount_Map_Map_T(this)
+    ensures counter_out == counter_in + CostCount()
   {
     reveal Model();
     reveal UCardinalityKeys();
     size := |entries|;
-    counter_out := counter_in + CostCount_Map_Map_T(this);
+    counter_out := counter_in + CostCount();
   }
 
   method ContainsKey(key:Map<K, V>, ghost counter_in:nat)
       returns (contains:bool, ghost counter_out:nat)
     requires Valid()
     ensures contains == (key.Model() in Model().Keys)
-    ensures counter_out == counter_in + CostContainsKey_Map_Map_T(this)
-    ensures counter_out <= counter_in + UCostContainsKey_Map_Map_T(this)
+    ensures counter_out == counter_in + CostContainsKey()
+    ensures counter_out <= counter_in + UCostContainsKey()
   {
     reveal Model();
     reveal UCardinalityKeys();
-    ModelSizeBound_Map_Map_T(this);
     reveal key.Model();
-    var concrete_key := key.Repr();
+    var concrete_key := key.ExecutableModel();
     contains := concrete_key in entries;
-    counter_out := counter_in + CostContainsKey_Map_Map_T(this);
+    counter_out := counter_in + CostContainsKey();
   }
 
   method IsEmpty(ghost counter_in:nat)
       returns (empty:bool, ghost counter_out:nat)
     requires Valid()
     ensures empty == (Model() == map[])
-    ensures counter_out == counter_in + CostIsEmpty_Map_Map_T(this)
+    ensures counter_out == counter_in + CostIsEmpty()
   {
     reveal Model();
     reveal UCardinalityKeys();
     empty := entries == map[];
-    counter_out := counter_in + CostIsEmpty_Map_Map_T(this);
+    counter_out := counter_in + CostIsEmpty();
   }
 
   method Copy(ghost counter_in:nat)
@@ -303,16 +298,15 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     ensures result.UCardinalityKeys() <= UCardinalityKeys()
     ensures result.Model() == Model()
     ensures result.Universe() == Model()
-    ensures counter_out == counter_in + CostCopy_Map_Map_T(this)
-    ensures counter_out <= counter_in + UCostCopy_Map_Map_T(this)
+    ensures counter_out == counter_in + CostCopy()
+    ensures counter_out <= counter_in + UCostCopy()
   {
     reveal Model();
     reveal UCardinalityKeys();
-    ModelSizeBound_Map_Map_T(this);
     reveal Valid();
     result := new ConcreteMap_Map_T(entries, entries);
     reveal result.UCardinalityKeys();
-    counter_out := counter_in + CostCopy_Map_Map_T(this);
+    counter_out := counter_in + CostCopy();
   }
 }
 
@@ -322,10 +316,10 @@ method New_Map<K(==), V(==)>(ghost counter_in:nat)
   ensures result.Valid()
   ensures result.Model() == map[]
   ensures result.Universe() == map[]
-  ensures counter_out == counter_in + CostNew_Map()
+  ensures counter_out == counter_in + CostNew_MapFamily()
 {
   result := new ConcreteMap(map[], map[]);
-  counter_out := counter_in + CostNew_Map();
+  counter_out := counter_in + CostNew_MapFamily();
 }
 
 method NewWithUniverse_Map<K(==), V(==)>(ghost universe:map<K, V>, ghost counter_in:nat)
@@ -333,10 +327,10 @@ method NewWithUniverse_Map<K(==), V(==)>(ghost universe:map<K, V>, ghost counter
   ensures result.Valid()
   ensures result.Model() == map[]
   ensures result.Universe() == universe
-  ensures counter_out == counter_in + CostNew_Map()
+  ensures counter_out == counter_in + CostNew_MapFamily()
 {
   result := new ConcreteMap(map[], universe);
-  counter_out := counter_in + CostNew_Map();
+  counter_out := counter_in + CostNew_MapFamily();
 }
 
 method New_Map_Map_T<K(==), V(==), R(==)>(ghost counter_in:nat)
@@ -345,11 +339,11 @@ method New_Map_Map_T<K(==), V(==), R(==)>(ghost counter_in:nat)
   ensures result.Valid()
   ensures result.Model() == map[]
   ensures result.Universe() == map[]
-  ensures counter_out == counter_in + CostNew_Map_Map_T()
+  ensures counter_out == counter_in + CostNew_MapFamily()
 {
   result := new ConcreteMap_Map_T(map[], map[]);
   reveal result.UCardinalityKeys();
-  counter_out := counter_in + CostNew_Map_Map_T();
+  counter_out := counter_in + CostNew_MapFamily();
 }
 
 method NewWithUniverse_Map_Map_T<K(==), V(==), R(==)>(ghost universe:map<map<K, V>, R>, ghost counter_in:nat)
@@ -357,10 +351,10 @@ method NewWithUniverse_Map_Map_T<K(==), V(==), R(==)>(ghost universe:map<map<K, 
   ensures result.Valid()
   ensures result.Model() == map[]
   ensures result.Universe() == universe
-  ensures counter_out == counter_in + CostNew_Map_Map_T()
+  ensures counter_out == counter_in + CostNew_MapFamily()
 {
   result := new ConcreteMap_Map_T(map[], universe);
-  counter_out := counter_in + CostNew_Map_Map_T();
+  counter_out := counter_in + CostNew_MapFamily();
 }
 
 
@@ -378,53 +372,141 @@ class ConcreteMap_Set_T<K(==), V(==)> extends Map_Set_T<K, V> {
     universe := universe_in;
     reveal Model();
     SubsetCardinalityBound(entries_in.Keys, universe_in.Keys);
+    reveal UCardinalityKeys();
+    MaxByMonotonic(entries_in.Keys, universe_in.Keys, item => |item|);
+    MultiplicationPreservesOrder(|entries_in|, MaxCardinality_set(entries_in.Keys), |universe_in|, MaxCardinality_set(universe_in.Keys));
   }
 
-  function Repr():map<set<K>, V> { entries }
+  function ExecutableModel():map<set<K>, V> { entries }
   ghost function Universe():map<set<K>, V> { universe }
 
   method Get(key:Set<K>, ghost counter_in:nat) returns (value:V, ghost counter_out:nat)
     requires Valid()
     requires key.Model() in Model().Keys
     ensures value == Model()[key.Model()]
-    ensures counter_out == counter_in + CostGet_Map_Set_T(this)
-    ensures counter_out <= counter_in + UCostGet_Map_Set_T(this)
+    ensures counter_out == counter_in + CostGet()
+    ensures counter_out <= counter_in + UCostGet()
   {
     reveal Model(), key.Model();
-    ModelSizeBound_Map_Set_T(this);
-    value := entries[key.Repr()];
-    counter_out := counter_in + CostGet_Map_Set_T(this);
+    value := entries[key.ExecutableModel()];
+    counter_out := counter_in + CostGet();
   }
 
   method ContainsKey(key:Set<K>, ghost counter_in:nat) returns (contains:bool, ghost counter_out:nat)
     requires Valid()
     ensures contains == (key.Model() in Model().Keys)
-    ensures counter_out == counter_in + CostContainsKey_Map_Set_T(this)
-    ensures counter_out <= counter_in + UCostContainsKey_Map_Set_T(this)
+    ensures counter_out == counter_in + CostContainsKey()
+    ensures counter_out <= counter_in + UCostContainsKey()
   {
     reveal Model(), key.Model();
-    ModelSizeBound_Map_Set_T(this);
-    contains := key.Repr() in entries;
-    counter_out := counter_in + CostContainsKey_Map_Set_T(this);
+    contains := key.ExecutableModel() in entries;
+    counter_out := counter_in + CostContainsKey();
   }
 
   method Insert(key:Set<K>, value:V, ghost counter_in:nat) returns (result:Map_Set_T<K, V>, ghost counter_out:nat)
     requires Valid() && key.Valid()
     ensures result.Valid()
     ensures result.Cardinality() <= Cardinality() + 1
-    ensures result.UCardinalityKeys() == (if key.Size0() <= UCardinalityKeys() then UCardinalityKeys() else key.Size0())
+    ensures result.UCardinalityKeys() == (if key.Size() <= UCardinalityKeys() then UCardinalityKeys() else key.Size())
     ensures result.Model() == Model()[key.Model() := value]
     ensures result.Universe() == Universe()[key.Model() := value]
-    ensures counter_out == counter_in + CostInsert_Map_Set_T(this)
-    ensures counter_out <= counter_in + UCostInsert_Map_Set_T(this)
+    ensures counter_out == counter_in + CostInsert()
+    ensures counter_out <= counter_in + UCostInsert()
   {
     reveal Model(), key.Model();
-    ModelSizeBound_Map_Set_T(this);
     reveal Valid(), key.Valid();
-    var concrete_key := key.Repr();
+    var concrete_key := key.ExecutableModel();
     result := new ConcreteMap_Set_T(entries[concrete_key := value], universe[concrete_key := value]);
     InsertUniverseMeasures_Map_Set_T(this, result, key, value);
-    counter_out := counter_in + CostInsert_Map_Set_T(this);
+    counter_out := counter_in + CostInsert();
+  }
+
+  method Remove(key:Set<K>, ghost counter_in:nat)
+      returns (result:Map_Set_T<K, V>, ghost counter_out:nat)
+    requires Valid()
+    ensures result.Valid()
+    ensures result.UCardinalityKeys() <= UCardinalityKeys()
+    ensures if key.Model() in Keys()
+            then result.Cardinality() == Cardinality() - 1
+            else result.Cardinality() == Cardinality()
+    ensures result.Model() == Model() - {key.Model()}
+    ensures result.Universe() == Universe()
+    ensures result.Keys() == Keys() - {key.Model()}
+    ensures counter_out == counter_in + CostRemove()
+    ensures counter_out <= counter_in + UCostRemove()
+  {
+    reveal Model();
+    reveal UCardinalityKeys();
+    reveal Valid();
+    reveal key.Model();
+    var concrete_key := key.ExecutableModel();
+    result := new ConcreteMap_Set_T(entries - {concrete_key}, universe);
+    reveal result.UCardinalityKeys();
+    counter_out := counter_in + CostRemove();
+  }
+
+  method PickKey(ghost counter_in:nat)
+      returns (key:Set<K>, ghost counter_out:nat)
+    requires Model() != map[]
+    requires Valid()
+    ensures key.Valid()
+    ensures key.Size() <= UCardinalityKeys()
+    ensures key.USize() <= UCardinalityKeys()
+    ensures key.Model() in Model().Keys
+    ensures key.Universe() == key.Model()
+    ensures counter_out == counter_in + CostPickKey(key)
+    ensures counter_out <= counter_in + UCostPickKey()
+  {
+    reveal Model();
+    reveal UCardinalityKeys();
+    reveal Valid();
+    var chosen:set<K> :| chosen in entries.Keys;
+    MaxByMember(universe.Keys, chosen, item => |item|);
+    key := new ConcreteSet(chosen, chosen);
+    counter_out := counter_in + CostPickKey(key);
+  }
+
+  method Count(ghost counter_in:nat)
+      returns (size:nat, ghost counter_out:nat)
+    requires Valid()
+    ensures size == Cardinality()
+    ensures counter_out == counter_in + CostCount()
+  {
+    reveal Model();
+    reveal UCardinalityKeys();
+    size := |entries|;
+    counter_out := counter_in + CostCount();
+  }
+
+  method IsEmpty(ghost counter_in:nat)
+      returns (empty:bool, ghost counter_out:nat)
+    requires Valid()
+    ensures empty == (Model() == map[])
+    ensures counter_out == counter_in + CostIsEmpty()
+  {
+    reveal Model();
+    reveal UCardinalityKeys();
+    empty := entries == map[];
+    counter_out := counter_in + CostIsEmpty();
+  }
+
+  method Copy(ghost counter_in:nat)
+      returns (result:Map_Set_T<K, V>, ghost counter_out:nat)
+    requires Valid()
+    ensures result.Valid()
+    ensures result.UCardinalityKeys() == CardinalityKeys()
+    ensures result.UCardinalityKeys() <= UCardinalityKeys()
+    ensures result.Model() == Model()
+    ensures result.Universe() == Model()
+    ensures counter_out == counter_in + CostCopy()
+    ensures counter_out <= counter_in + UCostCopy()
+  {
+    reveal Model();
+    reveal UCardinalityKeys();
+    reveal Valid();
+    result := new ConcreteMap_Set_T(entries, entries);
+    reveal result.UCardinalityKeys();
+    counter_out := counter_in + CostCopy();
   }
 
 }
@@ -433,11 +515,11 @@ method New_Map_Set_T<K(==), V(==)>(ghost counter_in:nat) returns (result:Map_Set
   ensures Init_Map_Set_T(result)
   ensures result.UCardinalityKeys() == 0
   ensures result.Model() == map[] && result.Universe() == map[]
-  ensures counter_out == counter_in + CostNew_Map_Set_T()
+  ensures counter_out == counter_in + CostNew_MapFamily()
 {
   result := new ConcreteMap_Set_T(map[], map[]);
   reveal result.UCardinalityKeys();
-  counter_out := counter_in + CostNew_Map_Set_T();
+  counter_out := counter_in + CostNew_MapFamily();
 }
 
 class ConcreteMap_MapSet_T<K(==), V(==), R(==)> extends Map_MapSet_T<K, V, R> {
@@ -454,34 +536,37 @@ class ConcreteMap_MapSet_T<K(==), V(==), R(==)> extends Map_MapSet_T<K, V, R> {
     universe := universe_in;
     reveal Model();
     SubsetCardinalityBound(entries_in.Keys, universe_in.Keys);
+    reveal UCardinalityKeys(), UCardinalityKeysKeys();
+    MaxByMonotonic(entries_in.Keys, universe_in.Keys, item => |item|);
+    MaxByMonotonic(entries_in.Keys, universe_in.Keys, SetKeyCardinality);
+    MultiplicationPreservesOrder(MaxCardinality_map(entries_in.Keys), MaxSetKeyCardinality_map_set_t(entries_in.Keys), MaxCardinality_map(universe_in.Keys), MaxSetKeyCardinality_map_set_t(universe_in.Keys));
+    MultiplicationPreservesOrder(|entries_in|, MaxCardinality_map(entries_in.Keys) * MaxSetKeyCardinality_map_set_t(entries_in.Keys), |universe_in|, MaxCardinality_map(universe_in.Keys) * MaxSetKeyCardinality_map_set_t(universe_in.Keys));
   }
 
-  function Repr():map<map<set<K>, V>, R> { entries }
+  function ExecutableModel():map<map<set<K>, V>, R> { entries }
   ghost function Universe():map<map<set<K>, V>, R> { universe }
 
   method Get(key:Map_Set_T<K, V>, ghost counter_in:nat) returns (value:R, ghost counter_out:nat)
     requires Valid()
     requires key.Model() in Model().Keys
     ensures value == Model()[key.Model()]
-    ensures counter_out == counter_in + CostGet_Map_MapSet_T(this)
-    ensures counter_out <= counter_in + UCostGet_Map_MapSet_T(this)
+    ensures counter_out == counter_in + CostGet()
+    ensures counter_out <= counter_in + UCostGet()
   {
     reveal Model(), key.Model();
-    ModelSizeBound_Map_MapSet_T(this);
-    value := entries[key.Repr()];
-    counter_out := counter_in + CostGet_Map_MapSet_T(this);
+    value := entries[key.ExecutableModel()];
+    counter_out := counter_in + CostGet();
   }
 
   method ContainsKey(key:Map_Set_T<K, V>, ghost counter_in:nat) returns (contains:bool, ghost counter_out:nat)
     requires Valid()
     ensures contains == (key.Model() in Model().Keys)
-    ensures counter_out == counter_in + CostContainsKey_Map_MapSet_T(this)
-    ensures counter_out <= counter_in + UCostContainsKey_Map_MapSet_T(this)
+    ensures counter_out == counter_in + CostContainsKey()
+    ensures counter_out <= counter_in + UCostContainsKey()
   {
     reveal Model(), key.Model();
-    ModelSizeBound_Map_MapSet_T(this);
-    contains := key.Repr() in entries;
-    counter_out := counter_in + CostContainsKey_Map_MapSet_T(this);
+    contains := key.ExecutableModel() in entries;
+    counter_out := counter_in + CostContainsKey();
   }
 
   method {:isolate_assertions} Insert(key:Map_Set_T<K, V>, value:R, ghost counter_in:nat) returns (result:Map_MapSet_T<K, V, R>, ghost counter_out:nat)
@@ -492,19 +577,116 @@ class ConcreteMap_MapSet_T<K(==), V(==), R(==)> extends Map_MapSet_T<K, V, R> {
     ensures result.UCardinalityKeysKeys() == (if key.CardinalityKeys() <= UCardinalityKeysKeys() then UCardinalityKeysKeys() else key.CardinalityKeys())
     ensures result.Model() == Model()[key.Model() := value]
     ensures result.Universe() == Universe()[key.Model() := value]
-    ensures counter_out == counter_in + CostInsert_Map_MapSet_T(this)
-    ensures counter_out <= counter_in + UCostInsert_Map_MapSet_T(this)
+    ensures counter_out == counter_in + CostInsert()
+    ensures counter_out <= counter_in + UCostInsert()
   {
     reveal Model(), key.Model();
-    ModelSizeBound_Map_MapSet_T(this);
-    var concrete_key := key.Repr();
+    var concrete_key := key.ExecutableModel();
     var updatedEntries := entries[concrete_key := value];
     ghost var updatedUniverse := universe[concrete_key := value];
     UpdateAgreement_Map_MapSet_T(this, concrete_key, value);
     result := new ConcreteMap_MapSet_T(updatedEntries, updatedUniverse);
     assert result.Universe() == Universe()[key.Model() := value];
     InsertUniverseMeasures_Map_MapSet_T(this, result, key, value);
-    counter_out := counter_in + CostInsert_Map_MapSet_T(this);
+    counter_out := counter_in + CostInsert();
+  }
+
+  method Remove(key:Map_Set_T<K, V>, ghost counter_in:nat)
+      returns (result:Map_MapSet_T<K, V, R>, ghost counter_out:nat)
+    requires Valid()
+    ensures result.Valid()
+    ensures result.UCardinalityKeys() <= UCardinalityKeys()
+    ensures result.UCardinalityKeysKeys() <= UCardinalityKeysKeys()
+    ensures if key.Model() in Keys()
+            then result.Cardinality() == Cardinality() - 1
+            else result.Cardinality() == Cardinality()
+    ensures result.Model() == Model() - {key.Model()}
+    ensures result.Universe() == Universe()
+    ensures result.Keys() == Keys() - {key.Model()}
+    ensures counter_out == counter_in + CostRemove()
+    ensures counter_out <= counter_in + UCostRemove()
+  {
+    reveal Model();
+    reveal UCardinalityKeys(), UCardinalityKeysKeys();
+    reveal Valid();
+    reveal key.Model();
+    var concrete_key := key.ExecutableModel();
+    result := new ConcreteMap_MapSet_T(entries - {concrete_key}, universe);
+    reveal result.UCardinalityKeys(), result.UCardinalityKeysKeys();
+    counter_out := counter_in + CostRemove();
+  }
+
+  method PickKey(ghost counter_in:nat)
+      returns (key:Map_Set_T<K, V>, ghost counter_out:nat)
+    requires Model() != map[]
+    requires Valid()
+    ensures key.Valid()
+    ensures key.Cardinality() <= UCardinalityKeys()
+    ensures key.UCardinality() <= UCardinalityKeys()
+    ensures key.CardinalityKeys() <= UCardinalityKeysKeys()
+    ensures key.UCardinalityKeys() <= UCardinalityKeysKeys()
+    ensures key.Size() <= USizeKeys()
+    ensures key.USize() <= USizeKeys()
+    ensures key.Model() in Model().Keys
+    ensures key.Universe() == key.Model()
+    ensures counter_out == counter_in + CostPickKey(key)
+    ensures counter_out <= counter_in + UCostPickKey()
+  {
+    reveal Model();
+    reveal UCardinalityKeys(), UCardinalityKeysKeys();
+    reveal Valid();
+    var chosen:map<set<K>, V> :| chosen in entries.Keys;
+    MaxByMember(universe.Keys, chosen, item => |item|);
+    MaxSetKeyCardinalityMember_map_set_t(universe.Keys, chosen);
+    key := new ConcreteMap_Set_T(chosen, chosen);
+    reveal key.UCardinalityKeys();
+    MultiplicationPreservesOrder(key.Cardinality(), key.CardinalityKeys(), UCardinalityKeys(), UCardinalityKeysKeys());
+    counter_out := counter_in + CostPickKey(key);
+  }
+
+  method Count(ghost counter_in:nat)
+      returns (size:nat, ghost counter_out:nat)
+    requires Valid()
+    ensures size == Cardinality()
+    ensures counter_out == counter_in + CostCount()
+  {
+    reveal Model();
+    reveal UCardinalityKeys(), UCardinalityKeysKeys();
+    size := |entries|;
+    counter_out := counter_in + CostCount();
+  }
+
+  method IsEmpty(ghost counter_in:nat)
+      returns (empty:bool, ghost counter_out:nat)
+    requires Valid()
+    ensures empty == (Model() == map[])
+    ensures counter_out == counter_in + CostIsEmpty()
+  {
+    reveal Model();
+    reveal UCardinalityKeys(), UCardinalityKeysKeys();
+    empty := entries == map[];
+    counter_out := counter_in + CostIsEmpty();
+  }
+
+  method Copy(ghost counter_in:nat)
+      returns (result:Map_MapSet_T<K, V, R>, ghost counter_out:nat)
+    requires Valid()
+    ensures result.Valid()
+    ensures result.UCardinalityKeys() == CardinalityKeys()
+    ensures result.UCardinalityKeysKeys() == CardinalityKeysKeys()
+    ensures result.UCardinalityKeys() <= UCardinalityKeys()
+    ensures result.UCardinalityKeysKeys() <= UCardinalityKeysKeys()
+    ensures result.Model() == Model()
+    ensures result.Universe() == Model()
+    ensures counter_out == counter_in + CostCopy()
+    ensures counter_out <= counter_in + UCostCopy()
+  {
+    reveal Model();
+    reveal UCardinalityKeys(), UCardinalityKeysKeys();
+    reveal Valid();
+    result := new ConcreteMap_MapSet_T(entries, entries);
+    reveal result.UCardinalityKeys(), result.UCardinalityKeysKeys();
+    counter_out := counter_in + CostCopy();
   }
 
 }
@@ -514,9 +696,9 @@ method New_Map_MapSet_T<K(==), V(==), R(==)>(ghost counter_in:nat) returns (resu
   ensures result.UCardinalityKeys() == 0
   ensures result.UCardinalityKeysKeys() == 0
   ensures result.Model() == map[] && result.Universe() == map[]
-  ensures counter_out == counter_in + CostNew_Map_MapSet_T()
+  ensures counter_out == counter_in + CostNew_MapFamily()
 {
   result := new ConcreteMap_MapSet_T(map[], map[]);
   reveal result.UCardinalityKeys(), result.UCardinalityKeysKeys();
-  counter_out := counter_in + CostNew_Map_MapSet_T();
+  counter_out := counter_in + CostNew_MapFamily();
 }

@@ -7,7 +7,7 @@ include "../Lemmas/Lemmas.dfy"
 method TransformHittingSetToSetCover_simple(U:set<int>, S:set<set<int>>, k:nat) returns (r:(set<set<int>>, set<set<set<int>>>, nat), ghost counter:nat)
   requires HittingSetValidInstance(U, S)
   ensures r == HittingSetToSetCover(U, S, k)
-  ensures counter <= PolyTransformHittingSetToSetCover_simple(U, S, k)
+  ensures counter <= CostTransformHittingSetToSetCover_simple(U, S, k)
 {
   counter := 0;
   var SS:set<set<set<int>>> := {}; counter := counter + 1;
@@ -19,7 +19,7 @@ method TransformHittingSetToSetCover_simple(U:set<int>, S:set<set<int>>, k:nat) 
       decreases |S'|
       invariant S' <= S
       invariant SS == (set s | s in (S - S') :: {s})
-      invariant counter <= 2*|S|*|U| + 1 + (|S| - |S'|)*(PolyAddSingletonSourceSet_simple(U, S, k) + 1)
+      invariant counter <= 2*|S|*|U| + 1 + (|S| - |S'|)*(CostAddSingletonSourceSet_simple(U, S, k) + 1)
     {
       counter := counter + 1;
       S', SS, counter := AddSingletonSourceSet_simple(U, S, k, S', SS, counter);
@@ -34,7 +34,7 @@ method TransformHittingSetToSetCover_simple(U:set<int>, S:set<set<int>>, k:nat) 
     decreases |U'|
     invariant U' <= U
     invariant SS == (set u | u in (U - U') :: (set s | s in S && u in s))
-    invariant counter <= |S|*|U| + |U| + 1 + (|U| - |U'|)*(PolyBuildIncidenceSet_simple(U, S, k) + 1)
+    invariant counter <= |S|*|U| + |U| + 1 + (|U| - |U'|)*(CostBuildIncidenceSet_simple(U, S, k) + 1)
   {
     counter := counter + 1;
     U', SS, counter := BuildIncidenceSet_simple(U, S, k, U', SS, counter);
@@ -55,7 +55,7 @@ requires SS == (set u | u in (U - U') :: (set s | s in S && u in s))
 ensures |U''| == |U'| - 1
 ensures U'' <= U
 ensures SS' == (set u | u in (U - U'') :: (set s | s in S && u in s))
-ensures counter <= counter_in + PolyBuildIncidenceSet_simple(U, S, k)
+ensures counter <= counter_in + CostBuildIncidenceSet_simple(U, S, k)
 {
   counter := counter_in;
   var u :| u in U';
@@ -70,7 +70,7 @@ ensures counter <= counter_in + PolyBuildIncidenceSet_simple(U, S, k)
     decreases |S'|
     invariant S' <= S
     invariant sets_in_S_that_contain_u == (set s | s in (S - S') && u in s)
-    invariant counter <= counter_in + |S| + |U| + 1 + (|S| - |S'|)*(PolyAddIncidentSourceSet_simple(U, S, k) + 1)
+    invariant counter <= counter_in + |S| + |U| + 1 + (|S| - |S'|)*(CostAddIncidentSourceSet_simple(U, S, k) + 1)
   {
     counter := counter + 1;
     S', sets_in_S_that_contain_u, counter := AddIncidentSourceSet_simple(U, S, k, S', u, sets_in_S_that_contain_u, counter);
@@ -81,9 +81,9 @@ ensures counter <= counter_in + PolyBuildIncidenceSet_simple(U, S, k)
 
   calc <= {
     counter;
-    counter_in + |S| + |U| + 2 + |S|*(PolyAddIncidentSourceSet_simple(U, S, k) + 1) + |S|*|U|*|U|;
+    counter_in + |S| + |U| + 2 + |S|*(CostAddIncidentSourceSet_simple(U, S, k) + 1) + |S|*|U|*|U|;
     counter_in + 3*|S|*|S|*|U| + |S|*|U|*|U| + 2*|S|*|U| + 3*|S| + |U| + 2;
-    counter_in + PolyBuildIncidenceSet_simple(U, S, k);
+    counter_in + CostBuildIncidenceSet_simple(U, S, k);
   }
   assert SS' == (set v | v in (U - U'') :: (set s | s in S && v in s)) by {
   calc {
@@ -108,7 +108,7 @@ requires sets_in_S_that_contain_u == (set s | s in (S - S') && u in s)
 ensures |S''| == |S'| - 1
 ensures S'' <= S
 ensures sets_in_S_that_contain_u' == (set s | s in (S - S'') && u in s)
-ensures counter <= counter_in + PolyAddIncidentSourceSet_simple(U, S, k)
+ensures counter <= counter_in + CostAddIncidentSourceSet_simple(U, S, k)
 {
   counter := counter_in;
   sets_in_S_that_contain_u' := sets_in_S_that_contain_u;
@@ -138,7 +138,7 @@ requires SS == (set s | s in (S - S') :: {s})
 ensures |S''| == |S'| - 1
 ensures S'' <= S
 ensures SS' == (set s | s in (S - S'') :: {s})
-ensures counter == counter_in + PolyAddSingletonSourceSet_simple(U, S, k)
+ensures counter == counter_in + CostAddSingletonSourceSet_simple(U, S, k)
 {
   counter := counter_in;
   var s :| s in S';
@@ -152,36 +152,36 @@ ensures counter == counter_in + PolyAddSingletonSourceSet_simple(U, S, k)
 }
 
 
-ghost function PolyAddIncidentSourceSet_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
+ghost function CostAddIncidentSourceSet_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
 {
   3*|S|*|U| + 2*|U| + 1
 }
-ghost function PolyBuildIncidenceSet_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
+ghost function CostBuildIncidenceSet_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
 {
   3*|S|*|S|*|U| + 2*|S|*|U|*|U| + 4*|S|*|U| + 3*|S| + |U| + 2
 }
-ghost function PolyContainsEmptySetLoop_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
+ghost function CostContainsEmptySetLoop_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
 {
   |S|*|U| + |U| + 1
 }
-ghost function PolyAddSingletonSourceSet_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
+ghost function CostAddSingletonSourceSet_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
 {
   2*|S|*|U| + 2*|U|
 }
 
 
-ghost function PolyTransformHittingSetToSetCover_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
-  ensures 2*|S|*|U| + 2 + |S|*(PolyAddSingletonSourceSet_simple(U, S, k) + 1) <= o
-  ensures |S|*|U| + |U| + 2 + |U|*(PolyBuildIncidenceSet_simple(U, S, k) + 1) <= o
+ghost function CostTransformHittingSetToSetCover_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
+  ensures 2*|S|*|U| + 2 + |S|*(CostAddSingletonSourceSet_simple(U, S, k) + 1) <= o
+  ensures |S|*|U| + |U| + 2 + |U|*(CostBuildIncidenceSet_simple(U, S, k) + 1) <= o
 {
   calc == {
-    |S|*|U| + |U| + 2 + |U|*(PolyBuildIncidenceSet_simple(U, S, k) + 1);
+    |S|*|U| + |U| + 2 + |U|*(CostBuildIncidenceSet_simple(U, S, k) + 1);
     |S|*|U| + |U| + 2 + |U|*(3*|S|*|S|*|U| + 2*|S|*|U|*|U| + 4*|S|*|U| + 3*|S| + |U| + 3);
     |S|*|U| + |U| + 2 + (3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 4*|S|*|U|*|U| + 3*|S|*|U| + |U|*|U| + 3*|U|);
     3*|S|*|S|*|U|*|U| + 2*|S|*|U|*|U|*|U| + 4*|S|*|U|*|U| + 4*|S|*|U| + |U|*|U| + 4*|U| + 2;
   }
   calc == {
-    2*|S|*|U| + 2 + |S|*(PolyAddSingletonSourceSet_simple(U, S, k) + 1);
+    2*|S|*|U| + 2 + |S|*(CostAddSingletonSourceSet_simple(U, S, k) + 1);
     2*|S|*|U| + 2 + |S|*(2*|S|*|U| + 2*|U| + 1);
     2*|S|*|U| + 2 + (2*|S|*|S|*|U| + 2*|S|*|U| + |S|);
     2*|S|*|S|*|U| + 4*|S|*|U| + |S| + 2;

@@ -1,111 +1,160 @@
+include "../Lemmas/NativeCollectionLemmas.dfy"
 /*
-Abstract interfaces for immutable sets and nested sets.
-
-Every operation has a base cost of 1. Exact operation costs depend on the current
-model. Their Universe variants provide stable upper bounds for external
-verification. The cost_* functions are the single source of truth for these
-formulas.
-
+Traits for sets of different levels of nesting
 Concrete implementations are defined in ConcreteSet.dfy.
 */
-trait Set<T(==)> {
-  // Compilable representation view. Intended for concrete implementations only.
-  function Repr():set<T>
-  // Opaque boundary keeps the compiled representation out of client proofs.
-  ghost function {:opaque} Model():set<T> { Repr() }
-  // Upper bound of the model. Used for adding simpler computational costs on changing models
-  ghost function Universe():set<T>
-  // Indicates that the model satisfies the required validity constraints
-  // Here and in other traits, the cardinality property is redundant; its purpose is solely to help the verifier
+
+trait SetFamily<E> {
+  ghost function Model():set<E>
+  ghost function Universe():set<E>
   ghost predicate Valid()
-  {
-    Model() <= Universe() &&
-    Cardinality0() <= UCardinality0()
+    ensures Valid() ==> Model() <= Universe()
+
+  ghost predicate UniverseWithin(reference:SetFamily<E>) {
+    Valid() && reference.Valid() && Universe() <= reference.Model()
   }
 
-  ghost function Size0():nat { Cardinality0() }
-  ghost function USize0():nat { UCardinality0() }
+  lemma UniverseWithinTransitive(middle:SetFamily<E>, reference:SetFamily<E>)
+    requires UniverseWithin(middle)
+    requires middle.UniverseWithin(reference)
+    ensures UniverseWithin(reference)
+  {}
+
+  ghost function Size():nat
+  ghost function USize():nat
+
+  ghost function CostIsEmpty():nat { 1 }
+  ghost function CostCount():nat { 1 }
+  ghost function CostEqual(other:SetFamily<E>):nat { Size() + other.Size() + 1 }
+  ghost function UCostEqual(other:SetFamily<E>):nat { USize() + other.USize() + 1 }
+  ghost function CostContains():nat { Size() + 1 }
+  ghost function UCostContains():nat { USize() + 1 }
+  ghost function CostAdd():nat { Size() + 1 }
+  ghost function UCostAdd():nat { USize() + 1 }
+  ghost function CostRemove():nat { Size() + 1 }
+  ghost function UCostRemove():nat { USize() + 1 }
+  ghost function CostCopy():nat { Size() + 1 }
+  ghost function UCostCopy():nat { USize() + 1 }
+}
+
+trait Set<T(==)> extends SetFamily<T> {
+  // Compilable representation view. Intended for concrete implementations only
+  function ExecutableModel():set<T>
+  // Opaque boundary keeps the compiled representation out of client proofs
+  ghost function {:opaque} Model():set<T> { ExecutableModel() }
+  // Upper bound of the model. Used for adding simpler computational costs on changing models
+  ghost function Universe():set<T>
+
+  // Indicates that the model satisfies the required validity constraints
+  // Model-to-universe measure bounds follow from inclusion, but they are added to help the verifier
+  ghost predicate Valid()
+    ensures Valid() ==> Model() <= Universe()
+  {
+    Model() <= Universe() &&
+    Cardinality() <= UCardinality() &&
+    Size() <= USize()
+  }
+
+  ghost function Size():nat { Cardinality() }
+  ghost function USize():nat { UCardinality() }
   
-  ghost function Cardinality0():(c:nat) { |Model()| }
-  ghost function UCardinality0():nat { |Universe()| }
+  ghost function Cardinality():(c:nat) { |Model()| }
+  ghost function UCardinality():nat { |Universe()| }
 
   method Pick(ghost counter_in:nat) returns (e:T, ghost counter_out:nat)
     requires Model() != {}
     requires Valid()
     ensures e in Model()
     ensures e in Universe()
-    ensures counter_out == counter_in + CostPick_Set(this)
+    ensures counter_out == counter_in + CostPick()
 
   method IsEmpty(ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
     requires Valid()
     ensures b == (Model() == {})
-    ensures counter_out == counter_in + CostIsEmpty_Set(this)
+    ensures counter_out == counter_in + CostIsEmpty()
 
   method Count(ghost counter_in:nat) returns (size:nat, ghost counter_out:nat)
     requires Valid()
-    ensures size == Cardinality0()
-    ensures counter_out == counter_in + CostCount_Set(this)
+    ensures size == Cardinality()
+    ensures counter_out == counter_in + CostCount()
 
   method Equal(other:Set<T>, ghost counter_in:nat) returns (equal:bool, ghost counter_out:nat)
     requires Valid() && other.Valid()
     ensures equal == (Model() == other.Model())
-    ensures counter_out == counter_in + CostEqual_Set(this, other)
-    ensures counter_out <= counter_in + UCostEqual_Set(this, other)
+    ensures counter_out == counter_in + CostEqual(other)
+    ensures counter_out <= counter_in + UCostEqual(other)
 
   method Contains(e:T, ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
     requires Valid()
     ensures b == (e in Model())
-    ensures counter_out == counter_in + CostContains_Set(this)
-    ensures counter_out <= counter_in + UCostContains_Set(this)
+    ensures counter_out == counter_in + CostContains()
+    ensures counter_out <= counter_in + UCostContains()
 
   method Add(e:T, ghost counter_in:nat) returns (R:Set<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
-    ensures if e in Model() then R.Cardinality0() == Cardinality0()
-            else R.Cardinality0() == Cardinality0() + 1
+    ensures if e in Model() then R.Cardinality() == Cardinality()
+            else R.Cardinality() == Cardinality() + 1
     ensures R.Universe() == Universe() + {e}
     ensures R.Model() == Model() + {e}
-    ensures counter_out == counter_in + CostAdd_Set(this)
-    ensures counter_out <= counter_in + UCostAdd_Set(this)
+    ensures counter_out == counter_in + CostAdd()
+    ensures counter_out <= counter_in + UCostAdd()
 
   method Remove(e:T, ghost counter_in:nat) returns (R:Set<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
-    ensures if e !in Model() then R.Cardinality0() == Cardinality0()
-            else R.Cardinality0() == Cardinality0() - 1
+    ensures if e !in Model() then R.Cardinality() == Cardinality()
+            else R.Cardinality() == Cardinality() - 1
     ensures R.Universe() == Universe()
     ensures R.Model() == Model() - {e}
-    ensures counter_out == counter_in + CostRemove_Set(this)
-    ensures counter_out <= counter_in + UCostRemove_Set(this)
+    ensures counter_out == counter_in + CostRemove()
+    ensures counter_out <= counter_in + UCostRemove()
 
   method Copy(ghost counter_in:nat) returns (R:Set<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
     ensures R.Model() == Model()
     ensures R.Universe() == Model()
-    ensures counter_out == counter_in + CostCopy_Set(this)
-    ensures counter_out <= counter_in + UCostCopy_Set(this)
+    ensures counter_out == counter_in + CostCopy()
+    ensures counter_out <= counter_in + UCostCopy()
+
+  ghost function CostPick():nat { 1 }
+  
+  // Complexity bounds
+
+  lemma UniverseWithinBound(U:Set<T>)
+    requires UniverseWithin(U)
+    ensures Cardinality() <= UCardinality() <= U.Cardinality() <= U.UCardinality()
+    ensures Size() <= USize() <= U.Size() <= U.USize()
+  {
+    SubsetCardinalityBound(Universe(), U.Model());
+  }
+
 }
 
 
-trait SetSet<T(==)> {
-  function Repr():set<set<T>>
-  ghost function {:opaque} Model():set<set<T>> { Repr() }
+trait SetSet<T(==)> extends SetFamily<set<T>> {
+  function ExecutableModel():set<set<T>>
+  ghost function {:opaque} Model():set<set<T>> { ExecutableModel() }
   ghost function Universe():set<set<T>>
 
   ghost predicate Valid()
+    ensures Valid() ==> Model() <= Universe()
   {
     Model() <= Universe() &&
-    Cardinality0() <= UCardinality0()
+    Cardinality() <= UCardinality() &&
+    Cardinality1() <= UCardinality1() &&
+    Size() <= USize() &&
+    Size1() <= USize1()
   }
   
-  ghost function Size0():nat { Cardinality0() * Cardinality1() }
-  ghost function USize0():nat { UCardinality0() * UCardinality1() }
+  ghost function Size():nat { Cardinality() * Cardinality1() }
+  ghost function USize():nat { UCardinality() * UCardinality1() }
   ghost function Size1():nat { Cardinality1() }
   ghost function USize1():nat { UCardinality1() }
 
-  ghost function Cardinality0():(c:nat) { |Model()| }
-  ghost function UCardinality0():nat { |Universe()| }
+  ghost function Cardinality():(c:nat) { |Model()| }
+  ghost function UCardinality():nat { |Universe()| }
   ghost function Cardinality1():nat { MaxCardinality_set(Model()) }
   ghost function {:opaque} UCardinality1():nat { MaxCardinality_set(Universe()) }
 
@@ -113,59 +162,58 @@ trait SetSet<T(==)> {
     requires Model() != {}
     requires Valid()
     ensures e.Valid()
-    ensures e.Size0() <= UCardinality1()
-    ensures e.USize0() <= UCardinality1()
+    ensures e.Size() <= UCardinality1()
+    ensures e.USize() <= UCardinality1()
     ensures e.Model() in Model()
     ensures e.Universe() == e.Model()
-    ensures counter_out == counter_in + CostPick_SetSet(this, e)
-    ensures counter_out <= counter_in + UCostPick_SetSet(this)
+    ensures counter_out == counter_in + CostPick(e)
+    ensures counter_out <= counter_in + UCostPick()
 
   method IsEmpty(ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
     requires Valid()
     ensures b == (Model() == {})
-    ensures counter_out == counter_in + CostIsEmpty_SetSet(this)
+    ensures counter_out == counter_in + CostIsEmpty()
 
   method Count(ghost counter_in:nat) returns (size:nat, ghost counter_out:nat)
     requires Valid()
-    ensures size == Cardinality0()
-    ensures counter_out == counter_in + CostCount_SetSet(this)
+    ensures size == Cardinality()
+    ensures counter_out == counter_in + CostCount()
 
-  // Compare family contents, charging for both operands.
   method Equal(other:SetSet<T>, ghost counter_in:nat) returns (equal:bool, ghost counter_out:nat)
     requires Valid() && other.Valid()
     ensures equal == (Model() == other.Model())
-    ensures counter_out == counter_in + CostEqual_SetSet(this, other)
-    ensures counter_out <= counter_in + UCostEqual_SetSet(this, other)
+    ensures counter_out == counter_in + CostEqual(other)
+    ensures counter_out <= counter_in + UCostEqual(other)
 
   method Contains(e:Set<T>, ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
     requires Valid()
     ensures b == (e.Model() in Model())
-    ensures counter_out == counter_in + CostContains_SetSet(this)
-    ensures counter_out <= counter_in + UCostContains_SetSet(this)
+    ensures counter_out == counter_in + CostContains()
+    ensures counter_out <= counter_in + UCostContains()
 
   method Add(e:Set<T>, ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
-    ensures if e.Model() in Model() then R.Cardinality0() == Cardinality0()
-            else R.Cardinality0() == Cardinality0() + 1
-    ensures if e.Size0() <= UCardinality1() then R.UCardinality1() == UCardinality1()
-            else R.UCardinality1() == e.Size0()
-    ensures (R.UCardinality1() == UCardinality1()) || (R.UCardinality1() == e.Size0())
+    ensures if e.Model() in Model() then R.Cardinality() == Cardinality()
+            else R.Cardinality() == Cardinality() + 1
+    ensures if e.Size() <= UCardinality1() then R.UCardinality1() == UCardinality1()
+            else R.UCardinality1() == e.Size()
+    ensures (R.UCardinality1() == UCardinality1()) || (R.UCardinality1() == e.Size())
     ensures R.Universe() == Universe() + {e.Model()}
     ensures R.Model() == Model() + {e.Model()}
-    ensures counter_out == counter_in + CostAdd_SetSet(this)
-    ensures counter_out <= counter_in + UCostAdd_SetSet(this)
+    ensures counter_out == counter_in + CostAdd()
+    ensures counter_out <= counter_in + UCostAdd()
 
   method Remove(e:Set<T>, ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
     ensures R.UCardinality1() <= UCardinality1()
-    ensures if e.Model() !in Model() then R.Cardinality0() == Cardinality0()
-            else R.Cardinality0() == Cardinality0() - 1
+    ensures if e.Model() !in Model() then R.Cardinality() == Cardinality()
+            else R.Cardinality() == Cardinality() - 1
     ensures R.Universe() == Universe()
     ensures R.Model() == Model() - {e.Model()}
-    ensures counter_out == counter_in + CostRemove_SetSet(this)
-    ensures counter_out <= counter_in + UCostRemove_SetSet(this)
+    ensures counter_out == counter_in + CostRemove()
+    ensures counter_out <= counter_in + UCostRemove()
 
   method Copy(ghost counter_in:nat) returns (R:SetSet<T>, ghost counter_out:nat)
     requires Valid()
@@ -174,31 +222,73 @@ trait SetSet<T(==)> {
     ensures R.UCardinality1() <= UCardinality1()
     ensures R.Model() == Model()
     ensures R.Universe() == Model()
-    ensures counter_out == counter_in + CostCopy_SetSet(this)
-    ensures counter_out <= counter_in + UCostCopy_SetSet(this)
+    ensures counter_out == counter_in + CostCopy()
+    ensures counter_out <= counter_in + UCostCopy()
+
+  ghost function CostPick(e:Set<T>):nat { e.Size() + 1 }
+  ghost function UCostPick():nat { UCardinality1() + 1 }
+
+  // Complexity bounds
+
+  lemma UniverseWithinBound(U:SetSet<T>)
+    requires UniverseWithin(U)
+    ensures Cardinality() <= UCardinality() <= U.Cardinality() <= U.UCardinality()
+    ensures Cardinality1() <= UCardinality1() <= U.Cardinality1() <= U.UCardinality1()
+    ensures Size() <= USize() <= U.Size() <= U.USize()
+    ensures Size1() <= USize1() <= U.Size1() <= U.USize1()
+  {
+    reveal UCardinality1();
+    SubsetCardinalityBound(Universe(), U.Model());
+    MaxByMonotonic(Universe(), U.Model(), item => |item|);
+    MultiplicationPreservesOrder(UCardinality(), UCardinality1(), U.Cardinality(), U.Cardinality1());
+  }
+
+  lemma USizeBound(count:nat, member:nat)
+    requires Valid()
+    requires UCardinality() <= count && UCardinality1() <= member
+    ensures USize() <= count*member
+  {
+    MultiplicationPreservesOrder(UCardinality(), UCardinality1(), count, member);
+  }
+
+  lemma UCardinality1Bound(bound:nat)
+    requires Valid()
+    requires forall s | s in Universe() :: |s| <= bound
+    ensures UCardinality1() <= bound
+  {
+    reveal UCardinality1();
+    MaxByBound(Universe(), bound, item => |item|);
+  }
+
 }
 
 
-trait SetSetSet<T(==)> {
-  function Repr():set<set<set<T>>>
-  ghost function {:opaque} Model():set<set<set<T>>> { Repr() }
+trait SetSetSet<T(==)> extends SetFamily<set<set<T>>> {
+  function ExecutableModel():set<set<set<T>>>
+  ghost function {:opaque} Model():set<set<set<T>>> { ExecutableModel() }
   ghost function Universe():set<set<set<T>>>
 
   ghost predicate Valid()
+    ensures Valid() ==> Model() <= Universe()
   {
     Model() <= Universe() &&
-    Cardinality0() <= UCardinality0()
+    Cardinality() <= UCardinality() &&
+    Cardinality1() <= UCardinality1() &&
+    Cardinality2() <= UCardinality2() &&
+    Size() <= USize() &&
+    Size1() <= USize1() &&
+    Size2() <= USize2()
   }
 
-  ghost function Size0():nat { Cardinality0()*Size1() }
-  ghost function USize0():nat { UCardinality0()*USize1() }
+  ghost function Size():nat { Cardinality()*Size1() }
+  ghost function USize():nat { UCardinality()*USize1() }
   ghost function Size1():nat { Cardinality1() * Cardinality2() }
   ghost function USize1():nat { UCardinality1() * UCardinality2() }
   ghost function Size2():nat { Cardinality2() }
   ghost function USize2():nat { UCardinality2() }
 
-  ghost function Cardinality0():(c:nat) { |Model()| }
-  ghost function UCardinality0():nat { |Universe()| }
+  ghost function Cardinality():(c:nat) { |Model()| }
+  ghost function UCardinality():nat { |Universe()| }
   ghost function Cardinality1():nat { MaxCardinality_set(Model()) }
   ghost function {:opaque} UCardinality1():nat { MaxCardinality_set(Universe()) }
   ghost function Cardinality2():nat { MaxMemberCardinality_setset(Model()) }
@@ -208,51 +298,50 @@ trait SetSetSet<T(==)> {
     requires Model() != {}
     requires Valid()
     ensures e.Valid()
-    ensures e.Cardinality0() <= UCardinality1() && e.UCardinality0() <= UCardinality1()
+    ensures e.Cardinality() <= UCardinality1() && e.UCardinality() <= UCardinality1()
     ensures e.Cardinality1() <= UCardinality2() && e.UCardinality1() <= UCardinality2()
-    ensures e.Size0() <= USize1()
-    ensures e.USize0() <= USize1()
+    ensures e.Size() <= USize1()
+    ensures e.USize() <= USize1()
     ensures e.USize1() <= USize2()
     ensures e.Model() in Model()
     ensures e.Universe() == e.Model()
-    ensures counter_out == counter_in + CostPick_SetSetSet(this, e)
-    ensures counter_out <= counter_in + UCostPick_SetSetSet(this)
+    ensures counter_out == counter_in + CostPick(e)
+    ensures counter_out <= counter_in + UCostPick()
 
   method IsEmpty(ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
     requires Valid()
     ensures b == (Model() == {})
-    ensures counter_out == counter_in + CostIsEmpty_SetSetSet(this)
+    ensures counter_out == counter_in + CostIsEmpty()
 
   method Count(ghost counter_in:nat) returns (size:nat, ghost counter_out:nat)
     requires Valid()
-    ensures size == Cardinality0()
-    ensures counter_out == counter_in + CostCount_SetSetSet(this)
-
-  // Compare nested-family contents, charging for both operands.
+    ensures size == Cardinality()
+    ensures counter_out == counter_in + CostCount()
+  
   method Equal(other:SetSetSet<T>, ghost counter_in:nat) returns (equal:bool, ghost counter_out:nat)
     requires Valid() && other.Valid()
     ensures equal == (Model() == other.Model())
-    ensures counter_out == counter_in + CostEqual_SetSetSet(this, other)
-    ensures counter_out <= counter_in + UCostEqual_SetSetSet(this, other)
+    ensures counter_out == counter_in + CostEqual(other)
+    ensures counter_out <= counter_in + UCostEqual(other)
 
   method Contains(e:SetSet<T>, ghost counter_in:nat) returns (b:bool, ghost counter_out:nat)
     requires Valid()
     ensures b == (e.Model() in Model())
-    ensures counter_out == counter_in + CostContains_SetSetSet(this)
-    ensures counter_out <= counter_in + UCostContains_SetSetSet(this)
+    ensures counter_out == counter_in + CostContains()
+    ensures counter_out <= counter_in + UCostContains()
 
   method Add(e:SetSet<T>, ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
     requires Valid()
     requires e.Valid()
     ensures R.Valid()
-    ensures if e.Model() in Model() then R.Cardinality0() == Cardinality0()
-            else R.Cardinality0() == Cardinality0() + 1
-    ensures R.UCardinality1() == (if e.Cardinality0() <= UCardinality1() then UCardinality1() else e.Cardinality0())
+    ensures if e.Model() in Model() then R.Cardinality() == Cardinality()
+            else R.Cardinality() == Cardinality() + 1
+    ensures R.UCardinality1() == (if e.Cardinality() <= UCardinality1() then UCardinality1() else e.Cardinality())
     ensures R.UCardinality2() == (if e.Cardinality1() <= UCardinality2() then UCardinality2() else e.Cardinality1())
     ensures R.Universe() == Universe() + {e.Model()}
     ensures R.Model() == Model() + {e.Model()}
-    ensures counter_out == counter_in + CostAdd_SetSetSet(this)
-    ensures counter_out <= counter_in + UCostAdd_SetSetSet(this)
+    ensures counter_out == counter_in + CostAdd()
+    ensures counter_out <= counter_in + UCostAdd()
 
   method Remove(e:SetSet<T>, ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
     requires Valid()
@@ -261,12 +350,12 @@ trait SetSetSet<T(==)> {
     ensures R.UCardinality2() == UCardinality2()
     ensures R.USize1() <= USize1()
     ensures R.USize2() <= USize2()
-    ensures if e.Model() !in Model() then R.Cardinality0() == Cardinality0()
-            else R.Cardinality0() == Cardinality0() - 1
+    ensures if e.Model() !in Model() then R.Cardinality() == Cardinality()
+            else R.Cardinality() == Cardinality() - 1
     ensures R.Universe() == Universe()
     ensures R.Model() == Model() - {e.Model()}
-    ensures counter_out == counter_in + CostRemove_SetSetSet(this)
-    ensures counter_out <= counter_in + UCostRemove_SetSetSet(this)
+    ensures counter_out == counter_in + CostRemove()
+    ensures counter_out <= counter_in + UCostRemove()
 
   method Copy(ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
     requires Valid()
@@ -279,112 +368,77 @@ trait SetSetSet<T(==)> {
     ensures R.USize2() <= USize2()
     ensures R.Model() == Model()
     ensures R.Universe() == Model()
-    ensures counter_out == counter_in + CostCopy_SetSetSet(this)
-    ensures counter_out <= counter_in + UCostCopy_SetSetSet(this)
+    ensures counter_out == counter_in + CostCopy()
+    ensures counter_out <= counter_in + UCostCopy()
+
+  ghost function CostPick(e:SetSet<T>):nat { e.Size() + 1 }
+  ghost function UCostPick():nat { USize1() + 1 }
+
+  // Complexity bounds
+
+  lemma UniverseWithinBound(U:SetSetSet<T>)
+    requires UniverseWithin(U)
+    ensures Cardinality() <= UCardinality() <= U.Cardinality() <= U.UCardinality()
+    ensures Cardinality1() <= UCardinality1() <= U.Cardinality1() <= U.UCardinality1()
+    ensures Cardinality2() <= UCardinality2() <= U.Cardinality2() <= U.UCardinality2()
+    ensures Size() <= USize() <= U.Size() <= U.USize()
+    ensures Size1() <= USize1() <= U.Size1() <= U.USize1()
+    ensures Size2() <= USize2() <= U.Size2() <= U.USize2()
+  {
+    reveal UCardinality1(), UCardinality2();
+    SubsetCardinalityBound(Universe(), U.Model());
+    MaxByMonotonic(Universe(), U.Model(), item => |item|);
+    MaxByMonotonic(Universe(), U.Model(), item => MaxCardinality_set(item));
+    MultiplicationPreservesOrder(UCardinality1(), UCardinality2(), U.Cardinality1(), U.Cardinality2());
+    MultiplicationPreservesOrder(UCardinality(), USize1(), U.Cardinality(), U.Size1());
+  }
+
+  lemma USizeBound(count:nat, members:nat, leaves:nat)
+    requires Valid()
+    requires UCardinality() <= count && UCardinality1() <= members
+    requires UCardinality2() <= leaves
+    ensures USize() <= count*members*leaves
+    ensures USize1() <= members*leaves
+    ensures USize2() <= leaves
+  {
+    MultiplicationPreservesOrder(UCardinality1(), UCardinality2(), members, leaves);
+    MultiplicationPreservesOrder(UCardinality(), USize1(), count, members*leaves);
+    MultiplicationAssociative(count, members, leaves);
+  }
+
+  lemma UCardinality1Bound(bound:nat)
+    requires Valid()
+    requires forall child | child in Universe() :: |child| <= bound
+    ensures UCardinality1() <= bound
+  {
+    reveal UCardinality1();
+    MaxByBound(Universe(), bound, item => |item|);
+  }
+
+  lemma UCardinality2Bound(bound:nat)
+    requires Valid()
+    requires forall s | s in Universe() :: MaxCardinality_set(s) <= bound
+    ensures UCardinality2() <= bound
+  {
+    reveal UCardinality2();
+    MaxByBound(Universe(), bound, item => MaxCardinality_set(item));
+  }
+
 }
 
-
-// Maximum member cardinality; the empty family has size zero.
-ghost function {:opaque} MaxCardinality_set<K>(sets:set<set<K>>):(size:nat)
-  ensures sets == {} ==> size == 0
-  decreases |sets|
-{
-  if sets == {} then 0 else
-    var s :| s in sets;
-    var rest := MaxCardinality_set(sets - {s});
-    if |s| > rest then |s| else rest
-}
-
-ghost function {:opaque} MaxMemberCardinality_setset<K>(sets:set<set<set<K>>>):(size:nat)
-  ensures sets == {} ==> size == 0
-  decreases |sets|
-{
-  if sets == {} then 0 else
-    var s :| s in sets;
-    var current := MaxCardinality_set(s);
-    var rest := MaxMemberCardinality_setset(sets - {s});
-    if current > rest then current else rest
-}
 
 ghost predicate Init_Set(S:Set)
 {
   S.Valid() && S.Model() == S.Universe()
 }
-
 ghost predicate Init_SetSet(S:SetSet)
 {
   S.Valid() && S.Model() == S.Universe()
 }
-
 ghost predicate Init_SetSetSet(S:SetSetSet)
 {
   S.Valid() && S.Model() == S.Universe()
 }
 
-ghost predicate InUniverse_Set(S:Set, U:Set)
-{
-  S.Valid() && U.Valid() && S.Universe() <= U.Model()
-}
-
-ghost predicate InUniverse_SetSet(S:SetSet, U:SetSet)
-{
-  S.Valid() && U.Valid() &&
-  S.Universe() <= U.Model() &&
-  S.USize1() <= U.USize1()
-}
-
-ghost predicate InUniverse_SetSetSet(S:SetSetSet, U:SetSetSet)
-{
-  S.Valid() && U.Valid() &&
-  S.Universe() <= U.Model() &&
-  S.UCardinality1() <= U.UCardinality1() &&
-  S.UCardinality2() <= U.UCardinality2()
-}
-
-
-ghost function CostPick_Set<T>(S:Set<T>):nat { 1 }
-ghost function CostIsEmpty_Set<T>(S:Set<T>):nat { 1 }
-ghost function CostCount_Set<T>(S:Set<T>):nat { 1 }
-ghost function CostEqual_Set<T>(left:Set<T>, right:Set<T>):nat { left.Size0() + right.Size0() + 1 }
-ghost function UCostEqual_Set<T>(left:Set<T>, right:Set<T>):nat { left.USize0() + right.USize0() + 1 }
-ghost function CostContains_Set<T>(S:Set<T>):nat { S.Size0() + 1 }
-ghost function UCostContains_Set<T>(S:Set<T>):nat { S.USize0() + 1 }
-ghost function CostAdd_Set<T>(S:Set<T>):nat { S.Size0() + 1 }
-ghost function UCostAdd_Set<T>(S:Set<T>):nat { S.USize0() + 1 }
-ghost function CostRemove_Set<T>(S:Set<T>):nat { S.Size0() + 1 }
-ghost function UCostRemove_Set<T>(S:Set<T>):nat { S.USize0() + 1 }
-ghost function CostCopy_Set<T>(S:Set<T>):nat { S.Size0() + 1 }
-ghost function UCostCopy_Set<T>(S:Set<T>):nat { S.USize0() + 1 }
-ghost function CostNew_Set():nat { 1 }
-
-ghost function CostPick_SetSet<T>(S:SetSet<T>, e:Set<T>):nat { e.Size0() + 1 }
-ghost function UCostPick_SetSet<T>(S:SetSet<T>):nat { S.UCardinality1() + 1 }
-ghost function CostIsEmpty_SetSet<T>(S:SetSet<T>):nat { 1 }
-ghost function CostCount_SetSet<T>(S:SetSet<T>):nat { 1 }
-ghost function CostEqual_SetSet<T>(left:SetSet<T>, right:SetSet<T>):nat { left.Size0() + right.Size0() + 1 }
-ghost function UCostEqual_SetSet<T>(left:SetSet<T>, right:SetSet<T>):nat { left.USize0() + right.USize0() + 1 }
-ghost function CostContains_SetSet<T>(S:SetSet<T>):nat { S.Size0() + 1 }
-ghost function UCostContains_SetSet<T>(S:SetSet<T>):nat { S.USize0() + 1 }
-ghost function CostAdd_SetSet<T>(S:SetSet<T>):nat { S.Size0() + 1 }
-ghost function UCostAdd_SetSet<T>(S:SetSet<T>):nat { S.USize0() + 1 }
-ghost function CostRemove_SetSet<T>(S:SetSet<T>):nat { S.Size0() + 1 }
-ghost function UCostRemove_SetSet<T>(S:SetSet<T>):nat { S.USize0() + 1 }
-ghost function CostCopy_SetSet<T>(S:SetSet<T>):nat { S.Size0() + 1 }
-ghost function UCostCopy_SetSet<T>(S:SetSet<T>):nat { S.USize0() + 1 }
-ghost function CostNew_SetSet():nat { 1 }
-
-ghost function CostPick_SetSetSet<T>(S:SetSetSet<T>, e:SetSet<T>):nat { e.Size0() + 1 }
-ghost function UCostPick_SetSetSet<T>(S:SetSetSet<T>):nat { S.USize1() + 1 }
-ghost function CostIsEmpty_SetSetSet<T>(S:SetSetSet<T>):nat { 1 }
-ghost function CostCount_SetSetSet<T>(S:SetSetSet<T>):nat { 1 }
-ghost function CostEqual_SetSetSet<T>(left:SetSetSet<T>, right:SetSetSet<T>):nat { left.Size0() + right.Size0() + 1 }
-ghost function UCostEqual_SetSetSet<T>(left:SetSetSet<T>, right:SetSetSet<T>):nat { left.USize0() + right.USize0() + 1 }
-ghost function CostContains_SetSetSet<T>(S:SetSetSet<T>):nat { S.Size0() + 1 }
-ghost function UCostContains_SetSetSet<T>(S:SetSetSet<T>):nat { S.USize0() + 1 }
-ghost function CostAdd_SetSetSet<T>(S:SetSetSet<T>):nat { S.Size0() + 1 }
-ghost function UCostAdd_SetSetSet<T>(S:SetSetSet<T>):nat { S.USize0() + 1 }
-ghost function CostRemove_SetSetSet<T>(S:SetSetSet<T>):nat { S.Size0() + 1 }
-ghost function UCostRemove_SetSetSet<T>(S:SetSetSet<T>):nat { S.USize0() + 1 }
-ghost function CostCopy_SetSetSet<T>(S:SetSetSet<T>):nat { S.Size0() + 1 }
-ghost function UCostCopy_SetSetSet<T>(S:SetSetSet<T>):nat { S.USize0() + 1 }
-ghost function CostNew_SetSetSet():nat { 1 }
+// Construction cost for Set, SetSet and SetSetSet, independent of element type
+ghost function CostNew_SetFamily():nat { 1 }

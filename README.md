@@ -14,14 +14,12 @@ Hitting Set and CDPC as case studies.
 | `Transformations/` | Executable problem transformations. |
 | `Collections/` | Collection traits and concrete implementations. |
 | `Lemmas/` | Reusable mathematical and cost lemmas. |
-| `Examples/` | Standalone examples and simpler checker variants. |
-| `Tests/` | Verification regression checks. |
-| `Experiments/` | Exploratory and historical work. |
 
 ## Verification
 
-This project uses Dafny 4.11.0. You can verify directly in your IDE, or, with
-`dafny` available on PATH, run from the repository root:
+This project uses Dafny 4.11.0. Every proof verifies in under 60 seconds. You can
+verify directly in your IDE, or, with `dafny` available on PATH, run from the
+repository root e.g.:
 
 ```powershell
 dafny verify --verification-time-limit 60 Verifications/VerificationSetCover.dfy

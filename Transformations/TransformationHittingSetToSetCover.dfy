@@ -12,12 +12,13 @@ method TransformHittingSetToSetCover(U:Set<int>, S:SetSet<int>, k: nat) returns 
   // Invariant out
   ensures (r.0.Model(),r.1.Model(),r.2) == HittingSetToSetCover(U.Model(), S.Model(), k)
   // Counter
-  ensures counter <= PolyHittingSetToSetCover(U.Cardinality0() + S.Cardinality0() + 1)
+  ensures counter <= PolynomialTransformHittingSetToSetCover(U.Cardinality() + S.Cardinality() + 1)
 {
-  assert S.USize1() <= U.USize0() by {
-    UniverseSubsetSizeBound_SetSet(S, U.Model());
+  assert S.USize1() <= U.USize() by {
+    FamilySubsetCardinalityBound(S.Universe(), U.Model());
+    S.UCardinality1Bound(|U.Model()|);
   }
-  CostHittingSetToSetCoverBound(U, S, k);
+  CostTransformHittingSetToSetCoverToPolynomial(U, S, k);
   counter := 0;
   // Edge case
   var empty_set:Set<int>; empty_set, counter := New_Set(counter);
@@ -29,32 +30,32 @@ method TransformHittingSetToSetCover(U:Set<int>, S:SetSet<int>, k: nat) returns 
     var S':SetSet<int>; S' := S;
     var S'_empty:bool; S'_empty, counter := S'.IsEmpty(counter);
 
-    ghost var loopBase := CostNew_Set() + UCostContains_SetSet(S) + CostNew_SetSetSet() + CostIsEmpty_SetSet(S);
-    LinearLoopBudgetZero(loopBase, PolyAddSingletonSourceSet(U, S, k));
+    ghost var loopBase := CostNew_SetFamily() + S.UCostContains() + CostNew_SetFamily() + S.CostIsEmpty();
+    LinearLoopBudgetZero(loopBase, CostAddSingletonSourceSet(U, S, k));
     while (!S'_empty)
       // Termination
-      decreases S'.Cardinality0()
+      decreases S'.Cardinality()
       invariant S'_empty == (S'.Model() == {})
       // Types
       invariant U.Valid()
       invariant SS.Valid()
-      invariant InUniverse_SetSet(S', S)
-      invariant S.USize1() <= U.USize0()
-      invariant SS.Cardinality0() <= S.Cardinality0() - S'.Cardinality0()
+      invariant S'.UniverseWithin(S)
+      invariant S.USize1() <= U.USize()
+      invariant SS.Cardinality() <= S.Cardinality() - S'.Cardinality()
       invariant SS.USize1() <= S.USize1()
       // Regular invariants
       invariant SS.Universe() == SS_universe
       invariant SS.Model() == (set s | s in (S.Model() - S'.Model()) :: {s})
       // Counter
-      invariant counter <= LinearLoopBudget(loopBase, PolyAddSingletonSourceSet(U, S, k), S.Cardinality0() - S'.Cardinality0())
+      invariant counter <= LinearLoopBudget(loopBase, CostAddSingletonSourceSet(U, S, k), S.Cardinality() - S'.Cardinality())
     {
-      LinearLoopBudgetStep(loopBase, PolyAddSingletonSourceSet(U, S, k), S.Cardinality0() - S'.Cardinality0());
+      LinearLoopBudgetStep(loopBase, CostAddSingletonSourceSet(U, S, k), S.Cardinality() - S'.Cardinality());
       S', SS, S'_empty, counter := AddSingletonSourceSet(U, S, k, S', SS, counter);
     }
-    PolyBranchBounds(U, S, k);
-    LinearLoopBudgetBound(loopBase, PolyAddSingletonSourceSet(U, S, k), S.Cardinality0() - S'.Cardinality0(), S.UCardinality0());
-    LinearLoopBudgetTransfer(counter, LinearLoopBudget(loopBase, PolyAddSingletonSourceSet(U, S, k), S.Cardinality0() - S'.Cardinality0()),
-      loopBase + (S.UCardinality0())*(PolyAddSingletonSourceSet(U, S, k)), 0, PolyTransformHittingSetToSetCover(U, S, k));
+    CostBranchBounds(U, S, k);
+    LinearLoopBudgetBound(loopBase, CostAddSingletonSourceSet(U, S, k), S.Cardinality() - S'.Cardinality(), S.UCardinality());
+    LinearLoopBudgetTransfer(counter, LinearLoopBudget(loopBase, CostAddSingletonSourceSet(U, S, k), S.Cardinality() - S'.Cardinality()),
+      loopBase + (S.UCardinality())*(CostAddSingletonSourceSet(U, S, k)), 0, CostTransformHittingSetToSetCover(U, S, k));
     assert SS.Model() == (set s | s in S.Model() :: {s});
     return (S, SS, 0), counter;
   }
@@ -64,30 +65,30 @@ method TransformHittingSetToSetCover(U:Set<int>, S:SetSet<int>, k: nat) returns 
   HittingSetIncidenceUniverseBounds(U, S, SS);
   var U':Set<int>; U' := U;
   var U'_empty:bool; U'_empty, counter := U'.IsEmpty(counter);
-  ghost var loopBase := CostNew_Set() + UCostContains_SetSet(S) + CostNew_SetSetSet() + CostIsEmpty_Set(U);
-  LinearLoopBudgetZero(loopBase, PolyBuildIncidenceSet(U, S, k));
+  ghost var loopBase := CostNew_SetFamily() + S.UCostContains() + CostNew_SetFamily() + U.CostIsEmpty();
+  LinearLoopBudgetZero(loopBase, CostBuildIncidenceSet(U, S, k));
   while (!U'_empty)
     // Termination
-    decreases U'.Cardinality0()
+    decreases U'.Cardinality()
     invariant U'_empty == (U'.Model() == {})
     // Types
     invariant SS.Valid()
-    invariant InUniverse_Set(U', U)
-    invariant SS.Cardinality0() <= U.Cardinality0() - U'.Cardinality0()
-    invariant SS.USize1() <= S.USize0()
+    invariant U'.UniverseWithin(U)
+    invariant SS.Cardinality() <= U.Cardinality() - U'.Cardinality()
+    invariant SS.USize1() <= S.USize()
     // Regular invariants
     invariant SS.Universe() == SS_universe
     invariant SS.Model() == (set u | u in (U.Model() - U'.Model()) :: (set s | s in S.Model() && u in s))
     // Counter
-    invariant counter <= LinearLoopBudget(loopBase, PolyBuildIncidenceSet(U, S, k), U.Cardinality0() - U'.Cardinality0())
+    invariant counter <= LinearLoopBudget(loopBase, CostBuildIncidenceSet(U, S, k), U.Cardinality() - U'.Cardinality())
   {
-    LinearLoopBudgetStep(loopBase, PolyBuildIncidenceSet(U, S, k), U.Cardinality0() - U'.Cardinality0());
+    LinearLoopBudgetStep(loopBase, CostBuildIncidenceSet(U, S, k), U.Cardinality() - U'.Cardinality());
     U', SS, U'_empty, counter := BuildIncidenceSet(U, S, k, U', SS, counter);
   }
-  PolyBranchBounds(U, S, k);
-  LinearLoopBudgetBound(loopBase, PolyBuildIncidenceSet(U, S, k), U.Cardinality0() - U'.Cardinality0(), U.UCardinality0());
-  LinearLoopBudgetTransfer(counter, LinearLoopBudget(loopBase, PolyBuildIncidenceSet(U, S, k), U.Cardinality0() - U'.Cardinality0()),
-    loopBase + (U.UCardinality0())*(PolyBuildIncidenceSet(U, S, k)), 0, PolyTransformHittingSetToSetCover(U, S, k));
+  CostBranchBounds(U, S, k);
+  LinearLoopBudgetBound(loopBase, CostBuildIncidenceSet(U, S, k), U.Cardinality() - U'.Cardinality(), U.UCardinality());
+  LinearLoopBudgetTransfer(counter, LinearLoopBudget(loopBase, CostBuildIncidenceSet(U, S, k), U.Cardinality() - U'.Cardinality()),
+    loopBase + (U.UCardinality())*(CostBuildIncidenceSet(U, S, k)), 0, CostTransformHittingSetToSetCover(U, S, k));
   SubtractionIdentity(U.Model(), U'.Model());
 
   return (S,SS,k),counter;
@@ -101,80 +102,78 @@ method BuildIncidenceSet(U:Set<int>, S:SetSet<int>, k:nat, U':Set<int>, SS:SetSe
   requires Init_SetSet(S)
   requires SS.Valid()
   requires SS.Universe() == (set u | u in U.Model() :: (set s | s in S.Model() && u in s))
-  requires InUniverse_Set(U', U)
-  requires S.USize1() <= U.USize0()
-  requires SS.Cardinality0() <= (U.Cardinality0() - U'.Cardinality0())
-  requires SS.USize1() <= S.USize0()
+  requires U'.UniverseWithin(U)
+  requires S.USize1() <= U.USize()
+  requires SS.Cardinality() <= (U.Cardinality() - U'.Cardinality())
+  requires SS.USize1() <= S.USize()
   // Invariant in
   requires SS.Model() == (set u | u in (U.Model() - U'.Model()) :: (set s | s in S.Model() && u in s))
   // Termination out
   ensures U''_empty == (U''.Model() == {})
-  ensures U''.Cardinality0() == U'.Cardinality0() - 1
+  ensures U''.Cardinality() == U'.Cardinality() - 1
   // Types out
   ensures SS'.Valid()
   ensures SS'.Universe() == SS.Universe()
-  ensures InUniverse_Set(U'', U)
-  ensures SS'.Cardinality0() <= (U.Cardinality0() - U''.Cardinality0())
-  ensures SS'.USize1() <= S.USize0()
+  ensures U''.UniverseWithin(U)
+  ensures SS'.Cardinality() <= (U.Cardinality() - U''.Cardinality())
+  ensures SS'.USize1() <= S.USize()
   // Invariant out
   ensures SS'.Model() == (set u | u in (U.Model() - U''.Model()) :: (set s | s in S.Model() && u in s))
   // Counter
-  ensures counter <= counter_in + PolyBuildIncidenceSet(U, S, k)
+  ensures counter <= counter_in + CostBuildIncidenceSet(U, S, k)
 {
   counter := counter_in;
-  InUniverseBounds_Set(U', U);
+  U'.UniverseWithinBound(U);
   var u:int; u, counter := U'.Pick(counter);
   U'', counter := U'.Remove(u, counter);
 
   var sets_in_S_that_contain_u:SetSet<int>; sets_in_S_that_contain_u, counter := NewWithUniverse_SetSet(S.Model(), counter);
   reveal sets_in_S_that_contain_u.UCardinality1();
-  ModelSizeBound_SetSet(S);
-  var S'; S' := S;
+  var S':SetSet<int>; S' := S;
   var S'_empty; S'_empty, counter := S'.IsEmpty(counter);
-  ghost var loopBase := counter_in + CostPick_Set(U) + UCostRemove_Set(U) + CostNew_SetSet() +
-    CostIsEmpty_SetSet(S);
-  LinearLoopBudgetZero(loopBase, PolyAddIncidentSourceSet(U, S, k));
+  ghost var loopBase := counter_in + U.CostPick() + U.UCostRemove() + CostNew_SetFamily() +
+    S.CostIsEmpty();
+  LinearLoopBudgetZero(loopBase, CostAddIncidentSourceSet(U, S, k));
   while (!S'_empty)
     // Termination
-    decreases S'.Cardinality0()
+    decreases S'.Cardinality()
     invariant S'_empty == (S'.Model() == {})
     // Types
     invariant U.Valid()
-    invariant InUniverse_SetSet(S', S)
-    invariant InUniverse_SetSet(sets_in_S_that_contain_u, S)
-    invariant S.USize1() <= U.USize0()
+    invariant S'.UniverseWithin(S)
+    invariant sets_in_S_that_contain_u.UniverseWithin(S)
+    invariant S.USize1() <= U.USize()
     // Regular invariants
     invariant sets_in_S_that_contain_u.Model() == (set s | s in (S.Model() - S'.Model()) && u in s)
     // Counter
-    invariant counter <= LinearLoopBudget(loopBase, PolyAddIncidentSourceSet(U, S, k), S.Cardinality0() - S'.Cardinality0())
+    invariant counter <= LinearLoopBudget(loopBase, CostAddIncidentSourceSet(U, S, k), S.Cardinality() - S'.Cardinality())
   {
-    LinearLoopBudgetStep(loopBase, PolyAddIncidentSourceSet(U, S, k), S.Cardinality0() - S'.Cardinality0());
+    LinearLoopBudgetStep(loopBase, CostAddIncidentSourceSet(U, S, k), S.Cardinality() - S'.Cardinality());
     S', sets_in_S_that_contain_u, S'_empty, counter := AddIncidentSourceSet(U, S, k, S', u, sets_in_S_that_contain_u, counter);
   }
-  PolyBuildIncidenceSetDefinition(U, S, k);
-  LinearLoopBudgetBound(loopBase, PolyAddIncidentSourceSet(U, S, k), S.Cardinality0() - S'.Cardinality0(), S.UCardinality0());
-  LinearLoopBudgetTransfer(counter, LinearLoopBudget(loopBase, PolyAddIncidentSourceSet(U, S, k), S.Cardinality0() - S'.Cardinality0()),
-    loopBase + (S.UCardinality0())*(PolyAddIncidentSourceSet(U, S, k)), S.USize0()*U.UCardinality0() + 1 + CostIsEmpty_Set(U), counter_in + PolyBuildIncidenceSet(U, S, k));
-  InUniverseBounds_SetSet(sets_in_S_that_contain_u, S);
+  CostBuildIncidenceSetDefinition(U, S, k);
+  LinearLoopBudgetBound(loopBase, CostAddIncidentSourceSet(U, S, k), S.Cardinality() - S'.Cardinality(), S.UCardinality());
+  LinearLoopBudgetTransfer(counter, LinearLoopBudget(loopBase, CostAddIncidentSourceSet(U, S, k), S.Cardinality() - S'.Cardinality()),
+    loopBase + (S.UCardinality())*(CostAddIncidentSourceSet(U, S, k)), S.USize()*U.UCardinality() + 1 + U.CostIsEmpty(), counter_in + CostBuildIncidenceSet(U, S, k));
+  sets_in_S_that_contain_u.UniverseWithinBound(S);
   assert sets_in_S_that_contain_u.Model() in SS.Universe() by {
     assert sets_in_S_that_contain_u.Model() == (set s | s in S.Model() && u in s);
     assert u in U.Model();
   }
   SS', counter := SS.Add(sets_in_S_that_contain_u, counter);
-  UniverseToUniverseSizeBound_SetSetSet(SS', SS);
+  reveal SS'.UCardinality1(), SS'.UCardinality2(), SS.UCardinality1(), SS.UCardinality2();
 
   U''_empty, counter := U''.IsEmpty(counter);
-  ModelSizeBound_SetSetSet(SS);
-  NatMultiplicationMonotonic(SS.Cardinality0(), SS.Size1(), SS.USize1());
-  MultiplicationPreservesOrder(SS.Cardinality0(), SS.USize1(), U.UCardinality0(), S.USize0());
-  assert CostAdd_SetSetSet(SS) <= S.USize0()*U.UCardinality0() + 1;
+  NatMultiplicationMonotonic(SS.Cardinality(), SS.Size1(), SS.USize1());
+  MultiplicationPreservesOrder(SS.Cardinality(), SS.USize1(), U.UCardinality(), S.USize());
+  assert SS.CostAdd() <= S.USize()*U.UCardinality() + 1;
   calc <= {
     counter;
-    LinearLoopBudget(loopBase, PolyAddIncidentSourceSet(U, S, k), S.Cardinality0() - S'.Cardinality0()) +
-      CostAdd_SetSetSet(SS) + CostIsEmpty_Set(U);
-    LinearLoopBudget(loopBase, PolyAddIncidentSourceSet(U, S, k), S.Cardinality0() - S'.Cardinality0()) +
-      S.USize0()*U.UCardinality0() + 1 + CostIsEmpty_Set(U);
-    counter_in + PolyBuildIncidenceSet(U, S, k);
+    LinearLoopBudget(loopBase, CostAddIncidentSourceSet(U, S, k), S.Cardinality() - S'.Cardinality()) +
+      SS.CostAdd() + U.CostIsEmpty();
+    LinearLoopBudget(loopBase, CostAddIncidentSourceSet(U, S, k), S.Cardinality() - S'.Cardinality()) +
+      S.USize()*U.UCardinality() + 1 + U.CostIsEmpty();
+    counter_in + CostBuildIncidenceSet(U, S, k);
   }
   assert SS'.Model() == (set v | v in (U.Model() - U''.Model()) :: (set s | s in S.Model() && v in s)) by {
     assert (S.Model() - S'.Model()) == S.Model();
@@ -189,25 +188,25 @@ method AddIncidentSourceSet(U:Set<int>, S:SetSet<int>, k:nat, S':SetSet<int>, u:
   requires S'.Model() != {}
   // Types in
   requires U.Valid()
-  requires InUniverse_SetSet(S', S)
-  requires InUniverse_SetSet(sets_in_S_that_contain_u, S)
-  requires S.USize1() <= U.USize0()
+  requires S'.UniverseWithin(S)
+  requires sets_in_S_that_contain_u.UniverseWithin(S)
+  requires S.USize1() <= U.USize()
   // Invariant in
   requires sets_in_S_that_contain_u.Model() == (set s | s in (S.Model() - S'.Model()) && u in s)
   // Termination out
   ensures S''_empty == (S''.Model() == {})
-  ensures S''.Cardinality0() == S'.Cardinality0() - 1
+  ensures S''.Cardinality() == S'.Cardinality() - 1
   // Types out
-  ensures sets_in_S_that_contain_u.USize0() <= S.USize0()
-  ensures InUniverse_SetSet(S'', S)
-  ensures InUniverse_SetSet(sets_in_S_that_contain_u', S)
+  ensures sets_in_S_that_contain_u.USize() <= S.USize()
+  ensures S''.UniverseWithin(S)
+  ensures sets_in_S_that_contain_u'.UniverseWithin(S)
   // Invariant out
   ensures sets_in_S_that_contain_u'.Model() == (set s | s in (S.Model() - S''.Model()) && u in s)
   // Counter
-  ensures counter <= counter_in + PolyAddIncidentSourceSet(U, S, k)
+  ensures counter <= counter_in + CostAddIncidentSourceSet(U, S, k)
 {
-  InUniverseBounds_SetSet(S', S);
-  InUniverseBounds_SetSet(sets_in_S_that_contain_u, S);
+  S'.UniverseWithinBound(S);
+  sets_in_S_that_contain_u.UniverseWithinBound(S);
   counter := counter_in;
   sets_in_S_that_contain_u' := sets_in_S_that_contain_u;
 
@@ -216,7 +215,7 @@ method AddIncidentSourceSet(U:Set<int>, S:SetSet<int>, k:nat, S':SetSet<int>, u:
 
   var s_contains_u:bool;
   s_contains_u, counter := s.Contains(u, counter);
-  PolyAddIncidentSourceSetDefinition(U, S, k);
+  CostAddIncidentSourceSetDefinition(U, S, k);
   if (s_contains_u) {
     sets_in_S_that_contain_u', counter := sets_in_S_that_contain_u'.Add(s, counter);
   }
@@ -231,48 +230,45 @@ method {:isolate_assertions} AddSingletonSourceSet(U:Set<int>, S:SetSet<int>, k:
   requires U.Valid()
   requires SS.Valid()
   requires SS.Universe() == (set s | s in S.Model() :: {s})
-  requires InUniverse_SetSet(S', S)
-  requires S.USize1() <= U.USize0()
-  requires SS.Cardinality0() <= S.Cardinality0() - S'.Cardinality0()
+  requires S'.UniverseWithin(S)
+  requires S.USize1() <= U.USize()
+  requires SS.Cardinality() <= S.Cardinality() - S'.Cardinality()
   requires SS.USize1() <= S.USize1()
   // Invariant in
   requires SS.Model() == (set s | s in (S.Model() - S'.Model()) :: {s})
   // Termination out
   ensures S''_empty == (S''.Model() == {})
-  ensures S''.Cardinality0() == S'.Cardinality0() - 1
+  ensures S''.Cardinality() == S'.Cardinality() - 1
   // Types out
   ensures SS'.Valid()
   ensures SS'.Universe() == SS.Universe()
-  ensures InUniverse_SetSet(S'', S)
-  ensures SS'.Cardinality0() <= S.Cardinality0() - S''.Cardinality0()
+  ensures S''.UniverseWithin(S)
+  ensures SS'.Cardinality() <= S.Cardinality() - S''.Cardinality()
   ensures SS'.USize1() <= S.USize1()
   // Invariant out
   ensures SS'.Model() == (set s | s in (S.Model() - S''.Model()) :: {s})
   // Counter
-  ensures counter <= counter_in + PolyAddSingletonSourceSet(U, S, k)
+  ensures counter <= counter_in + CostAddSingletonSourceSet(U, S, k)
 {
-  InUniverseBounds_SetSet(S', S);
-  MultiplicationPreservesOrder(SS.Cardinality0(), SS.USize1(), S.Cardinality0(), S.UCardinality1());
+  S'.UniverseWithinBound(S);
+  MultiplicationPreservesOrder(SS.Cardinality(), SS.USize1(), S.Cardinality(), S.UCardinality1());
   counter := counter_in;
   var s:Set<int>; s, counter := S'.Pick(counter);
   S'', counter := S'.Remove(s, counter);
   var s_set:SetSet<int>; s_set, counter := NewWithUniverse_SetSet(S.Model(), counter);
   reveal s_set.UCardinality1();
-  ModelSizeBound_SetSet(S);
   ghost var empty_s_set := s_set;
   s_set, counter := s_set.Add(s, counter);
-  ModelSizeBound_SetSet(s_set);
   SS', counter := SS.Add(s_set, counter);
-  UniverseToUniverseSizeBound_SetSetSet(SS', SS);
+  reveal SS'.UCardinality1(), SS'.UCardinality2(), SS.UCardinality1(), SS.UCardinality2();
   S''_empty, counter := S''.IsEmpty(counter);
-  NatMultiplicationMonotonic(S.UCardinality1(), S.Cardinality0(), S.UCardinality0());
-  ModelSizeBound_SetSetSet(SS);
-  NatMultiplicationMonotonic(SS.Cardinality0(), SS.Size1(), SS.USize1());
+  NatMultiplicationMonotonic(S.UCardinality1(), S.Cardinality(), S.UCardinality());
+  NatMultiplicationMonotonic(SS.Cardinality(), SS.Size1(), SS.USize1());
   calc <= {
-    CostAdd_SetSetSet(SS);
-    SS.Cardinality0()*SS.USize1() + 1;
-    S.Cardinality0()*S.UCardinality1() + 1;
-    S.USize0() + 1;
+    SS.CostAdd();
+    SS.Cardinality()*SS.USize1() + 1;
+    S.Cardinality()*S.UCardinality1() + 1;
+    S.USize() + 1;
   }
 }
 
@@ -292,69 +288,71 @@ lemma HittingSetSingletonUniverseBounds(S:SetSet<int>, SS:SetSetSet<int>)
   {
     var s :| s in S.Model() && child == {s};
     reveal S.UCardinality1();
-    MaxCardinalityMember_set(S.Universe(), s);
-    MaxCardinalityInsert_set({}, s);
+    MaxByMember(S.Universe(), s, item => |item|);
+    MaxByInsert({}, s, item => |item|);
   }
-  UniverseMemberSizeBound_SetSetSet(SS, 1, S.UCardinality1());
+  SS.UCardinality1Bound(1);
+  SS.UCardinality2Bound(S.UCardinality1());
 }
 
 lemma HittingSetIncidenceUniverseBounds(U:Set<int>, S:SetSet<int>, SS:SetSetSet<int>)
   requires S.Valid() && SS.Valid()
   requires SS.Universe() == (set u | u in U.Model() :: (set s | s in S.Model() && u in s))
-  ensures SS.USize1() <= S.USize0()
-  ensures SS.UCardinality1() <= S.UCardinality0()
+  ensures SS.USize1() <= S.USize()
+  ensures SS.UCardinality1() <= S.UCardinality()
   ensures SS.UCardinality2() <= S.UCardinality1()
   ensures SS.USize2() <= S.USize1()
 {
-  ModelSizeBound_SetSet(S);
   forall child | child in SS.Universe()
-    ensures |child| <= S.UCardinality0()
+    ensures |child| <= S.UCardinality()
     ensures MaxCardinality_set(child) <= S.USize1()
   {
     assert child <= S.Model();
     SubsetCardinalityBound(child, S.Model());
-    MaxCardinalityMonotonic_set(child, S.Model());
+    MaxByMonotonic(child, S.Model(), item => |item|);
   }
-  UniverseMemberSizeBound_SetSetSet(SS, S.UCardinality0(), S.UCardinality1());
+  SS.UCardinality1Bound(S.UCardinality());
+  SS.UCardinality2Bound(S.UCardinality1());
+  MultiplicationPreservesOrder(SS.UCardinality1(), SS.UCardinality2(), S.UCardinality(), S.UCardinality1());
 }
 
 
-ghost function {:opaque} PolyAddIncidentSourceSet(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
+ghost function {:opaque} CostAddIncidentSourceSet(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
 {
-  UCostPick_SetSet(S) +
-  UCostRemove_SetSet(S) + UCostContains_Set(U) +
-  UCostAdd_SetSet(S) + CostIsEmpty_SetSet(S)
+  S.UCostPick() +
+  S.UCostRemove() + U.UCostContains() +
+  S.UCostAdd() + S.CostIsEmpty()
 }
-ghost function {:opaque} PolyBuildIncidenceSet(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
+ghost function {:opaque} CostBuildIncidenceSet(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
 {
-  CostPick_Set(U) + UCostRemove_Set(U) + CostNew_SetSet() +
-  CostIsEmpty_SetSet(S) +
-  S.UCardinality0()*PolyAddIncidentSourceSet(U, S, k) +
-  S.USize0()*U.UCardinality0() + 1 + CostIsEmpty_Set(U)
+  U.CostPick() + U.UCostRemove() + CostNew_SetFamily() +
+  S.CostIsEmpty() +
+  S.UCardinality()*CostAddIncidentSourceSet(U, S, k) +
+  S.USize()*U.UCardinality() + 1 + U.CostIsEmpty()
 }
-ghost function {:opaque} PolyAddSingletonSourceSet(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
-  ensures o == UCostPick_SetSet(S) + UCostRemove_SetSet(S) +
-               CostNew_SetSet() + UCostAdd_SetSet(S) +
-               S.USize0() + 1 + CostIsEmpty_SetSet(S)
+ghost function {:opaque} CostAddSingletonSourceSet(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
+  ensures o == S.UCostPick() + S.UCostRemove() +
+               CostNew_SetFamily() + S.UCostAdd() +
+               S.USize() + 1 + S.CostIsEmpty()
 {
-  UCostPick_SetSet(S) + UCostRemove_SetSet(S) +
-  CostNew_SetSet() + UCostAdd_SetSet(S) +
-  S.USize0() + 1 + CostIsEmpty_SetSet(S)
+  S.UCostPick() + S.UCostRemove() +
+  CostNew_SetFamily() + S.UCostAdd() +
+  S.USize() + 1 + S.CostIsEmpty()
 }
 
 
-ghost function {:opaque} PolyTransformHittingSetToSetCover(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
+ghost function {:opaque} CostTransformHittingSetToSetCover(U: Set<int>, S: SetSet<int>, k: nat) : (o:nat)
 {
-  CostNew_Set() + UCostContains_SetSet(S) + CostNew_SetSetSet() +
-  CostIsEmpty_SetSet(S) +
-  S.UCardinality0()*PolyAddSingletonSourceSet(U, S, k) +
-  CostNew_Set() + UCostContains_SetSet(S) + CostNew_SetSetSet() +
-  CostIsEmpty_Set(U) +
-  U.UCardinality0()*PolyBuildIncidenceSet(U, S, k)
+  CostNew_SetFamily() + S.UCostContains() + CostNew_SetFamily() +
+  S.CostIsEmpty() +
+  S.UCardinality()*CostAddSingletonSourceSet(U, S, k) +
+  CostNew_SetFamily() + S.UCostContains() + CostNew_SetFamily() +
+  U.CostIsEmpty() +
+  U.UCardinality()*CostBuildIncidenceSet(U, S, k)
 }
 
 
-ghost function PolyHittingSetToSetCover(n:nat):nat
+ghost function PolynomialTransformHittingSetToSetCover(n:nat):nat
 {
   (1 + (n*n + 1) + 1 + (n*n + 1) + 1 + n*(3*n*n + n + 6)) +
   (1 + (n*n + 1) + 1 + (n + 1) + 1 +
@@ -362,95 +360,95 @@ ghost function PolyHittingSetToSetCover(n:nat):nat
 }
 
 
-lemma PolyAddIncidentSourceSetDefinition(U:Set<int>, S:SetSet<int>, k:nat)
-  ensures PolyAddIncidentSourceSet(U, S, k) ==
-    UCostPick_SetSet(S) +
-    UCostRemove_SetSet(S) + UCostContains_Set(U) +
-    UCostAdd_SetSet(S) + CostIsEmpty_SetSet(S)
+lemma CostAddIncidentSourceSetDefinition(U:Set<int>, S:SetSet<int>, k:nat)
+  ensures CostAddIncidentSourceSet(U, S, k) ==
+    S.UCostPick() +
+    S.UCostRemove() + U.UCostContains() +
+    S.UCostAdd() + S.CostIsEmpty()
 {
-  reveal PolyAddIncidentSourceSet();
+  reveal CostAddIncidentSourceSet();
 }
 
-lemma PolyBuildIncidenceSetDefinition(U:Set<int>, S:SetSet<int>, k:nat)
-  ensures PolyBuildIncidenceSet(U, S, k) ==
-    CostPick_Set(U) + UCostRemove_Set(U) + CostNew_SetSet() +
-    CostIsEmpty_SetSet(S) +
-    S.UCardinality0()*PolyAddIncidentSourceSet(U, S, k) +
-    S.USize0()*U.UCardinality0() + 1 + CostIsEmpty_Set(U)
+lemma CostBuildIncidenceSetDefinition(U:Set<int>, S:SetSet<int>, k:nat)
+  ensures CostBuildIncidenceSet(U, S, k) ==
+    U.CostPick() + U.UCostRemove() + CostNew_SetFamily() +
+    S.CostIsEmpty() +
+    S.UCardinality()*CostAddIncidentSourceSet(U, S, k) +
+    S.USize()*U.UCardinality() + 1 + U.CostIsEmpty()
 {
-  reveal PolyBuildIncidenceSet();
+  reveal CostBuildIncidenceSet();
 }
 
-lemma PolyBranchBounds(U:Set<int>, S:SetSet<int>, k:nat)
-  ensures CostNew_Set() + UCostContains_SetSet(S) + CostNew_SetSetSet() +
-          CostIsEmpty_SetSet(S) +
-          S.UCardinality0()*PolyAddSingletonSourceSet(U, S, k) <= PolyTransformHittingSetToSetCover(U, S, k)
-  ensures CostNew_Set() + UCostContains_SetSet(S) + CostNew_SetSetSet() +
-          CostIsEmpty_Set(U) +
-          U.UCardinality0()*PolyBuildIncidenceSet(U, S, k) <= PolyTransformHittingSetToSetCover(U, S, k)
+lemma CostBranchBounds(U:Set<int>, S:SetSet<int>, k:nat)
+  ensures CostNew_SetFamily() + S.UCostContains() + CostNew_SetFamily() +
+          S.CostIsEmpty() +
+          S.UCardinality()*CostAddSingletonSourceSet(U, S, k) <= CostTransformHittingSetToSetCover(U, S, k)
+  ensures CostNew_SetFamily() + S.UCostContains() + CostNew_SetFamily() +
+          U.CostIsEmpty() +
+          U.UCardinality()*CostBuildIncidenceSet(U, S, k) <= CostTransformHittingSetToSetCover(U, S, k)
 {
-  reveal PolyTransformHittingSetToSetCover();
+  reveal CostTransformHittingSetToSetCover();
 }
 
 
-lemma CostHittingSetToSetCoverBound(U:Set<int>, S:SetSet<int>, k:nat)
+lemma CostTransformHittingSetToSetCoverToPolynomial(U:Set<int>, S:SetSet<int>, k:nat)
   requires Init_Set(U) && Init_SetSet(S)
-  requires S.USize1() <= U.USize0()
-  ensures PolyTransformHittingSetToSetCover(U, S, k) <=
-    PolyHittingSetToSetCover(U.Cardinality0() + S.Cardinality0() + 1)
+  requires S.USize1() <= U.USize()
+  ensures CostTransformHittingSetToSetCover(U, S, k) <=
+    PolynomialTransformHittingSetToSetCover(U.Cardinality() + S.Cardinality() + 1)
 {
-  var n := U.Cardinality0() + S.Cardinality0() + 1;
-  assert U.UCardinality0() <= n;
-  assert U.USize0() <= n;
-  assert S.UCardinality0() <= n;
+  var n := U.Cardinality() + S.Cardinality() + 1;
+  assert U.UCardinality() <= n;
+  assert U.USize() <= n;
+  assert S.UCardinality() <= n;
   assert S.USize1() <= n;
-  UniverseSizeBound_SetSet(S, n, n);
+  S.USizeBound(n, n);
 
-  assert UCostContains_SetSet(S) <= n*n + 1;
-  assert UCostRemove_SetSet(S) <= n*n + 1;
-  assert UCostAdd_SetSet(S) <= n*n + 1;
-  assert UCostPick_SetSet(S) <= n + 1;
-  assert UCostRemove_Set(U) <= n + 1;
+  assert S.UCostContains() <= n*n + 1;
+  assert S.UCostRemove() <= n*n + 1;
+  assert S.UCostAdd() <= n*n + 1;
+  assert S.UCostPick() <= n + 1;
+  assert U.UCostRemove() <= n + 1;
 
-  reveal PolyAddSingletonSourceSet();
+  reveal CostAddSingletonSourceSet();
   calc <= {
-    PolyAddSingletonSourceSet(U, S, k);
+    CostAddSingletonSourceSet(U, S, k);
     (n + 1) + (n*n + 1) + 1 + (n*n + 1) + (n*n + 1) + 1;
     3*n*n + n + 6;
   }
 
-  PolyAddIncidentSourceSetDefinition(U, S, k);
+  CostAddIncidentSourceSetDefinition(U, S, k);
   calc <= {
-    PolyAddIncidentSourceSet(U, S, k);
+    CostAddIncidentSourceSet(U, S, k);
     (n + 1) + (n*n + 1) + (n + 1) + (n*n + 1) + 1;
     2*n*n + 2*n + 5;
     3*n*n + 5*n + 6;
     4*n*n + 5*n + 7;
   }
 
-  PolyBuildIncidenceSetDefinition(U, S, k);
-  MultiplicationPreservesOrder(S.UCardinality0(), PolyAddIncidentSourceSet(U, S, k), n, 4*n*n + 5*n + 7);
-  MultiplicationPreservesOrder(S.USize0(), U.UCardinality0(), n*n, n);
+  CostBuildIncidenceSetDefinition(U, S, k);
+  MultiplicationPreservesOrder(S.UCardinality(), CostAddIncidentSourceSet(U, S, k), n, 4*n*n + 5*n + 7);
+  MultiplicationPreservesOrder(S.USize(), U.UCardinality(), n*n, n);
   calc <= {
-    PolyBuildIncidenceSet(U, S, k);
+    CostBuildIncidenceSet(U, S, k);
     1 + (n + 1) + 1 + 1 +
       n*(4*n*n + 5*n + 7) + n*n*n + 1 + 1;
     n + n*(4*n*n + 5*n + 7) + n*n*n + 6;
     n + n*n + n*(4*n*n + 5*n + 7) + n*n*n + 7;
   }
 
-  MultiplicationPreservesOrder(S.UCardinality0(), PolyAddSingletonSourceSet(U, S, k), n, 3*n*n + n + 6);
-  MultiplicationPreservesOrder(U.UCardinality0(), PolyBuildIncidenceSet(U, S, k), n,
+  MultiplicationPreservesOrder(S.UCardinality(), CostAddSingletonSourceSet(U, S, k), n, 3*n*n + n + 6);
+  MultiplicationPreservesOrder(U.UCardinality(), CostBuildIncidenceSet(U, S, k), n,
     n + n*n + n*(4*n*n + 5*n + 7) + n*n*n + 7);
-  reveal PolyTransformHittingSetToSetCover();
+  reveal CostTransformHittingSetToSetCover();
   calc <= {
-    PolyTransformHittingSetToSetCover(U, S, k);
+    CostTransformHittingSetToSetCover(U, S, k);
     (1 + (n*n + 1) + 1 + 1 + n*(3*n*n + n + 6)) +
       (1 + (n*n + 1) + 1 + 1 +
         n*(n + n*n + n*(4*n*n + 5*n + 7) + n*n*n + 7));
     (1 + (n*n + 1) + 1 + (n*n + 1) + 1 + n*(3*n*n + n + 6)) +
       (1 + (n*n + 1) + 1 + (n + 1) + 1 +
         n*(n + n*n + n*(4*n*n + 5*n + 7) + n*n*n + 7));
-    PolyHittingSetToSetCover(n);
+    PolynomialTransformHittingSetToSetCover(n);
   }
 }
