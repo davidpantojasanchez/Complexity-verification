@@ -62,7 +62,7 @@ ghost predicate {:opaque} InterviewFits<Q>(tree:InterviewModel<Q>, remaining:set
 }
 
 
-lemma InterviewStep<Q>(tree:InterviewModel<Q>, remaining:set<Q>)
+lemma interview_step<Q>(tree:InterviewModel<Q>, remaining:set<Q>)
   requires tree.Ask?
   requires InterviewFits(tree, remaining)
   ensures tree.question in remaining
@@ -86,29 +86,29 @@ lemma InterviewStep<Q>(tree:InterviewModel<Q>, remaining:set<Q>)
   reveal InterviewDepth();
 }
 
-lemma InterviewQuestionsBound<Q>(tree:InterviewModel<Q>, remaining:set<Q>)
+lemma interview_questions_bound<Q>(tree:InterviewModel<Q>, remaining:set<Q>)
   decreases tree
   requires InterviewFits(tree, remaining)
   ensures InterviewQuestions(tree) <= remaining
 {
   if tree.Ask? {
-    InterviewStep(tree, remaining);
-    InterviewQuestionsBound(tree.trueBranch, remaining - {tree.question});
-    InterviewQuestionsBound(tree.falseBranch, remaining - {tree.question});
+    interview_step(tree, remaining);
+    interview_questions_bound(tree.trueBranch, remaining - {tree.question});
+    interview_questions_bound(tree.falseBranch, remaining - {tree.question});
   } else {
     reveal InterviewQuestions();
   }
 }
 
-lemma InterviewDepthBound<Q>(tree:InterviewModel<Q>, remaining:set<Q>)
+lemma interview_depth_bound<Q>(tree:InterviewModel<Q>, remaining:set<Q>)
   decreases tree
   requires InterviewFits(tree, remaining)
   ensures InterviewDepth(tree) <= |remaining|
 {
   if tree.Ask? {
-    InterviewStep(tree, remaining);
-    InterviewDepthBound(tree.trueBranch, remaining - {tree.question});
-    InterviewDepthBound(tree.falseBranch, remaining - {tree.question});
+    interview_step(tree, remaining);
+    interview_depth_bound(tree.trueBranch, remaining - {tree.question});
+    interview_depth_bound(tree.falseBranch, remaining - {tree.question});
   } else {
     reveal InterviewDepth();
   }
@@ -127,35 +127,34 @@ trait Interview<Q(==)> {
 
   method IsEnd(ghost counter_in:nat) returns (isEnd:bool, ghost counter_out:nat)
     ensures isEnd == Model().End?
-    ensures counter_out == counter_in + CostIsEnd_Interview()
+    ensures counter_out == counter_in + CostIsEnd()
 
   method Question(ghost counter_in:nat) returns (question:Q, ghost counter_out:nat)
     requires Model().Ask?
     ensures question == Model().question
-    ensures counter_out == counter_in + CostQuestion_Interview()
+    ensures counter_out == counter_in + CostQuestion()
 
   method Branch(answer:bool, ghost counter_in:nat) returns (branch:Interview<Q>, ghost counter_out:nat)
     requires Model().Ask?
     ensures branch.NodeCount() < NodeCount()
     ensures branch.Model() ==
             if answer then Model().trueBranch else Model().falseBranch
-    ensures counter_out == counter_in + CostBranch_Interview()
+    ensures counter_out == counter_in + CostBranch()
+  
+  ghost function CostIsEnd():nat { 1 }
+  ghost function CostQuestion():nat { 1 }
+  ghost function CostBranch():nat { 1 }
+
+  lemma interview_bound(remaining:set<Q>)
+    requires InterviewFits(Model(), remaining)
+    ensures Questions() <= remaining
+    ensures Depth() <= |remaining|
+  {
+    reveal Questions();
+    reveal Depth();
+    interview_questions_bound(Model(), remaining);
+    interview_depth_bound(Model(), remaining);
+  }
 }
 
-
-lemma InterviewBound<Q>(interview:Interview<Q>, remaining:set<Q>)
-  requires InterviewFits(interview.Model(), remaining)
-  ensures interview.Questions() <= remaining
-  ensures interview.Depth() <= |remaining|
-{
-  reveal interview.Questions();
-  reveal interview.Depth();
-  InterviewQuestionsBound(interview.Model(), remaining);
-  InterviewDepthBound(interview.Model(), remaining);
-}
-
-
-ghost function CostIsEnd_Interview():nat { 1 }
-ghost function CostQuestion_Interview():nat { 1 }
-ghost function CostBranch_Interview():nat { 1 }
 ghost function CostNew_Interview():nat { 1 }

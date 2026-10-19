@@ -10,11 +10,15 @@ trait SetFamily<E> {
   ghost predicate Valid()
     ensures Valid() ==> Model() <= Universe()
 
+  ghost predicate Init() {
+    Valid() && Model() == Universe()
+  }
+
   ghost predicate UniverseWithin(reference:SetFamily<E>) {
     Valid() && reference.Valid() && Universe() <= reference.Model()
   }
 
-  lemma UniverseWithinTransitive(middle:SetFamily<E>, reference:SetFamily<E>)
+  lemma universe_within_transitive(middle:SetFamily<E>, reference:SetFamily<E>)
     requires UniverseWithin(middle)
     requires middle.UniverseWithin(reference)
     ensures UniverseWithin(reference)
@@ -122,12 +126,12 @@ trait Set<T(==)> extends SetFamily<T> {
   
   // Complexity bounds
 
-  lemma UniverseWithinBound(U:Set<T>)
+  lemma universe_within_bound(U:Set<T>)
     requires UniverseWithin(U)
     ensures Cardinality() <= UCardinality() <= U.Cardinality() <= U.UCardinality()
     ensures Size() <= USize() <= U.Size() <= U.USize()
   {
-    SubsetCardinalityBound(Universe(), U.Model());
+    subset_cardinality_bound(Universe(), U.Model());
   }
 
 }
@@ -230,7 +234,7 @@ trait SetSet<T(==)> extends SetFamily<set<T>> {
 
   // Complexity bounds
 
-  lemma UniverseWithinBound(U:SetSet<T>)
+  lemma universe_within_bound(U:SetSet<T>)
     requires UniverseWithin(U)
     ensures Cardinality() <= UCardinality() <= U.Cardinality() <= U.UCardinality()
     ensures Cardinality1() <= UCardinality1() <= U.Cardinality1() <= U.UCardinality1()
@@ -238,26 +242,26 @@ trait SetSet<T(==)> extends SetFamily<set<T>> {
     ensures Size1() <= USize1() <= U.Size1() <= U.USize1()
   {
     reveal UCardinality1();
-    SubsetCardinalityBound(Universe(), U.Model());
-    MaxByMonotonic(Universe(), U.Model(), item => |item|);
-    MultiplicationPreservesOrder(UCardinality(), UCardinality1(), U.Cardinality(), U.Cardinality1());
+    subset_cardinality_bound(Universe(), U.Model());
+    max_by_monotonic(Universe(), U.Model(), item => |item|);
+    nonnegative_product_monotonic(UCardinality(), UCardinality1(), U.Cardinality(), U.Cardinality1());
   }
 
-  lemma USizeBound(count:nat, member:nat)
+  lemma u_size_bound(count:nat, member:nat)
     requires Valid()
     requires UCardinality() <= count && UCardinality1() <= member
     ensures USize() <= count*member
   {
-    MultiplicationPreservesOrder(UCardinality(), UCardinality1(), count, member);
+    nonnegative_product_monotonic(UCardinality(), UCardinality1(), count, member);
   }
 
-  lemma UCardinality1Bound(bound:nat)
+  lemma u_cardinality1_bound(bound:nat)
     requires Valid()
     requires forall s | s in Universe() :: |s| <= bound
     ensures UCardinality1() <= bound
   {
     reveal UCardinality1();
-    MaxByBound(Universe(), bound, item => |item|);
+    max_by_bound(Universe(), bound, item => |item|);
   }
 
 }
@@ -376,7 +380,7 @@ trait SetSetSet<T(==)> extends SetFamily<set<set<T>>> {
 
   // Complexity bounds
 
-  lemma UniverseWithinBound(U:SetSetSet<T>)
+  lemma universe_within_bound(U:SetSetSet<T>)
     requires UniverseWithin(U)
     ensures Cardinality() <= UCardinality() <= U.Cardinality() <= U.UCardinality()
     ensures Cardinality1() <= UCardinality1() <= U.Cardinality1() <= U.UCardinality1()
@@ -386,14 +390,14 @@ trait SetSetSet<T(==)> extends SetFamily<set<set<T>>> {
     ensures Size2() <= USize2() <= U.Size2() <= U.USize2()
   {
     reveal UCardinality1(), UCardinality2();
-    SubsetCardinalityBound(Universe(), U.Model());
-    MaxByMonotonic(Universe(), U.Model(), item => |item|);
-    MaxByMonotonic(Universe(), U.Model(), item => MaxCardinality_set(item));
-    MultiplicationPreservesOrder(UCardinality1(), UCardinality2(), U.Cardinality1(), U.Cardinality2());
-    MultiplicationPreservesOrder(UCardinality(), USize1(), U.Cardinality(), U.Size1());
+    subset_cardinality_bound(Universe(), U.Model());
+    max_by_monotonic(Universe(), U.Model(), item => |item|);
+    max_by_monotonic(Universe(), U.Model(), item => MaxCardinality_set(item));
+    nonnegative_product_monotonic(UCardinality1(), UCardinality2(), U.Cardinality1(), U.Cardinality2());
+    nonnegative_product_monotonic(UCardinality(), USize1(), U.Cardinality(), U.Size1());
   }
 
-  lemma USizeBound(count:nat, members:nat, leaves:nat)
+  lemma u_size_bound(count:nat, members:nat, leaves:nat)
     requires Valid()
     requires UCardinality() <= count && UCardinality1() <= members
     requires UCardinality2() <= leaves
@@ -401,44 +405,31 @@ trait SetSetSet<T(==)> extends SetFamily<set<set<T>>> {
     ensures USize1() <= members*leaves
     ensures USize2() <= leaves
   {
-    MultiplicationPreservesOrder(UCardinality1(), UCardinality2(), members, leaves);
-    MultiplicationPreservesOrder(UCardinality(), USize1(), count, members*leaves);
-    MultiplicationAssociative(count, members, leaves);
+    nonnegative_product_monotonic(UCardinality1(), UCardinality2(), members, leaves);
+    nonnegative_product_monotonic(UCardinality(), USize1(), count, members*leaves);
+    multiplication_associative(count, members, leaves);
   }
 
-  lemma UCardinality1Bound(bound:nat)
+  lemma u_cardinality1_bound(bound:nat)
     requires Valid()
     requires forall child | child in Universe() :: |child| <= bound
     ensures UCardinality1() <= bound
   {
     reveal UCardinality1();
-    MaxByBound(Universe(), bound, item => |item|);
+    max_by_bound(Universe(), bound, item => |item|);
   }
 
-  lemma UCardinality2Bound(bound:nat)
+  lemma u_cardinality2_bound(bound:nat)
     requires Valid()
     requires forall s | s in Universe() :: MaxCardinality_set(s) <= bound
     ensures UCardinality2() <= bound
   {
     reveal UCardinality2();
-    MaxByBound(Universe(), bound, item => MaxCardinality_set(item));
+    max_by_bound(Universe(), bound, item => MaxCardinality_set(item));
   }
 
 }
 
-
-ghost predicate Init_Set(S:Set)
-{
-  S.Valid() && S.Model() == S.Universe()
-}
-ghost predicate Init_SetSet(S:SetSet)
-{
-  S.Valid() && S.Model() == S.Universe()
-}
-ghost predicate Init_SetSetSet(S:SetSetSet)
-{
-  S.Valid() && S.Model() == S.Universe()
-}
 
 // Construction cost for Set, SetSet and SetSetSet, independent of element type
 ghost function CostNew_SetFamily():nat { 1 }

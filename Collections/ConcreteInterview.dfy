@@ -16,22 +16,22 @@ class ConcreteInterview<Q(==)> extends Interview<Q> {
   method IsEnd(ghost counter_in:nat)
       returns (isEnd:bool, ghost counter_out:nat)
     ensures isEnd == Model().End?
-    ensures counter_out == counter_in + CostIsEnd_Interview()
+    ensures counter_out == counter_in + CostIsEnd()
   {
     reveal Model();
     isEnd := tree.End?;
-    counter_out := counter_in + CostIsEnd_Interview();
+    counter_out := counter_in + CostIsEnd();
   }
 
   method Question(ghost counter_in:nat)
       returns (question:Q, ghost counter_out:nat)
     requires Model().Ask?
     ensures question == Model().question
-    ensures counter_out == counter_in + CostQuestion_Interview()
+    ensures counter_out == counter_in + CostQuestion()
   {
     reveal Model();
     question := tree.question;
-    counter_out := counter_in + CostQuestion_Interview();
+    counter_out := counter_in + CostQuestion();
   }
 
   method Branch(answer:bool, ghost counter_in:nat)
@@ -40,7 +40,7 @@ class ConcreteInterview<Q(==)> extends Interview<Q> {
     ensures branch.NodeCount() < NodeCount()
     ensures branch.Model() ==
             if answer then Model().trueBranch else Model().falseBranch
-    ensures counter_out == counter_in + CostBranch_Interview()
+    ensures counter_out == counter_in + CostBranch()
   {
     reveal Model();
     var chosen := if answer then tree.trueBranch else tree.falseBranch;
@@ -52,7 +52,7 @@ class ConcreteInterview<Q(==)> extends Interview<Q> {
     }
     reveal NodeCount();
     reveal InterviewNodes();
-    counter_out := counter_in + CostBranch_Interview();
+    counter_out := counter_in + CostBranch();
   }
 }
 

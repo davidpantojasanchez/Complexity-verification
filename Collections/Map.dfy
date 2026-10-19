@@ -16,12 +16,16 @@ trait MapFamily<K, V> {
     ensures Valid() ==> Model().Keys <= Universe().Keys
     ensures Valid() ==> (forall key | key in Model().Keys :: Model()[key] == Universe()[key])
 
+  ghost predicate Init() {
+    Valid() && Model() == Universe()
+  }
+
   ghost predicate UniverseWithin(reference:MapFamily<K, V>) {
     Valid() && reference.Valid() && Universe().Keys <= reference.Model().Keys &&
     (forall key | key in Universe().Keys :: Universe()[key] == reference.Model()[key])
   }
 
-  lemma UniverseWithinTransitive(middle:MapFamily<K, V>, reference:MapFamily<K, V>)
+  lemma universe_within_transitive(middle:MapFamily<K, V>, reference:MapFamily<K, V>)
     requires UniverseWithin(middle)
     requires middle.UniverseWithin(reference)
     ensures UniverseWithin(reference)
@@ -130,15 +134,15 @@ trait Map<T0(==), T1(==)> extends MapFamily<T0, T1> {
 
   // Complexity bounds
 
-  lemma UniverseWithinBound(U:Map<T0, T1>)
+  lemma universe_within_bound(U:Map<T0, T1>)
     requires UniverseWithin(U)
     ensures Universe().Keys <= U.Model().Keys
     ensures forall key | key in Universe().Keys :: Universe()[key] == U.Model()[key]
     ensures Cardinality() <= UCardinality() <= U.Cardinality() <= U.UCardinality()
     ensures Size() <= USize() <= U.Size() <= U.USize()
   {
-    MapItemsInclusion(Universe(), U.Model());
-    SubsetCardinalityBound(Universe().Keys, U.Model().Keys);
+    map_items_inclusion(Universe(), U.Model());
+    subset_cardinality_bound(Universe().Keys, U.Model().Keys);
   }
 }
 
@@ -249,7 +253,7 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> extends MapFamily<map<T0, T1>, T2> {
 
   // Complexity bounds
 
-  lemma UniverseWithinBound(U:Map_Map_T<T0, T1, T2>)
+  lemma universe_within_bound(U:Map_Map_T<T0, T1, T2>)
     requires UniverseWithin(U)
     ensures Universe().Keys <= U.Model().Keys
     ensures forall key | key in Universe().Keys :: Universe()[key] == U.Model()[key]
@@ -259,27 +263,27 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> extends MapFamily<map<T0, T1>, T2> {
     ensures SizeKeys() <= USizeKeys() <= U.SizeKeys() <= U.USizeKeys()
   {
     reveal UCardinalityKeys();
-    MapItemsInclusion(Universe(), U.Model());
-    SubsetCardinalityBound(Universe().Keys, U.Model().Keys);
-    MaxByMonotonic(Universe().Keys, U.Model().Keys, item => |item|);
-    MultiplicationPreservesOrder(UCardinality(), UCardinalityKeys(), U.Cardinality(), U.CardinalityKeys());
+    map_items_inclusion(Universe(), U.Model());
+    subset_cardinality_bound(Universe().Keys, U.Model().Keys);
+    max_by_monotonic(Universe().Keys, U.Model().Keys, item => |item|);
+    nonnegative_product_monotonic(UCardinality(), UCardinalityKeys(), U.Cardinality(), U.CardinalityKeys());
   }
 
-  lemma USizeBound(count:nat, key:nat)
+  lemma u_size_bound(count:nat, key:nat)
     requires Valid()
     requires UCardinality() <= count && UCardinalityKeys() <= key
     ensures Cardinality() <= UCardinality()
     ensures USize() <= count * key
   {
-    MultiplicationPreservesOrder(UCardinality(), UCardinalityKeys(), count, key);
+    nonnegative_product_monotonic(UCardinality(), UCardinalityKeys(), count, key);
   }
 
-  lemma UCardinalityKeysBound(bound:nat)
+  lemma u_cardinality_keys_bound(bound:nat)
     requires forall key | key in Universe().Keys :: |key| <= bound
     ensures UCardinalityKeys() <= bound
   {
     reveal UCardinalityKeys();
-    MaxByBound(Universe().Keys, bound, item => |item|);
+    max_by_bound(Universe().Keys, bound, item => |item|);
   }
 }
 
@@ -384,7 +388,7 @@ trait Map_Set_T<K(==), V(==)> extends MapFamily<set<K>, V> {
 
   // Complexity bounds
 
-  lemma UniverseWithinBound(U:Map_Set_T<K, V>)
+  lemma universe_within_bound(U:Map_Set_T<K, V>)
     requires UniverseWithin(U)
     ensures Universe().Keys <= U.Model().Keys
     ensures forall key | key in Universe().Keys :: Universe()[key] == U.Model()[key]
@@ -397,27 +401,27 @@ trait Map_Set_T<K(==), V(==)> extends MapFamily<set<K>, V> {
     ensures UCostInsert() <= U.CostInsert()
   {
     reveal UCardinalityKeys();
-    MapItemsInclusion(Universe(), U.Model());
-    SubsetCardinalityBound(Universe().Keys, U.Model().Keys);
-    MaxByMonotonic(Universe().Keys, U.Model().Keys, item => |item|);
-    MultiplicationPreservesOrder(UCardinality(), UCardinalityKeys(), U.Cardinality(), U.CardinalityKeys());
+    map_items_inclusion(Universe(), U.Model());
+    subset_cardinality_bound(Universe().Keys, U.Model().Keys);
+    max_by_monotonic(Universe().Keys, U.Model().Keys, item => |item|);
+    nonnegative_product_monotonic(UCardinality(), UCardinalityKeys(), U.Cardinality(), U.CardinalityKeys());
   }
 
-  lemma USizeBound(count:nat, key:nat)
+  lemma u_size_bound(count:nat, key:nat)
     requires Valid()
     requires UCardinality() <= count && UCardinalityKeys() <= key
     ensures Cardinality() <= UCardinality()
     ensures USize() <= count*key
   {
-    MultiplicationPreservesOrder(UCardinality(), UCardinalityKeys(), count, key);
+    nonnegative_product_monotonic(UCardinality(), UCardinalityKeys(), count, key);
   }
 
-  lemma UCardinalityKeysBound(bound:nat)
+  lemma u_cardinality_keys_bound(bound:nat)
     requires forall key | key in Universe().Keys :: |key| <= bound
     ensures UCardinalityKeys() <= bound
   {
     reveal UCardinalityKeys();
-    MaxByBound(Universe().Keys, bound, item => |item|);
+    max_by_bound(Universe().Keys, bound, item => |item|);
   }
 }
 
@@ -536,7 +540,7 @@ trait Map_MapSet_T<K(==), V(==), R(==)> extends MapFamily<map<set<K>, V>, R> {
 
   // Complexity bounds
 
-  lemma UniverseWithinBound(U:Map_MapSet_T<K, V, R>)
+  lemma universe_within_bound(U:Map_MapSet_T<K, V, R>)
     requires UniverseWithin(U)
     ensures Universe().Keys <= U.Model().Keys
     ensures forall key | key in Universe().Keys :: Universe()[key] == U.Model()[key]
@@ -551,15 +555,15 @@ trait Map_MapSet_T<K(==), V(==), R(==)> extends MapFamily<map<set<K>, V>, R> {
     ensures UCostInsert() <= U.CostInsert()
   {
     reveal UCardinalityKeys(), UCardinalityKeysKeys();
-    MapItemsInclusion(Universe(), U.Model());
-    SubsetCardinalityBound(Universe().Keys, U.Model().Keys);
-    MaxByMonotonic(Universe().Keys, U.Model().Keys, item => |item|);
-    MaxByMonotonic(Universe().Keys, U.Model().Keys, SetKeyCardinality);
-    MultiplicationPreservesOrder(UCardinalityKeys(), UCardinalityKeysKeys(), U.CardinalityKeys(), U.CardinalityKeysKeys());
-    MultiplicationPreservesOrder(UCardinality(), USizeKeys(), U.Cardinality(), U.SizeKeys());
+    map_items_inclusion(Universe(), U.Model());
+    subset_cardinality_bound(Universe().Keys, U.Model().Keys);
+    max_by_monotonic(Universe().Keys, U.Model().Keys, item => |item|);
+    max_by_monotonic(Universe().Keys, U.Model().Keys, SetKeyCardinality);
+    nonnegative_product_monotonic(UCardinalityKeys(), UCardinalityKeysKeys(), U.CardinalityKeys(), U.CardinalityKeysKeys());
+    nonnegative_product_monotonic(UCardinality(), USizeKeys(), U.Cardinality(), U.SizeKeys());
   }
 
-  lemma USizeBound(count:nat, keys:nat, elements:nat)
+  lemma u_size_bound(count:nat, keys:nat, elements:nat)
     requires Valid()
     requires UCardinality() <= count && UCardinalityKeys() <= keys
     requires UCardinalityKeysKeys() <= elements
@@ -567,46 +571,29 @@ trait Map_MapSet_T<K(==), V(==), R(==)> extends MapFamily<map<set<K>, V>, R> {
     ensures USizeKeys() <= keys*elements
     ensures USizeKeysKeys() <= elements
   {
-    MultiplicationPreservesOrder(UCardinalityKeys(), UCardinalityKeysKeys(), keys, elements);
-    MultiplicationPreservesOrder(UCardinality(), USizeKeys(), count, keys*elements);
-    MultiplicationAssociative(count, keys, elements);
+    nonnegative_product_monotonic(UCardinalityKeys(), UCardinalityKeysKeys(), keys, elements);
+    nonnegative_product_monotonic(UCardinality(), USizeKeys(), count, keys*elements);
+    multiplication_associative(count, keys, elements);
   }
 
-  lemma UCardinalityKeysBound(bound:nat)
+  lemma u_cardinality_keys_bound(bound:nat)
     requires forall key | key in Universe().Keys :: |key| <= bound
     ensures UCardinalityKeys() <= bound
   {
     reveal UCardinalityKeys();
-    MaxByBound(Universe().Keys, bound, item => |item|);
+    max_by_bound(Universe().Keys, bound, item => |item|);
   }
 
-  lemma UCardinalityKeysKeysBound(bound:nat)
+  lemma u_cardinality_keys_keys_bound(bound:nat)
     requires forall key | key in Universe().Keys ::
       forall question | question in key.Keys :: |question| <= bound
     ensures UCardinalityKeysKeys() <= bound
   {
     reveal UCardinalityKeysKeys();
-    MaxSetKeyCardinalityBound_map_set_t(Universe().Keys, bound);
+    max_set_key_cardinality_bound_map_set_t(Universe().Keys, bound);
   }
 }
 
-
-ghost predicate Init_Map(M:Map)
-{
-  M.Valid() && M.Model() == M.Universe()
-}
-ghost predicate Init_Map_Map_T(M:Map_Map_T)
-{
-  M.Valid() && M.Model() == M.Universe()
-}
-ghost predicate Init_Map_Set_T(M:Map_Set_T)
-{
-  M.Valid() && M.Model() == M.Universe()
-}
-ghost predicate Init_Map_MapSet_T(M:Map_MapSet_T)
-{
-  M.Valid() && M.Model() == M.Universe()
-}
 
 // Construction cost for all map shapes, independent of key and value types
 ghost function CostNew_MapFamily():nat { 1 }

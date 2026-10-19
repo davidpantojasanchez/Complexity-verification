@@ -11,11 +11,11 @@ ghost function HittingSetToSetCover(U:set<int>, S:set<set<int>>, k:nat) : (r:(se
   var newS: set<set<set<int>>> := (set u | u in U :: (set s | s in S && u in s));
   if ({} in S) then (S, (set s | s in S :: {s}), 0) //que devuelva falso siempre
   else
-   IncidenceFamilyCovers(U,S);
+   incidence_family_covers(U,S);
    (S, newS, k)
 }
 
-lemma IncidenceFamilyCovers(U: set<int>, S: set<set<int>>)
+lemma incidence_family_covers(U: set<int>, S: set<set<int>>)
   requires HittingSetValidInstance(U, S)
   requires {} !in S
  ensures 
@@ -32,7 +32,7 @@ lemma IncidenceFamilyCovers(U: set<int>, S: set<set<int>>)
     
 }
 
-lemma {:induction C} IncidenceFamilyCardinalityBound(U: set<int>, S:set<set<int>>, C:set<int>, CS:set<set<set<int>>>)
+lemma {:induction C} incidence_family_cardinality_bound(U: set<int>, S:set<set<int>>, C:set<int>, CS:set<set<set<int>>>)
   requires C <= U 
   requires CS == (set x | x in C :: (set ys | ys in S && x in ys))
   ensures |CS| <= |C|
@@ -60,7 +60,7 @@ lemma {:induction C} IncidenceFamilyCardinalityBound(U: set<int>, S:set<set<int>
     else {
       assert |CS| == |CS'| + 1; 
     }
-    IncidenceFamilyCardinalityBound(U,S,C-{x},CS');
+    incidence_family_cardinality_bound(U,S,C-{x},CS');
     assert |CS'| <= |C-{x}|;
     assert |CS| <= |C|;
   }
@@ -109,17 +109,17 @@ ghost function Minimum(s:set<int>) : (x:int)
 }
 
 
-lemma HittingSetToSetCoverCorrect(U:set<int>, S:set<set<int>>, k:nat)
+lemma hitting_set_to_set_cover_correct(U:set<int>, S:set<set<int>>, k:nat)
   requires HittingSetValidInstance(U, S)
   ensures var (SU,SS,Sk) := HittingSetToSetCover(U,S,k);
           HittingSet(U,S,k) <==> SetCover(SU,SS,Sk)
 {
   var (SU,SS,Sk) := HittingSetToSetCover(U,S,k);
-  HittingSetToSetCoverForward(U,S,k);
-  HittingSetToSetCoverBackward(U,S,k);
+  hitting_set_to_set_cover_forward(U,S,k);
+  hitting_set_to_set_cover_backward(U,S,k);
 }
 
-lemma HittingSetToSetCoverForward(U:set<int>, S:set<set<int>>, k:nat)
+lemma hitting_set_to_set_cover_forward(U:set<int>, S:set<set<int>>, k:nat)
   requires HittingSetValidInstance(U, S)
   ensures var (US,SS,kS) := HittingSetToSetCover(U,S,k);
           HittingSet(U,S,k) ==> SetCover(US,SS,kS)
@@ -141,7 +141,7 @@ lemma HittingSetToSetCoverForward(U:set<int>, S:set<set<int>>, k:nat)
      var ss := (set ys | ys in US && y in ys);
      assert ss in CS && s in ss;
      }
-     IncidenceFamilyCardinalityBound(U,S,C,CS);
+     incidence_family_cardinality_bound(U,S,C,CS);
      assert |CS| <= |C| <= k;
      assert SetCoverCertificate(US, SS, kS, CS);
      //Idea de demo, la funcion es inyectiva 
@@ -181,7 +181,7 @@ ghost function MinimumCoveredElement(U:set<int>, S:set<set<int>>,k:nat,CS: set<s
 }
 
 
-lemma {:induction C,CS} CanonicalRepresentativesCardinality(U:set<int>, S:set<set<int>>, k:nat, C:set<int>,CS:set<set<set<int>>>)
+lemma {:induction C,CS} canonical_representatives_cardinality(U:set<int>, S:set<set<int>>, k:nat, C:set<int>,CS:set<set<set<int>>>)
   requires HittingSetValidInstance(U, S)
   requires C <= U 
   requires CS <= (set u | u in U :: (set s | s in S && u in s)) && {} !in CS
@@ -193,13 +193,13 @@ lemma {:induction C,CS} CanonicalRepresentativesCardinality(U:set<int>, S:set<se
     var cs:| cs in CS;
     var ecs :| ecs in U && (set s | s in S && ecs in s) == cs && ecs in C ;
     assert C - {ecs} == set e | e in U  && (set s | s in S && e in s) in CS-{cs} :: MinimumEquivalentElement(U,S,e);
-    CanonicalRepresentativesCardinality(U,S,k,C-{ecs},CS-{cs});
+    canonical_representatives_cardinality(U,S,k,C-{ecs},CS-{cs});
   }
 }
 
 
 
-lemma HittingSetToSetCoverBackward(U:set<int>, S:set<set<int>>, k:nat)
+lemma hitting_set_to_set_cover_backward(U:set<int>, S:set<set<int>>, k:nat)
   requires HittingSetValidInstance(U, S)
   ensures var (US,SS,kS) := HittingSetToSetCover(U,S,k);
           HittingSet(U,S,k) <== SetCover(US,SS,kS)
@@ -245,7 +245,7 @@ lemma HittingSetToSetCoverBackward(U:set<int>, S:set<set<int>>, k:nat)
         assert intersection in xs * C;
       }
       assert HitsAllSets(S, C);
-      CanonicalRepresentativesCardinality(U,S,k,C,CS);
+      canonical_representatives_cardinality(U,S,k,C,CS);
       assert |C| ==|CS|;
       assert HittingSetCertificate(U, S, k, C);
     }

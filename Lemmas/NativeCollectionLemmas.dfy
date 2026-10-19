@@ -2,7 +2,7 @@ include "NativeCollectionMeasures.dfy"
 
 // Native map inclusion: recover keys and bindings from Items inclusion.
 
-lemma MapItemsInclusion<K, V>(actual:map<K, V>, reference:map<K, V>)
+lemma map_items_inclusion<K, V>(actual:map<K, V>, reference:map<K, V>)
   requires actual.Items <= reference.Items
   ensures actual.Keys <= reference.Keys
   ensures forall key | key in actual.Keys :: actual[key] == reference[key]
@@ -16,7 +16,7 @@ lemma MapItemsInclusion<K, V>(actual:map<K, V>, reference:map<K, V>)
 }
 
 // Native updates: preserve inclusion and value agreement after a common update.
-lemma MapUpdatePreservesUniverse<K, V>(model:map<K, V>, universe:map<K, V>, key:K, value:V)
+lemma map_update_preserves_universe<K, V>(model:map<K, V>, universe:map<K, V>, key:K, value:V)
     returns (updatedModel:map<K, V>, updatedUniverse:map<K, V>)
   requires model.Keys <= universe.Keys
   requires forall entry | entry in model.Keys :: model[entry] == universe[entry]
@@ -28,7 +28,7 @@ lemma MapUpdatePreservesUniverse<K, V>(model:map<K, V>, universe:map<K, V>, key:
   updatedUniverse := universe[key := value];
 }
 
-lemma MapUpdateAgreement<K, V>(model:map<K, V>, universe:map<K, V>, key:K, value:V)
+lemma map_update_agreement<K, V>(model:map<K, V>, universe:map<K, V>, key:K, value:V)
   requires model.Keys <= universe.Keys
   requires forall entry | entry in model.Keys :: model[entry] == universe[entry]
   ensures model[key := value].Keys <= universe[key := value].Keys
@@ -37,5 +37,37 @@ lemma MapUpdateAgreement<K, V>(model:map<K, V>, universe:map<K, V>, key:K, value
     model[key := value][entry] == universe[key := value][entry]
 {
   ghost var updatedModel, updatedUniverse :=
-    MapUpdatePreservesUniverse(model, universe, key, value);
+    map_update_preserves_universe(model, universe, key, value);
+}
+
+// Native set difference and cardinality bounds, including families of subsets.
+
+lemma set_difference_empty<T>(S:set<T>, E:set<T>)
+  requires E == {}
+  ensures S - E == S
+{}
+
+lemma subset_cardinality_bound<T>(A:set<T>, B:set<T>)
+  requires A <= B
+  ensures |A| <= |B|
+{
+  if (A == {}) {
+  }
+  else {
+    var a :| a in A && a in B;
+    subset_cardinality_bound(A - {a}, B - {a});
+  }
+}
+
+lemma family_subset_cardinality_bound<T>(A':set<set<T>>, B:set<T>)
+  requires forall A | A in A' :: A <= B
+  ensures forall A | A in A' :: |A| <= |B|
+{
+  if (A' == {}) {
+  }
+  else {
+    var A :| A in A';
+    subset_cardinality_bound(A, B);
+    family_subset_cardinality_bound(A' - {A}, B);
+  }
 }

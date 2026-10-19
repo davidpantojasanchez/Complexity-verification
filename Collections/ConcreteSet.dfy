@@ -14,7 +14,7 @@ class ConcreteSet<T(==)> extends Set<T> {
     elements := elements_in;
     universe := universe_in;
     reveal Model();
-    SubsetCardinalityBound(elements_in, universe_in);
+    subset_cardinality_bound(elements_in, universe_in);
   }
 
   function ExecutableModel():set<T> { elements }
@@ -137,10 +137,10 @@ class ConcreteSetSet<T(==)> extends SetSet<T> {
     elements := elements_in;
     universe := universe_in;
     reveal Model();
-    SubsetCardinalityBound(elements_in, universe_in);
+    subset_cardinality_bound(elements_in, universe_in);
     reveal UCardinality1();
-    MaxByMonotonic(elements_in, universe_in, item => |item|);
-    MultiplicationPreservesOrder(|elements_in|, MaxCardinality_set(elements_in), |universe_in|, MaxCardinality_set(universe_in));
+    max_by_monotonic(elements_in, universe_in, item => |item|);
+    nonnegative_product_monotonic(|elements_in|, MaxCardinality_set(elements_in), |universe_in|, MaxCardinality_set(universe_in));
   }
 
   function ExecutableModel():set<set<T>> { elements }
@@ -160,7 +160,7 @@ class ConcreteSetSet<T(==)> extends SetSet<T> {
     reveal Model();
     var chosen:set<T> :| chosen in elements;
     reveal UCardinality1();
-    MaxByMember(universe, chosen, item => |item|);
+    max_by_member(universe, chosen, item => |item|);
     e := new ConcreteSet(chosen, chosen);
     counter_out := counter_in + CostPick(e);
   }
@@ -224,7 +224,7 @@ class ConcreteSetSet<T(==)> extends SetSet<T> {
     reveal Model();
     reveal e.Model();
     R := new ConcreteSetSet(elements + {e.ExecutableModel()}, universe + {e.ExecutableModel()});
-    AddUniverseMeasures_SetSet(this, R, e);
+    add_universe_measures_set_set(this, R, e);
     if e.ExecutableModel() in elements {
       assert elements + {e.ExecutableModel()} == elements;
     } else {
@@ -282,12 +282,12 @@ class ConcreteSetSetSet<T(==)> extends SetSetSet<T> {
     elements := elements_in;
     universe := universe_in;
     reveal Model();
-    SubsetCardinalityBound(elements_in, universe_in);
+    subset_cardinality_bound(elements_in, universe_in);
     reveal UCardinality1(), UCardinality2();
-    MaxByMonotonic(elements_in, universe_in, item => |item|);
-    MaxByMonotonic(elements_in, universe_in, item => MaxCardinality_set(item));
-    MultiplicationPreservesOrder(MaxCardinality_set(elements_in), MaxMemberCardinality_setset(elements_in), MaxCardinality_set(universe_in), MaxMemberCardinality_setset(universe_in));
-    MultiplicationPreservesOrder(|elements_in|, MaxCardinality_set(elements_in) * MaxMemberCardinality_setset(elements_in), |universe_in|, MaxCardinality_set(universe_in) * MaxMemberCardinality_setset(universe_in));
+    max_by_monotonic(elements_in, universe_in, item => |item|);
+    max_by_monotonic(elements_in, universe_in, item => MaxCardinality_set(item));
+    nonnegative_product_monotonic(MaxCardinality_set(elements_in), MaxMemberCardinality_setset(elements_in), MaxCardinality_set(universe_in), MaxMemberCardinality_setset(universe_in));
+    nonnegative_product_monotonic(|elements_in|, MaxCardinality_set(elements_in) * MaxMemberCardinality_setset(elements_in), |universe_in|, MaxCardinality_set(universe_in) * MaxMemberCardinality_setset(universe_in));
   }
 
   function ExecutableModel():set<set<set<T>>> { elements }
@@ -310,9 +310,9 @@ class ConcreteSetSetSet<T(==)> extends SetSetSet<T> {
     reveal Model();
     var chosen:set<set<T>> :| chosen in elements;
     reveal UCardinality1(), UCardinality2();
-    MaxByMember(universe, chosen, item => |item|);
-    MaxByMember(universe, chosen, item => MaxCardinality_set(item));
-    MultiplicationPreservesOrder(|chosen|, MaxCardinality_set(chosen), UCardinality1(), UCardinality2());
+    max_by_member(universe, chosen, item => |item|);
+    max_by_member(universe, chosen, item => MaxCardinality_set(item));
+    nonnegative_product_monotonic(|chosen|, MaxCardinality_set(chosen), UCardinality1(), UCardinality2());
     e := new ConcreteSetSet(chosen, chosen);
     reveal e.UCardinality1();
     counter_out := counter_in + CostPick(e);
@@ -377,7 +377,7 @@ class ConcreteSetSetSet<T(==)> extends SetSetSet<T> {
     reveal Model();
     reveal e.Model();
     R := new ConcreteSetSetSet(elements + {e.ExecutableModel()}, universe + {e.ExecutableModel()});
-    AddUniverseMeasures_SetSetSet(this, R, e);
+    add_universe_measures_set_set_set(this, R, e);
     if e.ExecutableModel() in elements {
       assert elements + {e.ExecutableModel()} == elements;
     } else {

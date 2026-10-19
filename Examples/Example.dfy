@@ -8,11 +8,11 @@ ghost function Fib(n:int) : int
   else Fib(n-1) + Fib(n-2)
 }
 
-/*lemma {:induction n} FibOddOddEven(n:int)
+/*lemma {:induction n} fib_odd_odd_even(n:int)
   requires n >= 1 && n % 3 == 1
   ensures Fib(n) % 2 == 1 &&  Fib(n + 1) % 2 == 1 && Fib(n + 2) % 2 == 0
 {}*/
-lemma FibOddOddEven(n:int)
+lemma fib_odd_odd_even(n:int)
   decreases n
   requires n >= 1 && n % 3 == 1
   ensures Fib(n) % 2 == 1 &&  Fib(n + 1) % 2 == 1 && Fib(n + 2) % 2 == 0
@@ -23,7 +23,7 @@ lemma FibOddOddEven(n:int)
   else {
     assert n >= 4;
     assert (n - 3) % 3 == 1;
-    FibOddOddEven(n - 3);
+    fib_odd_odd_even(n - 3);
   }
 }
 

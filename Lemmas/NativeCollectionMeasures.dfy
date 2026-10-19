@@ -33,7 +33,7 @@ ghost function MaxSetKeyCardinality_map_set_t<K, V>(maps:set<map<set<K>, V>>):(s
 { MaxBy(maps, SetKeyCardinality) }
 
 // Maximum properties: upper bounds and a maximal witness for nonempty families.
-lemma MaxByProperties<E>(items:set<E>, weight:E -> nat)
+lemma max_by_properties<E>(items:set<E>, weight:E -> nat)
   ensures forall item | item in items :: weight(item) <= MaxBy(items, weight)
   ensures items != {} ==> exists item | item in items :: MaxBy(items, weight) == weight(item)
   decreases |items|
@@ -43,43 +43,43 @@ lemma MaxByProperties<E>(items:set<E>, weight:E -> nat)
     ensures items - {item} != {} ==>
       exists rest | rest in items - {item} :: MaxBy(items - {item}, weight) == weight(rest)
   {
-    MaxByProperties(items - {item}, weight);
+    max_by_properties(items - {item}, weight);
   }
   reveal MaxBy();
 }
 
 // Member bounds: compare one weight against the family maximum.
-lemma MaxByMember<E>(items:set<E>, item:E, weight:E -> nat)
+lemma max_by_member<E>(items:set<E>, item:E, weight:E -> nat)
   requires item in items
   ensures weight(item) <= MaxBy(items, weight)
-{ MaxByProperties(items, weight); }
+{ max_by_properties(items, weight); }
 
 // Insertion: adjoining a member updates the maximum exactly.
-lemma MaxByInsert<E>(items:set<E>, item:E, weight:E -> nat)
+lemma max_by_insert<E>(items:set<E>, item:E, weight:E -> nat)
   ensures MaxBy(items + {item}, weight) ==
     (if weight(item) <= MaxBy(items, weight) then MaxBy(items, weight) else weight(item))
 {
-  MaxByProperties(items, weight);
-  MaxByProperties(items + {item}, weight);
+  max_by_properties(items, weight);
+  max_by_properties(items + {item}, weight);
 }
 
 // Uniform bounds: lift a bound on every weight to the maximum.
-lemma MaxByBound<E>(items:set<E>, bound:nat, weight:E -> nat)
+lemma max_by_bound<E>(items:set<E>, bound:nat, weight:E -> nat)
   requires forall item | item in items :: weight(item) <= bound
   ensures MaxBy(items, weight) <= bound
-{ MaxByProperties(items, weight); }
+{ max_by_properties(items, weight); }
 
 // Inclusion monotonicity uses the same weight on both families.
-lemma MaxByMonotonic<E>(smaller:set<E>, larger:set<E>, weight:E -> nat)
+lemma max_by_monotonic<E>(smaller:set<E>, larger:set<E>, weight:E -> nat)
   requires smaller <= larger
   ensures MaxBy(smaller, weight) <= MaxBy(larger, weight)
 {
-  MaxByProperties(smaller, weight);
-  MaxByProperties(larger, weight);
+  max_by_properties(smaller, weight);
+  max_by_properties(larger, weight);
 }
 
 // Structural bridges: cross the map maximum and its inner set-key maximum.
-lemma MaxSetKeyCardinalityProperties_map_set_t<K, V>(maps:set<map<set<K>, V>>)
+lemma max_set_key_cardinality_properties_map_set_t<K, V>(maps:set<map<set<K>, V>>)
   ensures forall m | m in maps ::
     MaxCardinality_set(m.Keys) <= MaxSetKeyCardinality_map_set_t(maps)
   ensures forall m | m in maps :: forall key | key in m.Keys ::
@@ -88,41 +88,41 @@ lemma MaxSetKeyCardinalityProperties_map_set_t<K, V>(maps:set<map<set<K>, V>>)
     MaxSetKeyCardinality_map_set_t(maps) == MaxCardinality_set(m.Keys)
   decreases |maps|
 {
-  MaxByProperties(maps, SetKeyCardinality);
+  max_by_properties(maps, SetKeyCardinality);
   forall m | m in maps
     ensures forall key | key in m.Keys :: |key| <= MaxCardinality_set(m.Keys)
   {
-    MaxByProperties(m.Keys, item => |item|);
+    max_by_properties(m.Keys, item => |item|);
   }
 }
 
-lemma MaxSetKeyCardinalityMember_map_set_t<K, V>(maps:set<map<set<K>, V>>, key:map<set<K>, V>)
+lemma max_set_key_cardinality_member_map_set_t<K, V>(maps:set<map<set<K>, V>>, key:map<set<K>, V>)
   requires key in maps
   ensures MaxCardinality_set(key.Keys) <= MaxSetKeyCardinality_map_set_t(maps)
   ensures forall question | question in key.Keys ::
     |question| <= MaxSetKeyCardinality_map_set_t(maps)
 {
-  MaxByMember(maps, key, SetKeyCardinality);
-  MaxByProperties(key.Keys, item => |item|);
+  max_by_member(maps, key, SetKeyCardinality);
+  max_by_properties(key.Keys, item => |item|);
 }
 
-lemma MaxSetKeyCardinalityBound_map_set_t<K, V>(maps:set<map<set<K>, V>>, bound:nat)
+lemma max_set_key_cardinality_bound_map_set_t<K, V>(maps:set<map<set<K>, V>>, bound:nat)
   requires forall m | m in maps :: forall key | key in m.Keys :: |key| <= bound
   ensures MaxSetKeyCardinality_map_set_t(maps) <= bound
 {
   forall m | m in maps
     ensures MaxCardinality_set(m.Keys) <= bound
   {
-    MaxByBound(m.Keys, bound, item => |item|);
+    max_by_bound(m.Keys, bound, item => |item|);
   }
-  MaxByBound(maps, bound, SetKeyCardinality);
+  max_by_bound(maps, bound, SetKeyCardinality);
 }
 
 // Leaf bound: cross both maxima of a depth-two set family.
-lemma MaxMemberCardinalityLeaf_setset<K>(sets:set<set<set<K>>>, member:set<set<K>>, leaf:set<K>)
+lemma max_member_cardinality_leaf_setset<K>(sets:set<set<set<K>>>, member:set<set<K>>, leaf:set<K>)
   requires member in sets && leaf in member
   ensures |leaf| <= MaxMemberCardinality_setset(sets)
 {
-  MaxByMember(member, leaf, item => |item|);
-  MaxByMember(sets, member, item => MaxCardinality_set(item));
+  max_by_member(member, leaf, item => |item|);
+  max_by_member(sets, member, item => MaxCardinality_set(item));
 }

@@ -16,20 +16,20 @@ ghost function SetCoverToHittingSet<T>(U: set<T>, S: set<set<T>>, k: nat) : (r:(
 // es decir:  SetCover(U,S,k) <==> HittingSet(HU,HS,Hk)
 // siendo (HU,HS,Hk) la transformacion de (U,S,k)
 
-lemma SetCoverToHittingSetCorrect<T>(U:set<T>, S:set<set<T>>, k:nat)
+lemma set_cover_to_hitting_set_correct<T>(U:set<T>, S:set<set<T>>, k:nat)
   requires SetCoverValidInstance(U, S)
   ensures var (HU,HS,Hk) := SetCoverToHittingSet(U,S,k);
               SetCover(U,S,k) <==> HittingSet(HU,HS,Hk)
 {
   var (HU,HS,Hk) := SetCoverToHittingSet(U,S,k);
-  SetCoverToHittingSetBackward(U,S,k);
-  SetCoverToHittingSetForward(U,S,k);
+  set_cover_to_hitting_set_backward(U,S,k);
+  set_cover_to_hitting_set_forward(U,S,k);
 } 
 
 // Vamos a demostrar estos dos lemas:
 //El primer lema demuestra HS ==> SC
 
- lemma SetCoverToHittingSetBackward<T>(U:set<T>, S: set<set<T>>, k:nat)
+ lemma set_cover_to_hitting_set_backward<T>(U:set<T>, S: set<set<T>>, k:nat)
   requires SetCoverValidInstance(U, S)
   ensures var (HU,HS,Hk) := SetCoverToHittingSet(U,S,k);
               SetCover(U,S,k) <== HittingSet(HU,HS,Hk)
@@ -54,7 +54,7 @@ lemma SetCoverToHittingSetCorrect<T>(U:set<T>, S:set<set<T>>, k:nat)
 
 //Usamos dos lemas auxiliares que hacen falta para demostrar 
 //que la propia cobertura es el Hitting-set
-lemma CoverIntersectsIncidenceSet<T>(U:set<T>,u:T,S: set<set<T>>, C:set<set<T>>)
+lemma cover_intersects_incidence_set<T>(U:set<T>,u:T,S: set<set<T>>, C:set<set<T>>)
   requires forall s | s in S :: s <= U
   requires C <= S && IsCover(U, C)
   requires u in U
@@ -69,7 +69,7 @@ lemma CoverIntersectsIncidenceSet<T>(U:set<T>,u:T,S: set<set<T>>, C:set<set<T>>)
 }
 
 //Version generalizada del anterior
-lemma EveryCoverIntersectsIncidenceSet<T>(U:set<T>,S: set<set<T>>, C:set<set<T>>)
+lemma every_cover_intersects_incidence_set<T>(U:set<T>,S: set<set<T>>, C:set<set<T>>)
   requires forall s | s in S :: s <= U
   requires C <= S && IsCover(U, C)
   ensures  forall u | u in U ::
@@ -79,10 +79,10 @@ lemma EveryCoverIntersectsIncidenceSet<T>(U:set<T>,S: set<set<T>>, C:set<set<T>>
   forall u | u in U 
   ensures (var ss := (set s | s in S && u in s);
           C * ss == (set s | s in C && u in  s) != {})
-          {CoverIntersectsIncidenceSet(U,u,S,C);}
+          {cover_intersects_incidence_set(U,u,S,C);}
 }
 
-lemma SetCoverToHittingSetForward<T>(U:set<T>, S: set<set<T>>, k:nat)
+lemma set_cover_to_hitting_set_forward<T>(U:set<T>, S: set<set<T>>, k:nat)
   requires SetCoverValidInstance(U, S)
   ensures var (HU,HS,Hk) := SetCoverToHittingSet(U,S,k);
               SetCover(U,S,k) ==> HittingSet(HU,HS,Hk)
@@ -121,7 +121,7 @@ lemma SetCoverToHittingSetForward<T>(U:set<T>, S: set<set<T>>, k:nat)
       //Por ser C cobertura sabemos que cada elemento de U
       //corresponde a un conjunto de newS cuyos conjuntos contienen a u
       //Usamos el lema auxiliar
-      EveryCoverIntersectsIncidenceSet(U,S,C);
+      every_cover_intersects_incidence_set(U,S,C);
       assert HittingSetCertificate(HU, HS, Hk, C);
       //assert forall s | s in HS :: C * s != {};
       //assert exists s:set<set<T>> :: HitsAllSets(HS, s) && |s| <= Hk && s <= HU;

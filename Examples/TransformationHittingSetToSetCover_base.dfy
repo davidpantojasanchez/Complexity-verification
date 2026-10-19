@@ -21,7 +21,7 @@ method TransformHittingSetToSetCover_base(U:set<int>, S:set<set<int>>, k:nat) re
     {
       S', SS := AddSingletonSourceSet_base(U, S, k, S', SS);
     }
-    SubtractionIdentity(S, S');
+    set_difference_empty(S, S');
     return (S, SS, 0);
   }
   // Regular case
@@ -33,7 +33,7 @@ method TransformHittingSetToSetCover_base(U:set<int>, S:set<set<int>>, k:nat) re
   {
     U', SS := BuildIncidenceSet_base(U, S, k, U', SS);
   }
-  SubtractionIdentity(U, U');
+  set_difference_empty(U, U');
 
   return (S, SS, k);
 }

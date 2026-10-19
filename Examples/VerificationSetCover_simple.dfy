@@ -2,45 +2,46 @@ include "../Problems/SetCover.dfy"
 include "../Lemmas/Lemmas.dfy"
 
 
-method VerifySetCover_simple(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>) returns (accepted:bool, ghost counter:nat)
+// Native variant of the admissible-certificate core.
+method VerifySetCoverCore_simple(U:set<int>, S:set<set<int>>, k:nat, certificate:set<set<int>>) returns (accepted:bool, ghost counter:nat)
   requires SetCoverValidInstance(U, S)
-  requires |I| <= |S|
-  requires (forall s | s in I :: |s| <= |U|)
-  ensures accepted == SetCoverCertificate(U, S, k, I)
+  requires |certificate| <= |S|
+  requires (forall s | s in certificate :: |s| <= |U|)
+  ensures accepted == SetCoverCertificate(U, S, k, certificate)
   ensures accepted ==> SetCover(U, S, k)
-  ensures counter <= CostVerifySetCover_simple(U, S, k)
+  ensures counter <= CostVerifySetCoverCore_simple(U, S, k)
 {
-  assert forall i | i in I :: |i| <= |U|;
+  assert forall i | i in certificate :: |i| <= |U|;
   counter := 0;
-  var U' := U; counter := counter + |U|;
+  var remainingUniverse := U; counter := counter + |U|;
   accepted:= true;
   counter := counter + 1;
-  if (k < |I|) {
+  if (k < |certificate|) {
     return false, counter;
   }
-  var I_seq_S:bool;
-  I_seq_S, counter := IsSubset(U, I, S, counter);
+  var isSubset:bool;
+  isSubset, counter := IsSubset(U, certificate, S, counter);
 
-  if (!I_seq_S) {
-    assert counter <= |U| + 1 + CostIsSubset_simple(U, I, S);
-    CostVerifySetCoverSpecialCaseBound_simple(U, S, k, I);
-    assert counter <= CostVerifySetCover_simple(U, S, k);
+  if (!isSubset) {
+    assert counter <= |U| + 1 + CostIsSubset_simple(U, certificate, S);
+    cost_verify_set_cover_core_special_case_bound_simple(U, S, k, certificate);
+    assert counter <= CostVerifySetCoverCore_simple(U, S, k);
     return false, counter;
   }
-  while (U' != {} && accepted)
-    decreases |U'|
-    invariant U' <= U 
-    invariant accepted == IsCover(U-U',I)
-    invariant counter <= |U| + CostIsSubset_simple(U, I, S) + 1 + (|U| - |U'|)*(CostCheckUniverseElement_simple(U, S, k) + 1)
+  while (remainingUniverse != {} && accepted)
+    decreases |remainingUniverse|
+    invariant remainingUniverse <= U 
+    invariant accepted == IsCover(U-remainingUniverse,certificate)
+    invariant counter <= |U| + CostIsSubset_simple(U, certificate, S) + 1 + (|U| - |remainingUniverse|)*(CostCheckUniverseElement_simple(U, S, k) + 1)
   {
     counter := counter + 1;
-    accepted, U', counter := CheckUniverseElement_simple(U, S, k, I, U', counter);
+    accepted, remainingUniverse, counter := CheckUniverseElement_simple(U, S, k, certificate, remainingUniverse, counter);
   }
   counter := counter + 1;
-  assert counter <= |U| + CostIsSubset_simple(U, I, S) + 2 + |U|*(CostCheckUniverseElement_simple(U, S, k) + 1);
-  CostVerifySetCoverBound_simple(U, S, k, I);
-  assert accepted ==> U-U' == U;
-  assert accepted ==> SetCoverCertificate(U, S, k, I);
+  assert counter <= |U| + CostIsSubset_simple(U, certificate, S) + 2 + |U|*(CostCheckUniverseElement_simple(U, S, k) + 1);
+  cost_verify_set_cover_core_bound_simple(U, S, k, certificate);
+  assert accepted ==> U-remainingUniverse == U;
+  assert accepted ==> SetCoverCertificate(U, S, k, certificate);
 }
 
 
@@ -75,58 +76,58 @@ method IsSubsetStep_simple(U:set<int>, S1:set<set<int>>, S2:set<set<int>>, S1':s
   ensures counter <= counter_in + CostIsSubsetStep_simple(U, S1, S2)
 {
   counter := counter_in;
-  SubsetCardinalityBound(S1', S1);
+  subset_cardinality_bound(S1', S1);
   var s:set<int> :| s in S1'; counter := counter + |U|;
   b' := b && s in S2; counter := counter + |S2|*|U|;
   S1'' := S1' - {s}; counter := counter + |S1|*|U|;
 }
 
 
-method CheckUniverseElement_simple(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, U':set<int>, ghost counter_in:nat) returns (b1:bool, U'':set<int>, ghost counter:nat)
-  requires U' != {}
-  requires U' <= U
-  requires |I| <= |S|
-  requires IsCover(U - U', I)
-  ensures |U''| == |U'| - 1
-  ensures U'' <= U
-  ensures b1 == IsCover(U - U'', I)
+method CheckUniverseElement_simple(U:set<int>, S:set<set<int>>, k:nat, certificate:set<set<int>>, remainingUniverse:set<int>, ghost counter_in:nat) returns (covered:bool, remainingUniverseOut:set<int>, ghost counter:nat)
+  requires remainingUniverse != {}
+  requires remainingUniverse <= U
+  requires |certificate| <= |S|
+  requires IsCover(U - remainingUniverse, certificate)
+  ensures |remainingUniverseOut| == |remainingUniverse| - 1
+  ensures remainingUniverseOut <= U
+  ensures covered == IsCover(U - remainingUniverseOut, certificate)
   ensures counter <= counter_in + CostCheckUniverseElement_simple(U, S, k)
 {
   counter := counter_in;
-  var u :| u in U'; counter := counter + 1;
-  U'' := U' - {u}; counter := counter + |U|;
+  var u :| u in remainingUniverse; counter := counter + 1;
+  remainingUniverseOut := remainingUniverse - {u}; counter := counter + |U|;
 
-  var I' := I; counter := counter + |S|*|U|;
-  b1:= false;
-  while (I' != {} && !b1)
-    decreases |I'|
-    invariant I' <= I
-    invariant b1 == (exists i' | i' in I - I' :: u in i')
-    invariant counter <= counter_in + |S|*|U| + |U| + 1 + (|I|-|I'|)*(CostCheckCoverSet_simple(U, S, k) + 1)
+  var remainingCertificate := certificate; counter := counter + |S|*|U|;
+  covered:= false;
+  while (remainingCertificate != {} && !covered)
+    decreases |remainingCertificate|
+    invariant remainingCertificate <= certificate
+    invariant covered == (exists i' | i' in certificate - remainingCertificate :: u in i')
+    invariant counter <= counter_in + |S|*|U| + |U| + 1 + (|certificate|-|remainingCertificate|)*(CostCheckCoverSet_simple(U, S, k) + 1)
   {
     counter := counter + 1;
-    b1, I', counter := CheckCoverSet_simple(U, S, k, I, I', u, counter);
+    covered, remainingCertificate, counter := CheckCoverSet_simple(U, S, k, certificate, remainingCertificate, u, counter);
   }
   counter := counter + 1;
-  assert counter <= counter_in + |S|*|U| + |U| + 2 + (|I|-|I'|)*(CostCheckCoverSet_simple(U, S, k) + 1);
+  assert counter <= counter_in + |S|*|U| + |U| + 2 + (|certificate|-|remainingCertificate|)*(CostCheckCoverSet_simple(U, S, k) + 1);
   assert counter <= counter_in + |S|*|U| + |U| + 2 + (|S|)*(CostCheckCoverSet_simple(U, S, k) + 1);
-  assert U - U'' == U - U' + {u};
+  assert U - remainingUniverseOut == U - remainingUniverse + {u};
 }
 
 
-method CheckCoverSet_simple(U:set<int>, S:set<set<int>>, k:nat, I:set<set<int>>, I':set<set<int>>, u:int, ghost counter_in:nat) returns (b2:bool, I'':set<set<int>>, ghost counter:nat)
-  requires I' != {}
-  requires I' <= I
-  requires !(exists i' | i' in I - I' :: u in i')
-  ensures |I''| == |I'| - 1
-  ensures I'' <= I
-  ensures b2 == (exists i' | i' in I - I'' :: u in i')
+method CheckCoverSet_simple(U:set<int>, S:set<set<int>>, k:nat, certificate:set<set<int>>, remainingCertificate:set<set<int>>, u:int, ghost counter_in:nat) returns (elementCovered:bool, remainingCertificateOut:set<set<int>>, ghost counter:nat)
+  requires remainingCertificate != {}
+  requires remainingCertificate <= certificate
+  requires !(exists i' | i' in certificate - remainingCertificate :: u in i')
+  ensures |remainingCertificateOut| == |remainingCertificate| - 1
+  ensures remainingCertificateOut <= certificate
+  ensures elementCovered == (exists i' | i' in certificate - remainingCertificateOut :: u in i')
   ensures counter == counter_in + CostCheckCoverSet_simple(U, S, k)
 {
   counter := counter_in;
-  var i :| i in I'; counter := counter + |U|;
-  b2 := u in i; counter := counter + |U|;
-  I'' := I' - {i}; counter := counter + |S|*|U|;
+  var i :| i in remainingCertificate; counter := counter + |U|;
+  elementCovered := u in i; counter := counter + |U|;
+  remainingCertificateOut := remainingCertificate - {i}; counter := counter + |S|*|U|;
 }
 
 
@@ -148,84 +149,84 @@ ghost function CostCheckUniverseElement_simple(U: set<int>, S: set<set<int>>, k:
 }
 
 
-ghost function CostVerifySetCover_simple(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
-  //ensures CostIsSubset_simple(U, I, S) + |U| + 1 <= o
-  //ensures |U| + CostIsSubset_simple(U, I, S) + 2 + |U|*(CostCheckUniverseElement_simple(U, S, k, I) + 1) <= o
+ghost function CostVerifySetCoverCore_simple(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
+  //ensures CostIsSubset_simple(U, certificate, S) + |U| + 1 <= o
+  //ensures |U| + CostIsSubset_simple(U, certificate, S) + 2 + |U|*(CostCheckUniverseElement_simple(U, S, k, certificate) + 1) <= o
 {
   /*
   calc <= {
-    CostIsSubset_simple(U, I, S) + |U| + 1;
-    |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |I| + |U| + 3;
-    4*|I|*|I|*|U| + |I|*|S|*|U| + 4*|I|*|U| + |U|*|U| + |I| + 4*|U| + 4;
+    CostIsSubset_simple(U, certificate, S) + |U| + 1;
+    |certificate|*|certificate|*|U| + |certificate|*|S|*|U| + 2*|certificate|*|U| + |certificate| + |U| + 3;
+    4*|certificate|*|certificate|*|U| + |certificate|*|S|*|U| + 4*|certificate|*|U| + |U|*|U| + |certificate| + 4*|U| + 4;
     5*|S|*|S|*|U| + 4*|S|*|U| + |U|*|U| + 4*|U| + |S| + 4;
   }
   
   calc <= {
-    |U| + CostIsSubset_simple(U, I, S) + 2 + |U|*(CostCheckUniverseElement_simple(U, S, k, I) + 1);
-    |U| + CostIsSubset_simple(U, I, S) + 2 + |U|*CostCheckUniverseElement_simple(U, S, k, I) + |U|;
-    |U| + |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |I| + 4 + |U|*CostCheckUniverseElement_simple(U, S, k, I) + |U|;
-    |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |I| + 2*|U| + 4 + |U|*CostCheckUniverseElement_simple(U, S, k, I);
-    |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |I| + 2*|U| + 4 + |U|*(3*|I|*|I| + 2*|I| + |U| + 2);
-    |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |I| + 2*|U| + 4 + 3*|I|*|I|*|U| + 2*|I|*|U| + |U|*|U| + 2*|U|;
-    4*|I|*|I|*|U| + |I|*|S|*|U| + 4*|I|*|U| + |U|*|U| + |I| + 4*|U| + 4;
+    |U| + CostIsSubset_simple(U, certificate, S) + 2 + |U|*(CostCheckUniverseElement_simple(U, S, k, certificate) + 1);
+    |U| + CostIsSubset_simple(U, certificate, S) + 2 + |U|*CostCheckUniverseElement_simple(U, S, k, certificate) + |U|;
+    |U| + |certificate|*|certificate|*|U| + |certificate|*|S|*|U| + 2*|certificate|*|U| + |certificate| + 4 + |U|*CostCheckUniverseElement_simple(U, S, k, certificate) + |U|;
+    |certificate|*|certificate|*|U| + |certificate|*|S|*|U| + 2*|certificate|*|U| + |certificate| + 2*|U| + 4 + |U|*CostCheckUniverseElement_simple(U, S, k, certificate);
+    |certificate|*|certificate|*|U| + |certificate|*|S|*|U| + 2*|certificate|*|U| + |certificate| + 2*|U| + 4 + |U|*(3*|certificate|*|certificate| + 2*|certificate| + |U| + 2);
+    |certificate|*|certificate|*|U| + |certificate|*|S|*|U| + 2*|certificate|*|U| + |certificate| + 2*|U| + 4 + 3*|certificate|*|certificate|*|U| + 2*|certificate|*|U| + |U|*|U| + 2*|U|;
+    4*|certificate|*|certificate|*|U| + |certificate|*|S|*|U| + 4*|certificate|*|U| + |U|*|U| + |certificate| + 4*|U| + 4;
     5*|S|*|S|*|U| + 4*|S|*|U| + |U|*|U| + 4*|U| + |S| + 4;
   }*/
   
-  // 4*|I|*|I|*|U| + |I|*|S|*|U| + 4*|I|*|U| + |U|*|U| + |I| + 4*|U| + 4
+  // 4*|certificate|*|certificate|*|U| + |certificate|*|S|*|U| + 4*|certificate|*|U| + |U|*|U| + |certificate| + 4*|U| + 4
   |S|*|S|*|U|*|U| + 2*|S|*|S|*|U| + 3*|S|*|U|*|U| + 3*|S|*|U| + |U|*|U| + |S| + 4*|U| + 4
 }
 
 
-lemma CostVerifySetCoverBound_simple(U: set<int>, S: set<set<int>>, k: nat, I: set<set<int>>)
-  requires |I| <= |S|
-  ensures |U| + CostIsSubset_simple(U, I, S) + 2 + |U|*(CostCheckUniverseElement_simple(U, S, k) + 1) <= CostVerifySetCover_simple(U, S, k)
+lemma cost_verify_set_cover_core_bound_simple(U: set<int>, S: set<set<int>>, k: nat, certificate: set<set<int>>)
+  requires |certificate| <= |S|
+  ensures |U| + CostIsSubset_simple(U, certificate, S) + 2 + |U|*(CostCheckUniverseElement_simple(U, S, k) + 1) <= CostVerifySetCoverCore_simple(U, S, k)
 {
   calc <= {
-    |U| + CostIsSubset_simple(U, I, S) + 2 + |U|*(CostCheckUniverseElement_simple(U, S, k) + 1);
-    |U| + |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |I| + |U|*(CostCheckUniverseElement_simple(U, S, k) + 1) + 4;
-    |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |I| + 2*|U| + 4 + |U|*CostCheckUniverseElement_simple(U, S, k);
-    |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |I| + 2*|U| + 4 + (|S|*|S|*|U|*|U| + 3*|S|*|U|*|U| + |U|*|U| + |S|*|U| + 2*|U|);
-    assert 2*|I|*|U| <= 2*|S|*|U| by {
-      MultiplicationPreservesOrder(|I|, 2*|U|, |S|, 2*|U|);
+    |U| + CostIsSubset_simple(U, certificate, S) + 2 + |U|*(CostCheckUniverseElement_simple(U, S, k) + 1);
+    |U| + |certificate|*|certificate|*|U| + |certificate|*|S|*|U| + 2*|certificate|*|U| + |certificate| + |U|*(CostCheckUniverseElement_simple(U, S, k) + 1) + 4;
+    |certificate|*|certificate|*|U| + |certificate|*|S|*|U| + 2*|certificate|*|U| + |certificate| + 2*|U| + 4 + |U|*CostCheckUniverseElement_simple(U, S, k);
+    |certificate|*|certificate|*|U| + |certificate|*|S|*|U| + 2*|certificate|*|U| + |certificate| + 2*|U| + 4 + (|S|*|S|*|U|*|U| + 3*|S|*|U|*|U| + |U|*|U| + |S|*|U| + 2*|U|);
+    assert 2*|certificate|*|U| <= 2*|S|*|U| by {
+      nonnegative_product_monotonic(|certificate|, 2*|U|, |S|, 2*|U|);
     }
-    |I|*|I|*|U| + |I|*|S|*|U| + 2*|S|*|U| + |S|*|S|*|U|*|U| + 3*|S|*|U|*|U| + |U|*|U| + |S|*|U| + |S| + 4*|U| + 4;
-    assert |I|*|I|*|U| <= |I|*|S|*|U| by {
-      MultiplicationPreservesOrder(|I|, |I|*|U|, |S|, |I|*|U|);
-      assert |I|*|I|*|U| <= |S|*|I|*|U|;
-      assert |S|*|I|*|U| <= |I|*|S|*|U|;
+    |certificate|*|certificate|*|U| + |certificate|*|S|*|U| + 2*|S|*|U| + |S|*|S|*|U|*|U| + 3*|S|*|U|*|U| + |U|*|U| + |S|*|U| + |S| + 4*|U| + 4;
+    assert |certificate|*|certificate|*|U| <= |certificate|*|S|*|U| by {
+      nonnegative_product_monotonic(|certificate|, |certificate|*|U|, |S|, |certificate|*|U|);
+      assert |certificate|*|certificate|*|U| <= |S|*|certificate|*|U|;
+      assert |S|*|certificate|*|U| <= |certificate|*|S|*|U|;
     }
-    |I|*|S|*|U| + |I|*|S|*|U| + 2*|S|*|U| + |S|*|S|*|U|*|U| + 3*|S|*|U|*|U| + |U|*|U| + |S|*|U| + |S| + 4*|U| + 4;
-    2*|I|*|S|*|U| + 2*|S|*|U| + |S|*|S|*|U|*|U| + 3*|S|*|U|*|U| + |U|*|U| + |S|*|U| + |S| + 4*|U| + 4;
-    assert |I|*|S|*|U| <= |S|*|S|*|U| by {
-      MultiplicationPreservesOrder(|I|, |S|*|U|, |S|, |S|*|U|);
+    |certificate|*|S|*|U| + |certificate|*|S|*|U| + 2*|S|*|U| + |S|*|S|*|U|*|U| + 3*|S|*|U|*|U| + |U|*|U| + |S|*|U| + |S| + 4*|U| + 4;
+    2*|certificate|*|S|*|U| + 2*|S|*|U| + |S|*|S|*|U|*|U| + 3*|S|*|U|*|U| + |U|*|U| + |S|*|U| + |S| + 4*|U| + 4;
+    assert |certificate|*|S|*|U| <= |S|*|S|*|U| by {
+      nonnegative_product_monotonic(|certificate|, |S|*|U|, |S|, |S|*|U|);
     }
     2*|S|*|S|*|U| + 2*|S|*|U| + |S|*|S|*|U|*|U| + 3*|S|*|U|*|U| + |U|*|U| + |S|*|U| + |S| + 4*|U| + 4;
     |S|*|S|*|U|*|U| + 2*|S|*|S|*|U| + 3*|S|*|U|*|U| + 3*|S|*|U| + |U|*|U| + |S| + 4*|U| + 4;
   }
 }
 
-lemma CostVerifySetCoverSpecialCaseBound_simple(U: set<int>, S: set<set<int>>, k: nat, I: set<set<int>>)
-  requires |I| <= |S|
-  ensures |U| + 1 + CostIsSubset_simple(U, I, S) <= CostVerifySetCover_simple(U, S, k)
+lemma cost_verify_set_cover_core_special_case_bound_simple(U: set<int>, S: set<set<int>>, k: nat, certificate: set<set<int>>)
+  requires |certificate| <= |S|
+  ensures |U| + 1 + CostIsSubset_simple(U, certificate, S) <= CostVerifySetCoverCore_simple(U, S, k)
 {
   calc <= {
-    |U| + 1 + CostIsSubset_simple(U, I, S);
-    |U| + 1 + |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |I| + 2;
-    |I|*|I|*|U| + |I|*|S|*|U| + 2*|I|*|U| + |U| + |I| + 3;
-    assert |I|*|S|*|U| <= |S|*|S|*|U| by {
-      MultiplicationPreservesOrder(|I|, |U|*|S|, |S|, |U|*|S|);
+    |U| + 1 + CostIsSubset_simple(U, certificate, S);
+    |U| + 1 + |certificate|*|certificate|*|U| + |certificate|*|S|*|U| + 2*|certificate|*|U| + |certificate| + 2;
+    |certificate|*|certificate|*|U| + |certificate|*|S|*|U| + 2*|certificate|*|U| + |U| + |certificate| + 3;
+    assert |certificate|*|S|*|U| <= |S|*|S|*|U| by {
+      nonnegative_product_monotonic(|certificate|, |U|*|S|, |S|, |U|*|S|);
     }
-    |I|*|I|*|U| + |S|*|S|*|U| + 2*|S|*|U| + |U| + |S| + 3;
-    assert |I|*|I|*|U| <= |I|*|S|*|U| by {
-      MultiplicationPreservesOrder(|I|, |I|*|U|, |S|, |I|*|U|);
+    |certificate|*|certificate|*|U| + |S|*|S|*|U| + 2*|S|*|U| + |U| + |S| + 3;
+    assert |certificate|*|certificate|*|U| <= |certificate|*|S|*|U| by {
+      nonnegative_product_monotonic(|certificate|, |certificate|*|U|, |S|, |certificate|*|U|);
     }
-    |I|*|S|*|U| + |S|*|S|*|U| + 2*|S|*|U| + |U| + |S| + 3;
-    assert |I|*|S|*|U| <= |S|*|S|*|U| by {
-      MultiplicationPreservesOrder(|I|, |S|*|U|, |S|, |S|*|U|);
+    |certificate|*|S|*|U| + |S|*|S|*|U| + 2*|S|*|U| + |U| + |S| + 3;
+    assert |certificate|*|S|*|U| <= |S|*|S|*|U| by {
+      nonnegative_product_monotonic(|certificate|, |S|*|U|, |S|, |S|*|U|);
     }
     |S|*|S|*|U| + |S|*|S|*|U| + 2*|S|*|U| + |U| + |S| + 3;
     2*|S|*|S|*|U| + 2*|S|*|U| + |U| + |S| + 3;
     |S|*|S|*|U|*|U| + 2*|S|*|S|*|U| + 3*|S|*|U|*|U| + 3*|S|*|U| + |U|*|U| + |S| + 4*|U| + 4;
-    CostVerifySetCover_simple(U, S, k);
+    CostVerifySetCoverCore_simple(U, S, k);
   }
 }

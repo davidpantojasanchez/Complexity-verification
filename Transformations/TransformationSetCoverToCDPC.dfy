@@ -1,3 +1,4 @@
+include "../Lemmas/PolynomialBounds.dfy"
 include "../Problems/SetCover.dfy"
 include "../Problems/CDPC.dfy"
 include "../Lemmas/Lemmas.dfy"
@@ -10,79 +11,74 @@ method TransformSetCoverToCDPC(U:Set<int>, S:SetSet<int>, k:nat)
     returns (r:(SetSet<int>, Map_MapSet_T<int, bool, bool>, Map_MapSet_T<int, bool, nat>,
                 SetSet<int>, real, real, real, real), ghost counter:nat)
   requires SetCoverValidInstance(U.Model(), S.Model())
-  requires Init_Set(U) && Init_SetSet(S)
-  ensures counter <= PolynomialTransformSetCoverToCDPC(U.Cardinality() + S.Cardinality() + 1)
+  requires U.Init() && S.Init()
+  ensures counter <= CostTransformSetCoverToCDPC(S, U.Cardinality() + S.Cardinality() + 1)
 {
   assert S.USize1() <= U.USize() by {
-    FamilySubsetCardinalityBound(S.Universe(), U.Model());
-    S.UCardinality1Bound(|U.Model()|);
+    family_subset_cardinality_bound(S.Universe(), U.Model());
+    S.u_cardinality1_bound(|U.Model()|);
   }
   ghost var n := U.Cardinality() + S.Cardinality() + 1;
   var S':SetSet<int>;
   var privateQuestion:Set<int>;
   var cardinalityS:nat;
-  S', privateQuestion, cardinalityS, counter := Prepare(S, n, 0);
+  S', privateQuestion, cardinalityS, counter := PrepareSourceSets(S, 0);
   if cardinalityS <= k {
-    r, counter := HandlePositiveCase(privateQuestion, n, counter);
+    r, counter := HandlePositiveCase(privateQuestion, counter);
   } else {
     r, counter := HandleNontrivialCase(U, S', privateQuestion, cardinalityS, k, n, counter);
   }
-  PolynomialTransformSetCoverToCDPCComposition(n);
 }
 
 
 // Remove the empty set, reserve it as the private question and count S
-method Prepare(S:SetSet<int>, ghost n:nat, ghost counter_in:nat)
+method PrepareSourceSets(S:SetSet<int>, ghost counter_in:nat)
     returns (noemptyS:SetSet<int>, privateQuestion:Set<int>, cardinalityS:nat, ghost counter:nat)
   requires S.Valid()
-  requires S.UCardinality() <= n && S.USize1() <= n
   ensures noemptyS.Valid()
   ensures noemptyS.Cardinality() <= S.Cardinality()
   ensures noemptyS.UCardinality() <= S.UCardinality()
-  ensures noemptyS.USize1() <= n
+  ensures noemptyS.USize1() <= S.USize1()
   ensures privateQuestion.Valid() && privateQuestion.USize() == 0
-  ensures counter <= counter_in + PolynomialPrepare(n)
+  ensures counter <= counter_in + CostPrepareSourceSets(S)
 {
   counter := counter_in;
-  S.USizeBound(n, n);
   privateQuestion, counter := New_Set(counter);
   noemptyS, counter := S.Remove(privateQuestion, counter);
   cardinalityS, counter := noemptyS.Count(counter);
-  reveal PolynomialPrepare();
 }
 
 method BuildQuestions(
-    S:SetSet<int>, privateQuestion:Set<int>, ghost n:nat, ghost counter_in:nat)
+    S:SetSet<int>, privateQuestion:Set<int>, ghost counter_in:nat)
     returns (questions:SetSet<int>, ghost counter:nat)
-  requires S.Valid() && S.UCardinality() <= n && S.USize1() <= n
+  requires S.Valid()
   ensures questions.Valid()
-  ensures counter <= counter_in + (n*n + 1)
+  ensures counter <= counter_in + S.UCostAdd()
 {
-  S.USizeBound(n, n);
   questions := S;
   questions, counter := questions.Add(privateQuestion, counter_in);
 }
 
 method BuildOutputQuestionSets(
-    S:SetSet<int>, privateQuestion:Set<int>, ghost n:nat, ghost counter_in:nat)
+    S:SetSet<int>, privateQuestion:Set<int>, ghost counter_in:nat)
     returns (questions:SetSet<int>, privateQuestions:SetSet<int>, ghost counter:nat)
-  requires S.Valid() && S.UCardinality() <= n && S.USize1() <= n
+  requires S.Valid()
   ensures questions.Valid() && privateQuestions.Valid()
-  ensures counter <= counter_in + CostNew_SetFamily() + 2*(n*n + 1) + 1
+  ensures counter <= counter_in + CostBuildOutputQuestionSets(S)
 {
-  questions, counter := BuildQuestions(S, privateQuestion, n, counter_in);
+  questions, counter := BuildQuestions(S, privateQuestion, counter_in);
   privateQuestions, counter := New_SetSet(counter);
   privateQuestions, counter := privateQuestions.Add(privateQuestion, counter);
 }
 
 
 // Fixed positive CDPC instance used in the trivial case
-method HandlePositiveCase(privateQuestion:Set<int>, ghost n:nat, ghost counter_in:nat)
+method HandlePositiveCase(privateQuestion:Set<int>, ghost counter_in:nat)
     returns (r:(SetSet<int>, Map_MapSet_T<int, bool, bool>,
                  Map_MapSet_T<int, bool, nat>,
                  SetSet<int>, real, real, real, real), ghost counter:nat)
-  requires privateQuestion.Valid() && privateQuestion.USize() <= n
-  ensures counter <= counter_in + PolynomialPositiveCase(n)
+  requires privateQuestion.Valid()
+  ensures counter <= counter_in + CostPositiveCase()
 {
   counter := counter_in;
   var candidate:Map_Set_T<int, bool>;
@@ -103,7 +99,6 @@ method HandlePositiveCase(privateQuestion:Set<int>, ghost n:nat, ghost counter_i
 
   var privateQuestions:SetSet<int>;
   privateQuestions, counter := New_SetSet(counter);
-  reveal PolynomialPositiveCase();
   return (questions, fitness, multiplicity, privateQuestions,
           0.0, 1.0, 0.0, 1.0), counter;
 }
@@ -123,7 +118,7 @@ method HandleNontrivialCase(
   requires U.Cardinality() + S.Cardinality() < n
   requires S.USize1() <= n
   // Counter
-  ensures counter <= counter_in + PolynomialNontrivialCase(n)
+  ensures counter <= counter_in + CostNontrivialCase(n)
 {
   counter := counter_in;
   var sizeU:nat;
@@ -140,13 +135,14 @@ method HandleNontrivialCase(
   ghost var prepared := counter;
   var questions:SetSet<int>;
   var privateQuestions:SetSet<int>;
-  questions, privateQuestions, counter := BuildOutputQuestionSets(S, privateQuestion, n, counter);
+  questions, privateQuestions, counter := BuildOutputQuestionSets(S, privateQuestion, counter);
 
   var privateLower:real;
   var fitnessUpper:real;
   privateLower, fitnessUpper := ComputeThresholds(sizeU, cardinalityS, k, omega);
 
-  CostNontrivialBound(n, counter_in, prepared, counter);
+  S.u_size_bound(n, n);
+  cost_nontrivial_bound(n, counter_in, prepared, counter);
   return (questions, fitness, multiplicity, privateQuestions, privateLower, 1.0, 0.0, fitnessUpper), counter;
 }
 
@@ -165,7 +161,7 @@ method BuildElementCandidates(U:Set<int>, S:SetSet<int>, privateQuestion:Set<int
   ensures fitness.UCardinalityKeys() <= n && multiplicity.UCardinalityKeys() <= n
   ensures fitness.UCardinalityKeysKeys() <= n && multiplicity.UCardinalityKeysKeys() <= n
   // Counter
-  ensures counter <= counter_in + 2*CostNew_MapFamily() + 1 + n*PolynomialCandidate(n)
+  ensures counter <= counter_in + 2*CostNew_MapFamily() + 1 + n*CostCandidate(n)
 {
   counter := counter_in;
   fitness, counter := New_Map_MapSet_T(counter);
@@ -176,7 +172,7 @@ method BuildElementCandidates(U:Set<int>, S:SetSet<int>, privateQuestion:Set<int
   var remainingElementsEmpty:bool;
   remainingElementsEmpty, counter := remainingElements.IsEmpty(counter);
   ghost var counter_start_loop := counter;
-  LinearLoopBudgetZero(counter_start_loop, PolynomialCandidate(n));
+  linear_loop_budget_zero(counter_start_loop, CostCandidate(n));
   while !remainingElementsEmpty
     // Termination
     decreases remainingElements.Cardinality()
@@ -192,13 +188,13 @@ method BuildElementCandidates(U:Set<int>, S:SetSet<int>, privateQuestion:Set<int
     invariant fitness.Valid()
     invariant multiplicity.Valid()
     // Counter
-    invariant counter <= LinearLoopBudget(counter_start_loop, PolynomialCandidate(n), U.Cardinality() - remainingElements.Cardinality())
+    invariant counter <= LinearLoopBudget(counter_start_loop, CostCandidate(n), U.Cardinality() - remainingElements.Cardinality())
   {
-    LinearLoopBudgetStep(counter_start_loop, PolynomialCandidate(n), U.Cardinality() - remainingElements.Cardinality());
+    linear_loop_budget_step(counter_start_loop, CostCandidate(n), U.Cardinality() - remainingElements.Cardinality());
     remainingElements, fitness, multiplicity, remainingElementsEmpty, counter :=
       BuildElementCandidatesLoop(remainingElements, fitness, multiplicity, S, privateQuestion, omega, n, counter);
   }
-  LinearLoopBudgetBound(counter_start_loop, PolynomialCandidate(n), U.Cardinality(), n);
+  linear_loop_budget_bound(counter_start_loop, CostCandidate(n), U.Cardinality(), n);
 }
 
 // Add a candidate type for every set in S, with multiplicity 1
@@ -220,7 +216,7 @@ method BuildSetCandidates(S:SetSet<int>, privateQuestion:Set<int>, fitness_in:Ma
   ensures fitness.UCardinalityKeys() <= n && multiplicity.UCardinalityKeys() <= n
   ensures fitness.UCardinalityKeysKeys() <= n && multiplicity.UCardinalityKeysKeys() <= n
   // Counter
-  ensures counter <= counter_in + 1 + n*PolynomialCandidate(n)
+  ensures counter <= counter_in + 1 + n*CostCandidate(n)
 {
   counter := counter_in;
   fitness := fitness_in;
@@ -228,12 +224,12 @@ method BuildSetCandidates(S:SetSet<int>, privateQuestion:Set<int>, fitness_in:Ma
   // There is one set candidate per source question.  It answers true only to
   // its own set question and to the private question.
   var remainingSelectedQuestions:SetSet<int>;
-  S.USizeBound(n, n);
+  S.u_size_bound(n, n);
   remainingSelectedQuestions := S;
   var remainingSelectedQuestionsEmpty:bool;
   remainingSelectedQuestionsEmpty, counter := remainingSelectedQuestions.IsEmpty(counter);
   ghost var setStart := counter;
-  LinearLoopBudgetZero(setStart, PolynomialCandidate(n));
+  linear_loop_budget_zero(setStart, CostCandidate(n));
   while !remainingSelectedQuestionsEmpty
     // Termination
     decreases remainingSelectedQuestions.Cardinality()
@@ -251,13 +247,13 @@ method BuildSetCandidates(S:SetSet<int>, privateQuestion:Set<int>, fitness_in:Ma
     invariant fitness.Valid()
     invariant multiplicity.Valid()
     // Counter
-    invariant counter <= LinearLoopBudget(setStart, PolynomialCandidate(n), S.Cardinality() - remainingSelectedQuestions.Cardinality())
+    invariant counter <= LinearLoopBudget(setStart, CostCandidate(n), S.Cardinality() - remainingSelectedQuestions.Cardinality())
   {
-    LinearLoopBudgetStep(setStart, PolynomialCandidate(n), S.Cardinality() - remainingSelectedQuestions.Cardinality());
+    linear_loop_budget_step(setStart, CostCandidate(n), S.Cardinality() - remainingSelectedQuestions.Cardinality());
     remainingSelectedQuestions, fitness, multiplicity, remainingSelectedQuestionsEmpty, counter :=
       BuildSetCandidatesLoop(remainingSelectedQuestions, fitness, multiplicity, S, privateQuestion, n, counter);
   }
-  LinearLoopBudgetBound(setStart, PolynomialCandidate(n), S.Cardinality(), n);
+  linear_loop_budget_bound(setStart, CostCandidate(n), S.Cardinality(), n);
 }
 
 // Add a null candidate, with multiplicity omega^2
@@ -282,23 +278,23 @@ method AddNullCandidate(S:SetSet<int>, privateQuestion:Set<int>,
   ensures fitness.UCardinalityKeysKeys() <= n && multiplicity.UCardinalityKeysKeys() <= n
   // Counter
   ensures counter <= counter_in + CostNew_MapFamily() + (n*n + 1) + 1 +
-    n*PolynomialQuestionStep(n) + 2*(n*n*n + 1)
+    n*CostQuestionStep(n) + 2*(n*n*n + 1)
 {
   counter := counter_in;
   fitness := fitness_in;
   multiplicity := multiplicity_in;
-  fitness_in.USizeBound(n, n, n);
-  multiplicity_in.USizeBound(n, n, n);
+  fitness_in.u_size_bound(n, n, n);
+  multiplicity_in.u_size_bound(n, n, n);
   // The unique fit candidate answers false to every question.
   var nullCandidate:Map_Set_T<int, bool>;
   nullCandidate, counter := New_Map_Set_T(counter);
   var remainingQuestions:SetSet<int>;
-  S.USizeBound(n, n);
+  S.u_size_bound(n, n);
   remainingQuestions := S;
   var remainingQuestionsEmpty:bool;
   remainingQuestionsEmpty, counter := remainingQuestions.IsEmpty(counter);
   ghost var nullStart := counter;
-  LinearLoopBudgetZero(nullStart, PolynomialQuestionStep(n));
+  linear_loop_budget_zero(nullStart, CostQuestionStep(n));
   while !remainingQuestionsEmpty
     // Termination
     decreases remainingQuestions.Cardinality()
@@ -312,15 +308,15 @@ method AddNullCandidate(S:SetSet<int>, privateQuestion:Set<int>,
     invariant nullCandidate.UCardinalityKeys() <= n
     invariant remainingQuestions.Valid()
     // Counter
-    invariant counter <= LinearLoopBudget(nullStart, PolynomialQuestionStep(n),
+    invariant counter <= LinearLoopBudget(nullStart, CostQuestionStep(n),
       S.Cardinality() - remainingQuestions.Cardinality())
   {
-    LinearLoopBudgetStep(nullStart, PolynomialQuestionStep(n), S.Cardinality() - remainingQuestions.Cardinality());
+    linear_loop_budget_step(nullStart, CostQuestionStep(n), S.Cardinality() - remainingQuestions.Cardinality());
     remainingQuestions, nullCandidate, remainingQuestionsEmpty, counter :=
       AddNullCandidateLoop(remainingQuestions, nullCandidate, n, counter);
   }
-  LinearLoopBudgetBound(nullStart, PolynomialQuestionStep(n), S.Cardinality(), n);
-  nullCandidate.USizeBound(n, n);
+  linear_loop_budget_bound(nullStart, CostQuestionStep(n), S.Cardinality(), n);
+  nullCandidate.u_size_bound(n, n);
   nullCandidate, counter := nullCandidate.Insert(privateQuestion, false, counter);
   fitness, counter := fitness.Insert(nullCandidate, true, counter);
   multiplicity, counter := multiplicity.Insert(nullCandidate, nullMultiplicity, counter);
@@ -368,10 +364,10 @@ method BuildElementCandidatesLoop(
   // Invariant out
   ensures remainingElements.Universe() == remainingElements_in.Universe()
   // Counter
-  ensures counter <= counter_in + PolynomialCandidate(n)
+  ensures counter <= counter_in + CostCandidate(n)
 {
-  fitness_in.USizeBound(n, n, n);
-  multiplicity_in.USizeBound(n, n, n);
+  fitness_in.u_size_bound(n, n, n);
+  multiplicity_in.u_size_bound(n, n, n);
   remainingElements := remainingElements_in;
   fitness := fitness_in;
   multiplicity := multiplicity_in;
@@ -383,12 +379,12 @@ method BuildElementCandidatesLoop(
   var candidate:Map_Set_T<int, bool>;
   candidate, counter := New_Map_Set_T(counter);
   var remainingQuestions:SetSet<int>;
-  S.USizeBound(n, n);
+  S.u_size_bound(n, n);
   remainingQuestions := S;
   var remainingQuestionsEmpty:bool;
   remainingQuestionsEmpty, counter := remainingQuestions.IsEmpty(counter);
   ghost var questionStart := counter;
-  LinearLoopBudgetZero(questionStart, PolynomialQuestionStep(n));
+  linear_loop_budget_zero(questionStart, CostQuestionStep(n));
   while !remainingQuestionsEmpty
     // Termination
     decreases remainingQuestions.Cardinality()
@@ -402,15 +398,15 @@ method BuildElementCandidatesLoop(
     invariant candidate.UCardinality() + remainingQuestions.Cardinality() <= S.Cardinality()
     invariant remainingQuestions.USize1() <= n
     // Counter
-    invariant counter <= LinearLoopBudget(questionStart, PolynomialQuestionStep(n),
+    invariant counter <= LinearLoopBudget(questionStart, CostQuestionStep(n),
       S.Cardinality() - remainingQuestions.Cardinality())
   {
-    LinearLoopBudgetStep(questionStart, PolynomialQuestionStep(n), S.Cardinality() - remainingQuestions.Cardinality());
+    linear_loop_budget_step(questionStart, CostQuestionStep(n), S.Cardinality() - remainingQuestions.Cardinality());
     remainingQuestions, candidate, remainingQuestionsEmpty, counter :=
       BuildElementCandidateQuestionsLoop(remainingQuestions, candidate, element, n, counter);
   }
-  LinearLoopBudgetBound(questionStart, PolynomialQuestionStep(n), S.Cardinality(), n);
-  candidate.USizeBound(n, n);
+  linear_loop_budget_bound(questionStart, CostQuestionStep(n), S.Cardinality(), n);
+  candidate.u_size_bound(n, n);
   candidate, counter := candidate.Insert(privateQuestion, false, counter);
 
   var alreadyPresent:bool;
@@ -424,7 +420,7 @@ method BuildElementCandidatesLoop(
   }
   fitness, counter := fitness.Insert(candidate, false, counter);
   remainingElementsEmpty, counter := remainingElements.IsEmpty(counter);
-  reveal PolynomialCandidate();
+  reveal CostCandidate();
 }
 // Record whether the element belongs to one question's set, then consume that question.
 method BuildElementCandidateQuestionsLoop(
@@ -451,11 +447,11 @@ method BuildElementCandidateQuestionsLoop(
   ensures candidate.UCardinality() <= candidate_in.UCardinality() + 1
   ensures remainingQuestions.USize1() <= n
   ensures remainingQuestions.Universe() == remainingQuestions_in.Universe()
-  ensures counter <= counter_in + PolynomialQuestionStep(n)
+  ensures counter <= counter_in + CostQuestionStep(n)
 {
-  remainingQuestions_in.USizeBound(n, n);
-  candidate_in.USizeBound(n, n);
-  reveal PolynomialQuestionStep();
+  remainingQuestions_in.u_size_bound(n, n);
+  candidate_in.u_size_bound(n, n);
+  reveal CostQuestionStep();
   remainingQuestions := remainingQuestions_in;
   candidate := candidate_in;
   counter := counter_in;
@@ -513,29 +509,29 @@ method BuildSetCandidatesLoop(
   // Invariant out
   ensures remainingSelectedQuestions.Universe() == remainingSelectedQuestions_in.Universe()
   // Counter
-  ensures counter <= counter_in + PolynomialCandidate(n)
+  ensures counter <= counter_in + CostCandidate(n)
 {
-  fitness_in.USizeBound(n, n, n);
-  multiplicity_in.USizeBound(n, n, n);
+  fitness_in.u_size_bound(n, n, n);
+  multiplicity_in.u_size_bound(n, n, n);
   remainingSelectedQuestions := remainingSelectedQuestions_in;
   fitness := fitness_in;
   multiplicity := multiplicity_in;
   counter := counter_in;
 
   var selectedQuestion:Set<int>;
-  remainingSelectedQuestions_in.USizeBound(n, n);
+  remainingSelectedQuestions_in.u_size_bound(n, n);
   selectedQuestion, counter := remainingSelectedQuestions.Pick(counter);
   remainingSelectedQuestions, counter := remainingSelectedQuestions.Remove(selectedQuestion, counter);
 
   var candidate:Map_Set_T<int, bool>;
   candidate, counter := New_Map_Set_T(counter);
   var remainingQuestions:SetSet<int>;
-  S.USizeBound(n, n);
+  S.u_size_bound(n, n);
   remainingQuestions := S;
   var remainingQuestionsEmpty:bool;
   remainingQuestionsEmpty, counter := remainingQuestions.IsEmpty(counter);
   ghost var questionStart := counter;
-  LinearLoopBudgetZero(questionStart, PolynomialQuestionStep(n));
+  linear_loop_budget_zero(questionStart, CostQuestionStep(n));
   while !remainingQuestionsEmpty
     // Termination
     decreases remainingQuestions.Cardinality()
@@ -549,20 +545,20 @@ method BuildSetCandidatesLoop(
     invariant candidate.UCardinality() + remainingQuestions.Cardinality() <= S.Cardinality()
     invariant remainingQuestions.USize1() <= n
     // Counter
-    invariant counter <= LinearLoopBudget(questionStart, PolynomialQuestionStep(n),
+    invariant counter <= LinearLoopBudget(questionStart, CostQuestionStep(n),
       S.Cardinality() - remainingQuestions.Cardinality())
   {
-    LinearLoopBudgetStep(questionStart, PolynomialQuestionStep(n), S.Cardinality() - remainingQuestions.Cardinality());
+    linear_loop_budget_step(questionStart, CostQuestionStep(n), S.Cardinality() - remainingQuestions.Cardinality());
     remainingQuestions, candidate, remainingQuestionsEmpty, counter :=
       BuildSetCandidateQuestionsLoop(remainingQuestions, candidate, selectedQuestion, n, counter);
   }
-  LinearLoopBudgetBound(questionStart, PolynomialQuestionStep(n), S.Cardinality(), n);
-  candidate.USizeBound(n, n);
+  linear_loop_budget_bound(questionStart, CostQuestionStep(n), S.Cardinality(), n);
+  candidate.u_size_bound(n, n);
   candidate, counter := candidate.Insert(privateQuestion, true, counter);
   fitness, counter := fitness.Insert(candidate, false, counter);
   multiplicity, counter := multiplicity.Insert(candidate, 1, counter);
   remainingSelectedQuestionsEmpty, counter := remainingSelectedQuestions.IsEmpty(counter);
-  reveal PolynomialCandidate();
+  reveal CostCandidate();
 }
 // Record whether one question is the selected set's question, then advance the traversal.
 method BuildSetCandidateQuestionsLoop(
@@ -590,11 +586,11 @@ method BuildSetCandidateQuestionsLoop(
   ensures candidate.UCardinality() <= candidate_in.UCardinality() + 1
   ensures remainingQuestions.USize1() <= n
   ensures remainingQuestions.Universe() == remainingQuestions_in.Universe()
-  ensures counter <= counter_in + PolynomialQuestionStep(n)
+  ensures counter <= counter_in + CostQuestionStep(n)
 {
-  remainingQuestions_in.USizeBound(n, n);
-  candidate_in.USizeBound(n, n);
-  reveal PolynomialQuestionStep();
+  remainingQuestions_in.u_size_bound(n, n);
+  candidate_in.u_size_bound(n, n);
+  reveal CostQuestionStep();
   remainingQuestions := remainingQuestions_in;
   candidate := candidate_in;
   counter := counter_in;
@@ -633,11 +629,11 @@ method AddNullCandidateLoop(
   ensures nullCandidate.UCardinality() <= nullCandidate_in.UCardinality() + 1
   ensures remainingQuestions.USize1() <= n
   ensures remainingQuestions.Universe() == remainingQuestions_in.Universe()
-  ensures counter <= counter_in + PolynomialQuestionStep(n)
+  ensures counter <= counter_in + CostQuestionStep(n)
 {
-  remainingQuestions_in.USizeBound(n, n);
-  nullCandidate_in.USizeBound(n, n);
-  reveal PolynomialQuestionStep();
+  remainingQuestions_in.u_size_bound(n, n);
+  nullCandidate_in.u_size_bound(n, n);
+  reveal CostQuestionStep();
   remainingQuestions := remainingQuestions_in;
   nullCandidate := nullCandidate_in;
   counter := counter_in;
@@ -667,45 +663,82 @@ method ComputeThresholds(universeSize:nat, sourceSetCount:nat, k:nat, omega:nat)
 }
 
 
-ghost function {:opaque} PolynomialQuestionStep(n:nat):nat
+// Structural envelopes for growing collections; n bounds each independent dimension.
+ghost function {:opaque} CostQuestionStep(n:nat):nat
 { 3*(n + 1) + 2*(n*n + 1) + 1 }
 
-ghost function {:opaque} PolynomialCandidate(n:nat):nat
+ghost function {:opaque} CostCandidate(n:nat):nat
 {
   3*(n + 1) + 2*(n*n + 1) + 4*(n*n*n + 1) + CostNew_MapFamily() + 3 +
-  n*PolynomialQuestionStep(n)
+  n*CostQuestionStep(n)
 }
 
-ghost function {:opaque} PolynomialPrepare(n:nat):nat
-{ CostNew_SetFamily() + (n*n + 1) + 1 }
+// Input-dependent preparation and output costs; positive-branch insertions start from empty containers.
+ghost function CostPrepareSourceSets(S:SetSet<int>):nat
+{ CostNew_SetFamily() + S.UCostRemove() + S.CostCount() }
 
-ghost function {:opaque} PolynomialPositiveCase(n:nat):nat
-{ CostNew_MapFamily() + 2*CostNew_MapFamily() + 2*CostNew_SetFamily() + (n*n + 1) + 3*(n + 1) }
+ghost function CostBuildOutputQuestionSets(S:SetSet<int>):nat
+{ S.UCostAdd() + CostNew_SetFamily() + 1 }
 
-ghost function {:opaque} PolynomialNontrivialCase(n:nat):nat
+ghost function CostPositiveCase():nat
+{ 3*CostNew_MapFamily() + 2*CostNew_SetFamily() + 4 }
+
+ghost function {:opaque} CostNontrivialCase(n:nat):nat
 {
   2*CostNew_MapFamily() + CostNew_MapFamily() + CostNew_SetFamily() +
   3*(n*n + 1) + 2*(n*n*n + 1) + 5 +
-  2*n*PolynomialCandidate(n) + n*PolynomialQuestionStep(n)
+  2*n*CostCandidate(n) + n*CostQuestionStep(n)
 }
 
 // Fixed polynomial witness, independent of k and of output map contents.
 ghost function PolynomialTransformSetCoverToCDPC(n:nat):nat
 { 12*n*n*n*n + 14*n*n*n + 26*n*n + 35*n + 26 }
 
-// Identify the sum of phase bounds with the fixed degree-four polynomial.
-lemma PolynomialTransformSetCoverToCDPCComposition(n:nat)
-  ensures PolynomialPrepare(n) + PolynomialPositiveCase(n) + PolynomialNontrivialCase(n) == PolynomialTransformSetCoverToCDPC(n)
+// Compose input-dependent costs before converting to the scalar polynomial.
+ghost function CostTransformSetCoverToCDPC(S:SetSet<int>, n:nat):nat
+{ CostPrepareSourceSets(S) + CostPositiveCase() + CostNontrivialCase(n) }
+
+lemma {:isolate_assertions} cost_transform_set_cover_to_cdpc_is_polynomial(S:SetSet<int>, n:nat)
+  requires S.Valid() && S.UCardinality() <= n && S.USize1() <= n
+  ensures CostTransformSetCoverToCDPC(S, n) <= PolynomialTransformSetCoverToCDPC(n)
+  ensures CostTransformSetCoverToCDPC(S, n) <= 113 * NatPower((n)+1, 4)
 {
-  reveal PolynomialPrepare(), PolynomialPositiveCase(), PolynomialNontrivialCase();
-  reveal PolynomialCandidate(), PolynomialQuestionStep();
+  polynomial_transform_set_cover_to_cdpc_bound();
+  S.u_size_bound(n, n);
+  calc {
+    CostTransformSetCoverToCDPC(S, n);
+    == CostPrepareSourceSets(S) + CostPositiveCase() + CostNontrivialCase(n);
+    <= n*n + 3 + CostPositiveCase() + CostNontrivialCase(n);
+    <= { reveal CostNontrivialCase(), CostCandidate(), CostQuestionStep(); }
+    PolynomialTransformSetCoverToCDPC(n);
+  }
 }
 
-// Compose the three population phases and final output operations outside collection contexts.
-lemma CostNontrivialBound(n:nat, start:nat, prepared:nat, spent:nat)
+// Keep phase arithmetic separate from collection facts in the executable method.
+lemma cost_nontrivial_bound(n:nat, start:nat, prepared:nat, spent:nat)
   requires prepared <= start + 2*CostNew_MapFamily() + CostNew_MapFamily() +
     (n*n + 1) + 2*(n*n*n + 1) + 4 +
-    2*n*PolynomialCandidate(n) + n*PolynomialQuestionStep(n)
-  requires spent <= prepared + CostNew_SetFamily() + 2*(n*n + 1) + 1
-  ensures spent <= start + PolynomialNontrivialCase(n)
-{ reveal PolynomialNontrivialCase(); }
+    2*n*CostCandidate(n) + n*CostQuestionStep(n)
+  requires spent <= prepared + CostNew_SetFamily() + (n*n + 1) + 1
+  ensures spent <= start + CostNontrivialCase(n)
+{ reveal CostNontrivialCase(); }
+
+// Uniform witness: these constants do not depend on the instance.
+lemma polynomial_transform_set_cover_to_cdpc_bound()
+  ensures HasPolynomialBound((n:nat) => true, (n:nat) => n, PolynomialTransformSetCoverToCDPC, 113, 4)
+  ensures IsPolynomial((n:nat) => true, (n:nat) => n, PolynomialTransformSetCoverToCDPC)
+{
+  forall n:nat
+    ensures PolynomialTransformSetCoverToCDPC(n) <= 113 * NatPower(n+1, 4)
+  {
+    assert {:fuel NatPower, 5} PolynomialTransformSetCoverToCDPC(n) ==
+      26*NatPower(n, 0) + 35*NatPower(n, 1) + 26*NatPower(n, 2) +
+      14*NatPower(n, 3) + 12*NatPower(n, 4);
+    weighted_monomial_bound(n, n, 0, 4, 26);
+    weighted_monomial_bound(n, n, 1, 4, 35);
+    weighted_monomial_bound(n, n, 2, 4, 26);
+    weighted_monomial_bound(n, n, 3, 4, 14);
+    weighted_monomial_bound(n, n, 4, 4, 12);
+  }
+  polynomial_witness((n:nat) => true, (n:nat) => n, PolynomialTransformSetCoverToCDPC, 113, 4);
+}

@@ -1,5 +1,5 @@
 include "../Problems/SetCover.dfy"
-include "../Problems/CDPC.dfy"
+include "../Problems/CDPCLemmas.dfy"
 /*
 Reduction Set Cover -> CDPC
 The questions are the sets in S. After removing the empty set from S, {} is reserved as the private question
@@ -11,7 +11,7 @@ ghost function SetCoverToCDPC<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
   ensures CDPCValidInstance(r.0, r.1, r.2, r.3, r.4, r.5, r.6, r.7)
 {
   var nonemptySets := S - {{}};
-  SetCoverWithoutEmpty(U, S, k);
+  set_cover_without_empty(U, S, k);
   if |nonemptySets| <= k then
     SetCoverToCDPCPositiveInstance<T>()
   else
@@ -26,7 +26,7 @@ ghost function SetCoverToCDPCPositiveInstance<T(!new)>()
   var candidate:Candidate<set<T>> := map[{} := false];
   var fitness := map[candidate := true];
   var multiplicity:map<Candidate<set<T>>, nat> := map[candidate := 1];
-  SetCoverToCDPCPositiveInstanceCorrect<T>();
+  set_cover_to_cdpc_positive_instance_correct<T>();
   ({{}}, fitness, multiplicity, {}, 0.0, 1.0, 0.0, 1.0)
 }
 
@@ -74,7 +74,7 @@ ghost function SetCoverToCDPCNontrivial<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
   assert fitness.Keys == multiplicity.Keys == candidates;
   assert forall c | c in candidates :: multiplicity[c] > 0;
   assert forall c | c in candidates :: c.Keys == S + {{}};
-  CDPCValidInstanceDefinition(
+  cdpc_valid_instance_definition(
     S + {{}}, fitness, multiplicity, {{}}, a, 1.0, 0.0, y);
   (S + {{}}, fitness, multiplicity, {{}}, a, 1.0, 0.0, y)
 }
@@ -136,7 +136,7 @@ ghost function {:opaque} SetCoverToCDPCFitnessUpper(s:nat, omega:nat) : (y:real)
 }
 
 // Primer paso comun a las dos implicaciones de la reduccion.
-lemma SetCoverWithoutEmpty<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
+lemma set_cover_without_empty<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
   requires SetCoverValidInstance(U, S)
   ensures IsCover(U, S - {{}})
   ensures SetCover(U, S, k) == SetCover(U, S - {{}}, k)
@@ -168,7 +168,7 @@ lemma SetCoverWithoutEmpty<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
   }
 }
 
-lemma SetCoverToCDPCPositiveInstanceCorrect<T(!new)>()
+lemma set_cover_to_cdpc_positive_instance_correct<T(!new)>()
   ensures
     var candidate:Candidate<set<T>> := map[{} := false];
     ghost var fitness := map[candidate := true];
@@ -182,8 +182,8 @@ lemma SetCoverToCDPCPositiveInstanceCorrect<T(!new)>()
 
   assert fitness.Keys == {candidate};
   assert multiplicity[candidate] == 1;
-  MultiplicitySumSingleton(candidate, multiplicity);
-  FitSumDefinition({candidate}, fitness, multiplicity, 1, {candidate});
+  multiplicity_sum_singleton(candidate, multiplicity);
+  fit_sum_definition({candidate}, fitness, multiplicity, 1, {candidate});
   assert MultiplicitySum({candidate}, multiplicity, 1);
   assert FitSum({candidate}, fitness, multiplicity, 1);
   assert MultiplicitySum(fitness.Keys, multiplicity, 1);
@@ -220,7 +220,7 @@ ghost function SetCoverToCDPCInterview<T(!new)>(cover:set<set<T>>, available:set
 // Demonstración
 
 
-lemma SetCoverToCDPCCorrect<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
+lemma set_cover_to_cdpc_correct<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
   requires SetCoverValidInstance(U, S)
   ensures var (questions, fitness, multiplicity, privateQuestions,
                privateLower, privateUpper, fitnessLower, fitnessUpper) :=
@@ -229,11 +229,11 @@ lemma SetCoverToCDPCCorrect<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
             questions, fitness, multiplicity, privateQuestions,
             privateLower, privateUpper, fitnessLower, fitnessUpper)
 {
-  SetCoverToCDPCForward(U, S, k);
-  SetCoverToCDPCBackward(U, S, k);
+  set_cover_to_cdpc_forward(U, S, k);
+  set_cover_to_cdpc_backward(U, S, k);
 }
 
-lemma SetCoverToCDPCForward<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
+lemma set_cover_to_cdpc_forward<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
   requires SetCoverValidInstance(U, S)
   ensures var (questions, fitness, multiplicity, privateQuestions, privateLower, privateUpper, fitnessLower, fitnessUpper) :=
             SetCoverToCDPC(U, S, k);
@@ -247,7 +247,7 @@ lemma SetCoverToCDPCForward<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
   // Una rama true tiene aptitud cero y proporcion privada 1/(r*omega+1). Probar privacidad y clasificacion.
 
 
-lemma SetCoverToCDPCBackward<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
+lemma set_cover_to_cdpc_backward<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
   requires SetCoverValidInstance(U, S)
   ensures var (questions, fitness, multiplicity, privateQuestions,
                privateLower, privateUpper, fitnessLower, fitnessUpper) :=

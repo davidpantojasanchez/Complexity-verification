@@ -25,7 +25,7 @@ method TransformHittingSetToSetCover_simple(U:set<int>, S:set<set<int>>, k:nat) 
       S', SS, counter := AddSingletonSourceSet_simple(U, S, k, S', SS, counter);
     }
     counter := counter + 1;
-    SubtractionIdentity(S, S');
+    set_difference_empty(S, S');
     return (S, SS, 0), counter;
   }
   // Regular case
@@ -40,7 +40,7 @@ method TransformHittingSetToSetCover_simple(U:set<int>, S:set<set<int>>, k:nat) 
     U', SS, counter := BuildIncidenceSet_simple(U, S, k, U', SS, counter);
   }
   counter := counter + 1;
-  SubtractionIdentity(U, U');
+  set_difference_empty(U, U');
   
   return (S, SS, k), counter;
 }

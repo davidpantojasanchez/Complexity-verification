@@ -18,7 +18,7 @@ class ConcreteMap<K(==), V(==)> extends Map<K, V> {
     entries := entries_in;
     universe := universe_in;
     reveal Model();
-    SubsetCardinalityBound(entries_in.Keys, universe_in.Keys);
+    subset_cardinality_bound(entries_in.Keys, universe_in.Keys);
   }
 
   function ExecutableModel():map<K, V> { entries }
@@ -152,10 +152,10 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     entries := entries_in;
     universe := universe_in;
     reveal Model();
-    SubsetCardinalityBound(entries_in.Keys, universe_in.Keys);
+    subset_cardinality_bound(entries_in.Keys, universe_in.Keys);
     reveal UCardinalityKeys();
-    MaxByMonotonic(entries_in.Keys, universe_in.Keys, item => |item|);
-    MultiplicationPreservesOrder(|entries_in|, MaxCardinality_map(entries_in.Keys), |universe_in|, MaxCardinality_map(universe_in.Keys));
+    max_by_monotonic(entries_in.Keys, universe_in.Keys, item => |item|);
+    nonnegative_product_monotonic(|entries_in|, MaxCardinality_map(entries_in.Keys), |universe_in|, MaxCardinality_map(universe_in.Keys));
   }
 
   function ExecutableModel():map<map<K, V>, R> { entries }
@@ -202,7 +202,7 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     result := new ConcreteMap_Map_T(
       entries[concrete_key := value],
       universe[concrete_key := value]);
-    InsertUniverseMeasures_Map_Map_T(this, result, key, value);
+    insert_universe_measures_map_map_t(this, result, key, value);
     counter_out := counter_in + CostInsert();
   }
 
@@ -246,7 +246,7 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     reveal UCardinalityKeys();
     reveal Valid();
     var chosen:map<K, V> :| chosen in entries.Keys;
-    MaxByMember(universe.Keys, chosen, item => |item|);
+    max_by_member(universe.Keys, chosen, item => |item|);
     key := new ConcreteMap(chosen, chosen);
     counter_out := counter_in + CostPickKey(key);
   }
@@ -371,10 +371,10 @@ class ConcreteMap_Set_T<K(==), V(==)> extends Map_Set_T<K, V> {
     entries := entries_in;
     universe := universe_in;
     reveal Model();
-    SubsetCardinalityBound(entries_in.Keys, universe_in.Keys);
+    subset_cardinality_bound(entries_in.Keys, universe_in.Keys);
     reveal UCardinalityKeys();
-    MaxByMonotonic(entries_in.Keys, universe_in.Keys, item => |item|);
-    MultiplicationPreservesOrder(|entries_in|, MaxCardinality_set(entries_in.Keys), |universe_in|, MaxCardinality_set(universe_in.Keys));
+    max_by_monotonic(entries_in.Keys, universe_in.Keys, item => |item|);
+    nonnegative_product_monotonic(|entries_in|, MaxCardinality_set(entries_in.Keys), |universe_in|, MaxCardinality_set(universe_in.Keys));
   }
 
   function ExecutableModel():map<set<K>, V> { entries }
@@ -417,7 +417,7 @@ class ConcreteMap_Set_T<K(==), V(==)> extends Map_Set_T<K, V> {
     reveal Valid(), key.Valid();
     var concrete_key := key.ExecutableModel();
     result := new ConcreteMap_Set_T(entries[concrete_key := value], universe[concrete_key := value]);
-    InsertUniverseMeasures_Map_Set_T(this, result, key, value);
+    insert_universe_measures_map_set_t(this, result, key, value);
     counter_out := counter_in + CostInsert();
   }
 
@@ -461,7 +461,7 @@ class ConcreteMap_Set_T<K(==), V(==)> extends Map_Set_T<K, V> {
     reveal UCardinalityKeys();
     reveal Valid();
     var chosen:set<K> :| chosen in entries.Keys;
-    MaxByMember(universe.Keys, chosen, item => |item|);
+    max_by_member(universe.Keys, chosen, item => |item|);
     key := new ConcreteSet(chosen, chosen);
     counter_out := counter_in + CostPickKey(key);
   }
@@ -512,7 +512,7 @@ class ConcreteMap_Set_T<K(==), V(==)> extends Map_Set_T<K, V> {
 }
 
 method New_Map_Set_T<K(==), V(==)>(ghost counter_in:nat) returns (result:Map_Set_T<K, V>, ghost counter_out:nat)
-  ensures Init_Map_Set_T(result)
+  ensures result.Init()
   ensures result.UCardinalityKeys() == 0
   ensures result.Model() == map[] && result.Universe() == map[]
   ensures counter_out == counter_in + CostNew_MapFamily()
@@ -535,12 +535,12 @@ class ConcreteMap_MapSet_T<K(==), V(==), R(==)> extends Map_MapSet_T<K, V, R> {
     entries := entries_in;
     universe := universe_in;
     reveal Model();
-    SubsetCardinalityBound(entries_in.Keys, universe_in.Keys);
+    subset_cardinality_bound(entries_in.Keys, universe_in.Keys);
     reveal UCardinalityKeys(), UCardinalityKeysKeys();
-    MaxByMonotonic(entries_in.Keys, universe_in.Keys, item => |item|);
-    MaxByMonotonic(entries_in.Keys, universe_in.Keys, SetKeyCardinality);
-    MultiplicationPreservesOrder(MaxCardinality_map(entries_in.Keys), MaxSetKeyCardinality_map_set_t(entries_in.Keys), MaxCardinality_map(universe_in.Keys), MaxSetKeyCardinality_map_set_t(universe_in.Keys));
-    MultiplicationPreservesOrder(|entries_in|, MaxCardinality_map(entries_in.Keys) * MaxSetKeyCardinality_map_set_t(entries_in.Keys), |universe_in|, MaxCardinality_map(universe_in.Keys) * MaxSetKeyCardinality_map_set_t(universe_in.Keys));
+    max_by_monotonic(entries_in.Keys, universe_in.Keys, item => |item|);
+    max_by_monotonic(entries_in.Keys, universe_in.Keys, SetKeyCardinality);
+    nonnegative_product_monotonic(MaxCardinality_map(entries_in.Keys), MaxSetKeyCardinality_map_set_t(entries_in.Keys), MaxCardinality_map(universe_in.Keys), MaxSetKeyCardinality_map_set_t(universe_in.Keys));
+    nonnegative_product_monotonic(|entries_in|, MaxCardinality_map(entries_in.Keys) * MaxSetKeyCardinality_map_set_t(entries_in.Keys), |universe_in|, MaxCardinality_map(universe_in.Keys) * MaxSetKeyCardinality_map_set_t(universe_in.Keys));
   }
 
   function ExecutableModel():map<map<set<K>, V>, R> { entries }
@@ -584,10 +584,10 @@ class ConcreteMap_MapSet_T<K(==), V(==), R(==)> extends Map_MapSet_T<K, V, R> {
     var concrete_key := key.ExecutableModel();
     var updatedEntries := entries[concrete_key := value];
     ghost var updatedUniverse := universe[concrete_key := value];
-    UpdateAgreement_Map_MapSet_T(this, concrete_key, value);
+    update_agreement_map_map_set_t(this, concrete_key, value);
     result := new ConcreteMap_MapSet_T(updatedEntries, updatedUniverse);
     assert result.Universe() == Universe()[key.Model() := value];
-    InsertUniverseMeasures_Map_MapSet_T(this, result, key, value);
+    insert_universe_measures_map_map_set_t(this, result, key, value);
     counter_out := counter_in + CostInsert();
   }
 
@@ -636,11 +636,11 @@ class ConcreteMap_MapSet_T<K(==), V(==), R(==)> extends Map_MapSet_T<K, V, R> {
     reveal UCardinalityKeys(), UCardinalityKeysKeys();
     reveal Valid();
     var chosen:map<set<K>, V> :| chosen in entries.Keys;
-    MaxByMember(universe.Keys, chosen, item => |item|);
-    MaxSetKeyCardinalityMember_map_set_t(universe.Keys, chosen);
+    max_by_member(universe.Keys, chosen, item => |item|);
+    max_set_key_cardinality_member_map_set_t(universe.Keys, chosen);
     key := new ConcreteMap_Set_T(chosen, chosen);
     reveal key.UCardinalityKeys();
-    MultiplicationPreservesOrder(key.Cardinality(), key.CardinalityKeys(), UCardinalityKeys(), UCardinalityKeysKeys());
+    nonnegative_product_monotonic(key.Cardinality(), key.CardinalityKeys(), UCardinalityKeys(), UCardinalityKeysKeys());
     counter_out := counter_in + CostPickKey(key);
   }
 
@@ -692,7 +692,7 @@ class ConcreteMap_MapSet_T<K(==), V(==), R(==)> extends Map_MapSet_T<K, V, R> {
 }
 
 method New_Map_MapSet_T<K(==), V(==), R(==)>(ghost counter_in:nat) returns (result:Map_MapSet_T<K, V, R>, ghost counter_out:nat)
-  ensures Init_Map_MapSet_T(result)
+  ensures result.Init()
   ensures result.UCardinalityKeys() == 0
   ensures result.UCardinalityKeysKeys() == 0
   ensures result.Model() == map[] && result.Universe() == map[]
