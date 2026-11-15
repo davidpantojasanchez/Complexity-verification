@@ -11,6 +11,10 @@ Multiplicities are kept as integers; they are never expanded into individuals.
 
 type Candidate<Q(==)> = map<Q, bool>
 
+// Mathematical real thresholds do not determine stored rational sizes.
+type CDPCInstance<Q(==)> = (set<Q>, map<Candidate<Q>, bool>,
+  map<Candidate<Q>, nat>, set<Q>, real, real, real, real)
+
 ghost predicate CDPC<Q(!new)>(
     questions:set<Q>,
     fitness:map<Candidate<Q>, bool>,

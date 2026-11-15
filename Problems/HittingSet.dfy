@@ -1,3 +1,5 @@
+type HittingSetInstance<T> = (set<T>, set<set<T>>, nat)
+
 
 ghost predicate HittingSet<T>(universe:set<T>, sets:set<set<T>>, cardinality:nat)
   requires HittingSetValidInstance(universe, sets)

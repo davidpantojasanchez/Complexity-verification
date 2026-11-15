@@ -1,12 +1,12 @@
-include "../Collections/Set.dfy"
-include "../Collections/Map.dfy"
+include "Set.dfy"
+include "Map.dfy"
 
 // These lemmas are internal implementation helpers; the lemmas intended to be used in verification are directly in the traits
 
 lemma add_universe_measures_set_set<T>(before:SetSet<T>, result:SetSet<T>, element:Set<T>)
   requires result.Universe() == before.Universe() + {element.Model()}
   ensures result.UCardinality1() ==
-    (if element.Size() <= before.UCardinality1() then before.UCardinality1() else element.Size())
+    (if element.Cardinality() <= before.UCardinality1() then before.UCardinality1() else element.Cardinality())
 {
   reveal before.UCardinality1(), result.UCardinality1();
   max_by_insert(before.Universe(), element.Model(), item => |item|);
@@ -29,7 +29,7 @@ lemma insert_universe_measures_map_map_t<K, V, R>(
     before:Map_Map_T<K, V, R>, result:Map_Map_T<K, V, R>, key:Map<K, V>, value:R)
   requires result.Universe() == before.Universe()[key.Model() := value]
   ensures result.UCardinalityKeys() ==
-    (if key.Size() <= before.UCardinalityKeys() then before.UCardinalityKeys() else key.Size())
+    (if key.Cardinality() <= before.UCardinalityKeys() then before.UCardinalityKeys() else key.Cardinality())
 {
   reveal before.UCardinalityKeys(), result.UCardinalityKeys();
   assert result.Universe().Keys == before.Universe().Keys + {key.Model()};
@@ -40,7 +40,7 @@ lemma insert_universe_measures_map_set_t<K, V>(
     before:Map_Set_T<K, V>, result:Map_Set_T<K, V>, key:Set<K>, value:V)
   requires result.Universe() == before.Universe()[key.Model() := value]
   ensures result.UCardinalityKeys() ==
-    (if key.Size() <= before.UCardinalityKeys() then before.UCardinalityKeys() else key.Size())
+    (if key.Cardinality() <= before.UCardinalityKeys() then before.UCardinalityKeys() else key.Cardinality())
 {
   reveal before.UCardinalityKeys(), result.UCardinalityKeys(), key.Model();
   assert result.Universe().Keys == before.Universe().Keys + {key.Model()};
@@ -62,7 +62,7 @@ lemma insert_universe_measures_map_map_set_t<K, V, R>(
   reveal before.UCardinalityKeysKeys(), result.UCardinalityKeysKeys(), key.Model();
   assert result.Universe().Keys == before.Universe().Keys + {key.Model()};
   max_by_insert(before.Universe().Keys, key.Model(), item => |item|);
-  max_by_insert(before.Universe().Keys, key.Model(), SetKeyCardinality);
+  max_by_insert(before.Universe().Keys, key.Model(), KeyCardinality_map_set_t);
 }
 
 // Update agreement.
@@ -77,5 +77,5 @@ lemma update_agreement_map_map_set_t<K, V, R>(
     M.Model()[key := value][entry] == M.Universe()[key := value][entry]
 {
   reveal M.Valid();
-  map_update_agreement(M.Model(), M.Universe(), key, value);
+  update_agreement_map(M.Model(), M.Universe(), key, value);
 }

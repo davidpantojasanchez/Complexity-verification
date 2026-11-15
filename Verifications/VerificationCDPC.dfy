@@ -1,220 +1,225 @@
+include "../Polynomial/PolynomialCDPC.dfy"
 include "../Collections/ConcreteInterview.dfy"
 include "VerificationCDPC_aux.dfy"
-include "../Problems/CDPCLemmas.dfy"
 
-// SHORT-CERTIFICATE COMPLETENESS
-// Every positive CDPC instance has a correct, polynomially short interview.
+// Positive instances also have a concrete certificate in the verifier's representation.
 ghost method CDPCHasShortCertificate<Q(!new)>(
     questions:Set<Q>, fitness:Map_Map_T<Q, bool, bool>, multiplicity:Map_Map_T<Q, bool, nat>,
-    privateQuestions:Set<Q>, privateLower:real, privateUpper:real,
-    fitnessLower:real, fitnessUpper:real) returns (certificate:Interview<Q>)
+    privateQuestions:Set<Q>, privateLower:Rational, privateUpper:Rational,
+    fitnessLower:Rational, fitnessUpper:Rational) returns (certificate:Interview<Q>)
   requires questions.Init() && fitness.Init() && multiplicity.Init() && privateQuestions.Init()
-  requires CDPCValidInstance(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
-    privateLower, privateUpper, fitnessLower, fitnessUpper)
-  requires CDPC(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
-    privateLower, privateUpper, fitnessLower, fitnessUpper)
+  requires CDPCValidInstance(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(), privateLower.Model(),
+      privateUpper.Model(), fitnessLower.Model(), fitnessUpper.Model())
+  requires CDPC(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(), privateLower.Model(), privateUpper.Model(),
+      fitnessLower.Model(), fitnessUpper.Model())
   ensures fresh(certificate)
-  ensures CDPCCertificate(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
-    privateLower, privateUpper, fitnessLower, fitnessUpper, certificate.Model())
-  ensures certificate.NodeCount() <= PolynomialCDPCCertificateSize(fitness.Cardinality() + questions.Cardinality() + 1)
+  ensures CDPCCertificate(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(), privateLower.Model(),
+      privateUpper.Model(), fitnessLower.Model(), fitnessUpper.Model(), certificate.Model())
+  ensures forall weight:Q -> nat ::
+    (CDPCCertificateSize(certificate.Model(), weight) <=
+    BoundCDPCCertificateSize(CDPCInstanceSize(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(), (privateLower,
+        privateUpper, fitnessLower, fitnessUpper), weight)))
 {
   var tree :| CDPCCertificate(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
-    privateLower, privateUpper, fitnessLower, fitnessUpper, tree);
+    privateLower.Model(), privateUpper.Model(), fitnessLower.Model(), fitnessUpper.Model(), tree);
   certificate := new ConcreteInterview<Q>(tree);
-  cdpc_certificate_size_bound(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
-    privateLower, privateUpper, fitnessLower, fitnessUpper, tree);
+  cdpc_certificate_volume_bound(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
+    privateLower.Model(), privateUpper.Model(), fitnessLower.Model(), fitnessUpper.Model(), tree);
   var n := fitness.Cardinality() + questions.Cardinality() + 1;
   nonnegative_product_monotonic(fitness.Cardinality(), questions.Cardinality(), n, n);
   multiplication_associative(2, fitness.Cardinality(), questions.Cardinality());
   multiplication_associative(2, n, n);
   assert 2*fitness.Cardinality()*questions.Cardinality()+1 <= 2*n*n+1;
-}
-
-// POLYNOMIAL VERIFICATION
-
-// Determines that PolynomialVerifyCDPC is polynomial with respect to the scalar input,
-// which is a measure of the size of the instance (unlike for Set Cover, where it also
-// depended on the size of the certificate).
-// Note that this does not directly depend on the instance of the problem; the relationship
-// between PolynomialVerifySetCover and the verification of Set Cover is defined later.
-// The admissibility criteria of certificates of CDPC is simpler than Set Cover's and
-// straightforward to demonstrate that it can be done in polynomial time with respect
-// to the size of the instance, even if the certificate itself is arbitrarily large.
-lemma {:isolate_assertions} polynomial_verify_cdpc_bound()
-  ensures HasPolynomialBound(
-    (n:nat) => true,
-    (n:nat) => n,
-    PolynomialVerifyCDPC, 620, 6)
-  ensures IsPolynomial(
-    (n:nat) => true,
-    (n:nat) => n,
-    PolynomialVerifyCDPC)
-{
-  forall n:nat
-    ensures PolynomialVerifyCDPC(n) <= 620 * NatPower(n+1, 6)
+  forall weight:Q -> nat
+    ensures CDPCCertificateSize(certificate.Model(), weight) <= BoundCDPCCertificateSize(CDPCInstanceSize(
+      questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
+      (privateLower, privateUpper, fitnessLower, fitnessUpper), weight))
   {
-    assert {:fuel NatPower, 7} PolynomialVerifyCDPC(n) ==
-      54*NatPower(n, 0) + 64*NatPower(n, 1) + 144*NatPower(n, 2) +
-      158*NatPower(n, 3) + 96*NatPower(n, 4) + 60*NatPower(n, 5) + 8*NatPower(n, 6);
-    weighted_monomial_bound(n, n, 0, 6, 54);
-    weighted_monomial_bound(n, n, 1, 6, 64);
-    weighted_monomial_bound(n, n, 2, 6, 144);
-    weighted_monomial_bound(n, n, 3, 6, 158);
-    weighted_monomial_bound(n, n, 4, 6, 96);
-    weighted_monomial_bound(n, n, 5, 6, 60);
-    weighted_monomial_bound(n, n, 6, 6, 8);
+    cdpc_certificate_instance_size_bound(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
+      (privateLower, privateUpper, fitnessLower, fitnessUpper), certificate.Model(), weight);
   }
-  polynomial_witness(
-    (n:nat) => true,
-    (n:nat) => n,
-    PolynomialVerifyCDPC,
-    620, 6);
 }
 
-// Using the previous lemma, concludes that the verification of CDPC (including admissibility) runs in polynomial time
-// with respect to the size of the instance.
-lemma {:isolate_assertions} cost_verify_cdpc_is_polynomial<Q(!new)>(
-    fitness:Map_Map_T<Q, bool, bool>, multiplicity:Map_Map_T<Q, bool, nat>,
-    privateQuestions:Set<Q>, questions:Set<Q>, interview:Interview<Q>)
-  requires questions.Init() && fitness.Init() && multiplicity.Init() && privateQuestions.Init()
-  requires fitness.Model().Keys == multiplicity.Model().Keys
-  requires privateQuestions.Model() <= questions.Model()
-  requires forall candidate | candidate in fitness.Model() :: candidate.Keys == questions.Model()
-  ensures CostVerifyCDPC(fitness, multiplicity, privateQuestions, questions, interview) <=
-    PolynomialVerifyCDPC(fitness.Cardinality() + questions.Cardinality() + 1)
-  ensures CostVerifyCDPC(fitness, multiplicity, privateQuestions, questions, interview) <=
-    620 * NatPower(fitness.Cardinality() + questions.Cardinality() + 2, 6)
-{
-  polynomial_verify_cdpc_bound();
-  var n := fitness.Cardinality() + questions.Cardinality() + 1;
-  subset_cardinality_bound(privateQuestions.Model(), questions.Model());
-  fitness.u_cardinality_keys_bound(questions.Cardinality());
-  multiplicity.u_cardinality_keys_bound(questions.Cardinality());
-  cost_verify_cdpc_bound(fitness, multiplicity, privateQuestions, questions, interview, n);
-}
-
-
-// ABSENCE OF FALSE POSITIVES
-
-// Main verification method for CDPC.
-// Demonstrates that no admissable certificate accepts a negative instance.
-// Additionally, ensures that the verification runs in the time defined by the functions used before.
-method VerifyCDPC<Q(!new)>(
+// Exact rational verification with one additive weighted counter.
+method {:isolate_assertions} VerifyCDPC<Q(!new)>(
     questions:Set<Q>, fitness:Map_Map_T<Q, bool, bool>, multiplicity:Map_Map_T<Q, bool, nat>,
-    privateQuestions:Set<Q>, privateLower:real, privateUpper:real,
-    fitnessLower:real, fitnessUpper:real, interview:Interview<Q>)
+    privateQuestions:Set<Q>, privateLower:Rational, privateUpper:Rational,
+    fitnessLower:Rational, fitnessUpper:Rational, interview:Interview<Q>, ghost weight:Q -> nat)
     returns (accepted:bool, ghost counter:nat)
   requires questions.Init() && fitness.Init() && multiplicity.Init() && privateQuestions.Init()
   requires CDPCValidInstance(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
-    privateLower, privateUpper, fitnessLower, fitnessUpper)
+    privateLower.Model(), privateUpper.Model(), fitnessLower.Model(), fitnessUpper.Model())
   ensures accepted == CDPCCertificate(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
-    privateLower, privateUpper, fitnessLower, fitnessUpper, interview.Model())
+    privateLower.Model(), privateUpper.Model(), fitnessLower.Model(), fitnessUpper.Model(), interview.Model())
   ensures accepted ==> CDPC(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
-    privateLower, privateUpper, fitnessLower, fitnessUpper)
-  ensures counter <= CostVerifyCDPC(fitness, multiplicity, privateQuestions, questions, interview)
+    privateLower.Model(), privateUpper.Model(), fitnessLower.Model(), fitnessUpper.Model())
+  ensures 0 < counter <= BudgetVerifyCDPC(CDPCInputSize(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
+    (privateLower, privateUpper, fitnessLower, fitnessUpper), interview.Model(), weight))
 {
-  reveal CostVerifyCDPC();
-  subset_cardinality_bound(privateQuestions.Model(), questions.Model());
-  fitness.u_cardinality_keys_bound(questions.Cardinality());
-  multiplicity.u_cardinality_keys_bound(questions.Cardinality());
-  var population, questionCount, size:nat;
-  population, counter := fitness.Count(0);
-  questionCount, counter := questions.Count(counter);
-  var limit := 2*population*questionCount+1;
-  size, counter := CountInterviewBounded(interview, limit, counter);
-  assert {:split_here} counter <= fitness.CostCount() + questions.CostCount() + (limit+1)*CostCountInterviewNode(interview);
-  if size > limit {
-    cdpc_oversized_not_certificate(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
-      privateLower, privateUpper, fitnessLower, fitnessUpper, interview.Model());
-    nat_multiplication_monotonic(limit, 0, CostCheckInterviewFitsNode(questions, interview));
-    nat_multiplication_monotonic(2*limit, 0, CostVerifyCDPCCertificateNode(fitness, fitness, multiplicity, privateQuestions, interview));
+  budget_verify_cdpc_input_bound(questions, fitness, multiplicity, privateQuestions, (privateLower, privateUpper, fitnessLower, fitnessUpper), interview, weight);
+  ghost var maximum := MultiplicityMaximum(multiplicity.Model());
+  multiplicity_maximum_bound(multiplicity.Model());
+  ghost var n := CDPCOperandSizeBound(questions, fitness, multiplicity, privateQuestions, (privateLower, privateUpper, fitnessLower, fitnessUpper), interview, weight);
+  ghost var context := BitSetCost(weight, n);
+  ghost var mapContext := BitNestedMapCost(weight, BoolBits, BoolBits, n);
+  ghost var primitiveBudget := BudgetPrimitiveStep(n);
+  var population, questionCount, volume:nat;
+  population, counter := fitness.Count(0, mapContext);
+  questionCount, counter := questions.Count(counter, context);
+  ghost var beforeScan := counter;
+  assert population <= n && questionCount <= n && beforeScan <= 2*primitiveBudget;
+  assert {:split_here} true;
+  var doubled, product, limit:nat;
+  doubled, counter := MultiplyNat(2, population, counter);
+  product, counter := MultiplyNat(doubled, questionCount, counter);
+  limit, counter := AddNat(product, 1, counter);
+  ghost var beforeCount := counter;
+  volume, counter := CountInterviewBounded(interview, limit, limit+1, n, weight, counter);
+  ghost var afterCount := counter;
+  nat_bits_monotonic(volume, limit+1);
+  var fits:bool;
+  fits, counter := LessEqualNat(volume, limit, counter);
+  cdpc_admissibility_counter_bound(population, questionCount, n, volume, beforeScan, beforeCount, afterCount, counter);
+  assert {:split_here} true;
+  if !fits {
+    assert counter <= BudgetVerifyCDPCPhase(n);
+    cdpc_over_limit_not_certificate(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
+      privateLower.Model(), privateUpper.Model(), fitnessLower.Model(), fitnessUpper.Model(), interview.Model());
     return false, counter;
   }
-  assert {:split_here} interview.NodeCount() <= limit;
-  accepted, counter := CheckInterviewFits(questions, questions, interview, counter);
-  cost_cdpc_structure_bound(fitness, questions, interview);
-  if !accepted { return false, counter; }
-  cost_cdpc_checking_bound(questions, fitness, multiplicity, privateQuestions, interview);
+  accepted, counter := CheckInterviewFits(questions, questions, interview, n, weight, counter);
+  nonnegative_product_monotonic(interview.NodeCount(), 6*primitiveBudget, 2*n*n+1, 6*primitiveBudget);
+  if !accepted {
+    assert counter <= BudgetVerifyCDPCPhase(n);
+    return false, counter;
+  }
   accepted, counter := VerifyCDPCCore(fitness, fitness, fitness, multiplicity, privateQuestions,
-    privateLower, privateUpper, fitnessLower, fitnessUpper, interview, counter);
+    privateLower, privateUpper, fitnessLower, fitnessUpper, interview, maximum, n, weight, counter);
+  budget_cdpc_tree_bound(interview.NodeCount(), 2*n*n+1, n);
+  assert counter <= BudgetVerifyCDPCPhase(n);
 }
-
 
 // Stop counting as soon as the tree exceeds the budget.
-method CountInterviewBounded<Q(!new)>(interview:Interview<Q>, limit:nat, ghost counter_in:nat)
-    returns (size:nat, ghost counter:nat)
-  // Termination in
+method CountInterviewBounded<Q(!new)>(
+    interview:Interview<Q>, limit:nat, ghost bound:nat, ghost n:nat,
+    ghost weight:Q -> nat, ghost counter_in:nat)
+    returns (volume:nat, ghost counter:nat)
+  // Progress in
   decreases limit
-  // Invariant out
-  ensures size == if interview.NodeCount() <= limit then interview.NodeCount() else limit+1
-  // Counter
-  ensures counter <= counter_in + size*CostCountInterviewNode(interview)
+  // State in
+  requires limit < bound
+  requires interview.Size(weight) <= n
+  // State out
+  ensures volume == if interview.NodeCount() <= limit then interview.NodeCount() else limit+1
+  // Cost
+  ensures counter_in < counter
+  ensures counter <= counter_in + volume*BudgetCountInterviewNode(bound, n)
 {
   reveal InterviewNodes();
-  if limit == 0 { return 1, counter_in; }
+  ghost var context := BitSetCost(weight, n);
+  ghost var primitiveBudget := BudgetPrimitiveStep(n);
+  ghost var arithmetic := 1+2*NatBits(bound);
+  ghost var nodeBudget := BudgetCountInterviewNode(bound, n);
+  nat_bits_monotonic(0, bound);
+  nat_bits_monotonic(1, bound);
+  nat_bits_monotonic(limit, bound);
+  // The unit charge covers construction of a returned literal.
+  counter := counter_in+1;
+  var zero:bool;
+  zero, counter := LessEqualNat(limit, 0, counter);
+  if zero { return 1, counter; }
   var isEnd:bool;
-  isEnd, counter := interview.IsEnd(counter_in);
+  isEnd, counter := interview.IsEnd(counter, context);
   if isEnd { return 1, counter; }
+  var remaining:nat;
+  remaining, counter := SubtractNat(limit, 1, counter);
   var left:Interview<Q>;
-  left, counter := interview.Branch(true, counter);
-  var leftSize:nat;
-  leftSize, counter := CountInterviewBounded(left, limit-1, counter);
-  if leftSize > limit-1 { return limit+1, counter; }
+  left, counter := interview.Branch(true, counter, context);
+  assert counter <= counter_in+1+2*arithmetic+2*primitiveBudget;
+  var leftVolume:nat;
+  leftVolume, counter := CountInterviewBounded(left, remaining, bound, n, weight, counter);
+  ghost var afterLeft := counter;
+  nat_bits_monotonic(leftVolume, bound);
+  var fits:bool;
+  fits, counter := LessEqualNat(leftVolume, remaining, counter);
+  if !fits {
+    volume, counter := AddNat(limit, 1, counter);
+    assert volume == 1+leftVolume;
+    assert counter <= counter_in+nodeBudget+leftVolume*nodeBudget;
+    tree_budget_combine(volume, leftVolume, 0, nodeBudget, 1,
+      counter_in, counter_in+nodeBudget, counter, counter);
+    return volume, counter;
+  }
   var right:Interview<Q>;
-  right, counter := interview.Branch(false, counter);
-  var rightSize:nat;
-  rightSize, counter := CountInterviewBounded(right, limit-1-leftSize, counter);
-  return 1+leftSize+rightSize, counter;
+  right, counter := interview.Branch(false, counter, context);
+  var rightLimit:nat;
+  rightLimit, counter := SubtractNat(remaining, leftVolume, counter);
+  assert counter <= afterLeft+2*arithmetic+primitiveBudget;
+  var rightVolume:nat;
+  rightVolume, counter := CountInterviewBounded(right, rightLimit, bound, n, weight, counter);
+  ghost var afterRight := counter;
+  nat_bits_monotonic(rightVolume, bound);
+  volume, counter := AddNat(1, leftVolume, counter);
+  nat_bits_monotonic(volume, bound);
+  volume, counter := AddNat(volume, rightVolume, counter);
+  assert counter <= afterRight+2*arithmetic;
+  assert counter <= counter_in+nodeBudget+leftVolume*nodeBudget+rightVolume*nodeBudget;
+  tree_budget_combine(volume, leftVolume, rightVolume, nodeBudget, 1,
+    counter_in, counter_in+nodeBudget, counter_in+nodeBudget+leftVolume*nodeBudget, counter);
 }
 
-
-// Check question availability on every path after the bounded size scan.
-method CheckInterviewFits<Q(!new)>(
+// Check question availability on every path after the bounded volume scan.
+method {:isolate_assertions} CheckInterviewFits<Q(!new)>(
     questions:Set<Q>, remaining:Set<Q>, interview:Interview<Q>,
-    ghost counter_in:nat)
+    ghost n:nat, ghost weight:Q -> nat, ghost counter_in:nat)
     returns (accepted:bool, ghost counter:nat)
-  // Termination in
+  // Progress in
   decreases interview.NodeCount()
-  // Types in
+  // Representation in
   requires questions.Valid()
+  requires questions.Size(weight) <= n && interview.Size(weight) <= n
   requires remaining.UniverseWithin(questions)
-  // Invariant out
+  // State out
   ensures accepted == InterviewFits(interview.Model(), remaining.Model())
-  // Counter
-  ensures counter <= counter_in + interview.NodeCount()*CostCheckInterviewFitsNode(questions, interview)
+  // Cost
+  ensures counter_in < counter
+  ensures counter <= counter_in + interview.NodeCount()*(6*BudgetPrimitiveStep(n))
 {
-  remaining.universe_within_bound(questions);
+  ghost var context := BitSetCost(weight, n);
+  remaining.universe_within_bound(questions, context);
   reveal InterviewFits(), InterviewNodes();
   var isEnd:bool;
-  isEnd, counter := interview.IsEnd(counter_in);
-  if isEnd { return true, counter; }
+  isEnd, counter := interview.IsEnd(counter_in, context);
+  if isEnd {
+    assert interview.NodeCount() == 1;
+    return true, counter;
+  }
 
   var question:Q;
-  question, counter := interview.Question(counter);
+  question, counter := interview.Question(counter, context);
   var available:bool;
-  available, counter := remaining.Contains(question, counter);
-  if !available { return false, counter; }
+  available, counter := remaining.Contains(question, counter, context);
+  if !available {
+    nat_multiplication_monotonic(6*BudgetPrimitiveStep(n), 1, interview.NodeCount());
+    return false, counter;
+  }
 
   var childRemaining:Set<Q>;
-  childRemaining, counter := remaining.Remove(question, counter);
+  childRemaining, counter := remaining.Remove(question, counter, context);
   var trueBranch:Interview<Q>;
-  trueBranch, counter := interview.Branch(true, counter);
+  trueBranch, counter := interview.Branch(true, counter, context);
   var falseBranch:Interview<Q>;
-  falseBranch, counter := interview.Branch(false, counter);
+  falseBranch, counter := interview.Branch(false, counter, context);
   ghost var setupCounter := counter;
 
   var trueAccepted:bool;
-  trueAccepted, counter := CheckInterviewFits(questions, childRemaining, trueBranch, counter);
+  trueAccepted, counter := CheckInterviewFits(questions, childRemaining, trueBranch, n, weight, counter);
   ghost var afterTrueCounter := counter;
   var falseAccepted:bool;
-  falseAccepted, counter := CheckInterviewFits(questions, childRemaining, falseBranch, counter);
+  falseAccepted, counter := CheckInterviewFits(questions, childRemaining, falseBranch, n, weight, counter);
   accepted := trueAccepted && falseAccepted;
-  cost_tree_combine(interview.NodeCount(), trueBranch.NodeCount(), falseBranch.NodeCount(),
-    CostCheckInterviewFitsNode(questions, interview), 1, counter_in, setupCounter, afterTrueCounter, counter);
+  tree_budget_combine(interview.NodeCount(), trueBranch.NodeCount(), falseBranch.NodeCount(), (6*BudgetPrimitiveStep(n)), 1, counter_in, setupCounter, afterTrueCounter, counter);
 }
-
-
-// Recursive certificate validation
 
 // Leaves must classify the remaining population while preserving privacy.
 // Internal nodes partition that population and validate both answer branches.
@@ -224,18 +229,23 @@ method {:isolate_assertions} VerifyCDPCCore<Q(!new)>(
     fitness:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>,
     privateQuestions:Set<Q>,
-    privateLower:real,
-    privateUpper:real,
-    fitnessLower:real,
-    fitnessUpper:real,
+    privateLower:Rational,
+    privateUpper:Rational,
+    fitnessLower:Rational,
+    fitnessUpper:Rational,
     interview:Interview<Q>,
+    ghost maximum:nat, ghost n:nat, ghost weight:Q -> nat,
     ghost counter_in:nat)
     returns (accepted:bool, ghost counter:nat)
-  // Termination in
+  // Progress in
   requires candidates.Keys() != {}
   decreases interview.NodeCount(), 0
-  // Types in
+  // Representation in
   requires rootCandidates.Valid()
+  requires rootCandidates.Size(weight, BoolBits, BoolBits) <= n
+  requires fitness.Size(weight, BoolBits, BoolBits) <= n
+  requires multiplicity.Size(weight, BoolBits, NatBits) <= n
+  requires privateQuestions.Size(weight) <= n && interview.Size(weight) <= n
   requires candidates.Valid()
   requires fitness.Valid()
   requires multiplicity.Valid()
@@ -243,89 +253,117 @@ method {:isolate_assertions} VerifyCDPCCore<Q(!new)>(
   requires candidates.Keys() <= fitness.Keys()
   requires candidates.Keys() <= multiplicity.Keys()
   requires candidates.UniverseWithin(rootCandidates)
-  // Invariant out
+  requires NatBits(maximum) <= n
+  requires forall candidate | candidate in candidates.Keys() :: multiplicity.Model()[candidate] <= maximum
+  requires RationalBits(privateLower) <= n && RationalBits(privateUpper) <= n
+  requires RationalBits(fitnessLower) <= n && RationalBits(fitnessUpper) <= n
+  // State out
   ensures accepted == CDPCInterviewSemantics(
     fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
-    privateLower, privateUpper, fitnessLower, fitnessUpper,
+    privateLower.Model(), privateUpper.Model(),
+    fitnessLower.Model(), fitnessUpper.Model(),
     candidates.Keys(), interview.Model())
-  // Counter
-  ensures counter <= counter_in + CostVerifyCDPCCertificate(
-    rootCandidates, fitness, multiplicity, privateQuestions, interview)
+  // Cost
+  ensures counter_in < counter
+  ensures counter <= counter_in + BudgetCDPCTree(interview.NodeCount(), n)
 {
+  ghost var mapContext := BitNestedMapCost(weight, BoolBits, BoolBits, n);
+  ghost var context := BitSetCost(weight, n);
+  candidates.universe_within_bound(rootCandidates, mapContext);
   reveal interview.NodeCount();
   reveal InterviewNodes();
-  cost_cdpc_candidate_monotonic(candidates, rootCandidates, fitness, multiplicity, privateQuestions);
 
   var isEnd:bool;
-  isEnd, counter := interview.IsEnd(counter_in);
+  isEnd, counter := interview.IsEnd(counter_in, context);
   if isEnd {
+    assert interview.NodeCount() == 1;
     var classificationAccepted:bool;
-    classificationAccepted, counter := CheckClassification(candidates, fitness, multiplicity, fitnessLower, fitnessUpper, counter);
+    classificationAccepted, counter := CheckClassification(
+      candidates, fitness, multiplicity, fitnessLower, fitnessUpper, maximum, n, weight, counter);
     var privacyAccepted:bool;
-    privacyAccepted, counter := CheckPrivateSafe(candidates, privateQuestions, multiplicity, privateLower, privateUpper, counter);
-    reveal CDPCInterviewSemantics();
-    assert counter <= counter_in + CostVerifyCDPCCertificateNode(rootCandidates, fitness, multiplicity, privateQuestions, interview);
+    privacyAccepted, counter := CheckPrivateSafe(
+      candidates, privateQuestions, multiplicity, privateLower, privateUpper, maximum, n, weight, counter);
+    assert counter <= counter_in + BudgetCDPCNode(n);
+    tree_budget_combine(interview.NodeCount(), 0, 0, BudgetCDPCNode(n), 2, counter_in, counter, counter, counter);
+    assert CDPCInterviewSemantics(
+      fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
+      privateLower.Model(), privateUpper.Model(),
+      fitnessLower.Model(), fitnessUpper.Model(),
+      candidates.Keys(), interview.Model()) == (classificationAccepted && privacyAccepted) by {
+      reveal CDPCInterviewSemantics();
+    }
     return classificationAccepted && privacyAccepted, counter;
   }
 
   var question:Q;
-  question, counter := interview.Question(counter);
+  question, counter := interview.Question(counter, context);
   var trueCandidates:Map_Map_T<Q, bool, bool>;
-  trueCandidates, counter := FilterCandidateMap(candidates, question, true, counter);
+  trueCandidates, counter := FilterCandidateMap(candidates, question, true, n, weight, counter);
   var falseCandidates:Map_Map_T<Q, bool, bool>;
-  falseCandidates, counter := FilterCandidateMap(candidates, question, false, counter);
+  falseCandidates, counter := FilterCandidateMap(candidates, question, false, n, weight, counter);
   var trueBranch:Interview<Q>;
-  trueBranch, counter := interview.Branch(true, counter);
+  trueBranch, counter := interview.Branch(true, counter, context);
   var falseBranch:Interview<Q>;
-  falseBranch, counter := interview.Branch(false, counter);
+  falseBranch, counter := interview.Branch(false, counter, context);
 
   trueCandidates.universe_within_transitive(candidates, rootCandidates);
   falseCandidates.universe_within_transitive(candidates, rootCandidates);
-  assert counter <= counter_in + CostVerifyCDPCCertificateNode(rootCandidates, fitness, multiplicity, privateQuestions, interview);
+  assert counter <= counter_in + BudgetCDPCNode(n);
 
   ghost var setupCounter := counter;
   var trueAccepted:bool;
   trueAccepted, counter := CheckCDPCBranch(
     rootCandidates, trueCandidates, fitness, multiplicity,
     privateQuestions, privateLower, privateUpper,
-    fitnessLower, fitnessUpper, trueBranch, counter);
+    fitnessLower, fitnessUpper, trueBranch, maximum, n, weight, counter);
   ghost var afterTrueCounter := counter;
   var falseAccepted:bool;
   falseAccepted, counter := CheckCDPCBranch(
     rootCandidates, falseCandidates, fitness, multiplicity,
     privateQuestions, privateLower, privateUpper,
-    fitnessLower, fitnessUpper, falseBranch, counter);
+    fitnessLower, fitnessUpper, falseBranch, maximum, n, weight, counter);
   accepted := trueAccepted && falseAccepted;
-  reveal CDPCInterviewSemantics();
 
   reveal trueBranch.NodeCount();
   reveal falseBranch.NodeCount();
-  cost_tree_combine(
+  assert interview.NodeCount() == 1+trueBranch.NodeCount()+falseBranch.NodeCount();
+  tree_budget_combine(
     interview.NodeCount(), trueBranch.NodeCount(), falseBranch.NodeCount(),
-    CostVerifyCDPCCertificateNode(rootCandidates, fitness, multiplicity, privateQuestions, interview), 2,
+    BudgetCDPCNode(n), 2,
     counter_in, setupCounter, afterTrueCounter, counter);
+  assert CDPCInterviewSemantics(
+      fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
+      privateLower.Model(), privateUpper.Model(),
+      fitnessLower.Model(), fitnessUpper.Model(),
+      candidates.Keys(), interview.Model()) == accepted by {
+    reveal CDPCInterviewSemantics();
+  }
 }
 
-
-// An impossible answer must lead to End
-// Otherwise privacy is checked before continuing the interview, including when the next node is already a leaf.
+// An impossible answer must lead to End. Otherwise, check privacy before
+// continuing, even if the next node is a leaf.
 method {:isolate_assertions} CheckCDPCBranch<Q(!new)>(
     rootCandidates:Map_Map_T<Q, bool, bool>,
     candidates:Map_Map_T<Q, bool, bool>,
     fitness:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>,
     privateQuestions:Set<Q>,
-    privateLower:real,
-    privateUpper:real,
-    fitnessLower:real,
-    fitnessUpper:real,
+    privateLower:Rational,
+    privateUpper:Rational,
+    fitnessLower:Rational,
+    fitnessUpper:Rational,
     interview:Interview<Q>,
+    ghost maximum:nat, ghost n:nat, ghost weight:Q -> nat,
     ghost counter_in:nat)
     returns (accepted:bool, ghost counter:nat)
-  // Termination in
+  // Progress in
   decreases interview.NodeCount(), 1
-  // Types in
+  // Representation in
   requires rootCandidates.Valid()
+  requires rootCandidates.Size(weight, BoolBits, BoolBits) <= n
+  requires fitness.Size(weight, BoolBits, BoolBits) <= n
+  requires multiplicity.Size(weight, BoolBits, NatBits) <= n
+  requires privateQuestions.Size(weight) <= n && interview.Size(weight) <= n
   requires candidates.Valid()
   requires fitness.Valid()
   requires multiplicity.Valid()
@@ -333,26 +371,33 @@ method {:isolate_assertions} CheckCDPCBranch<Q(!new)>(
   requires candidates.Keys() <= fitness.Keys()
   requires candidates.Keys() <= multiplicity.Keys()
   requires candidates.UniverseWithin(rootCandidates)
-  // Invariant out
+  requires NatBits(maximum) <= n
+  requires forall candidate | candidate in candidates.Keys() :: multiplicity.Model()[candidate] <= maximum
+  requires RationalBits(privateLower) <= n && RationalBits(privateUpper) <= n
+  requires RationalBits(fitnessLower) <= n && RationalBits(fitnessUpper) <= n
+  // State out
   ensures accepted == CDPCBranch(
     fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
-    privateLower, privateUpper, fitnessLower, fitnessUpper,
+    privateLower.Model(), privateUpper.Model(),
+    fitnessLower.Model(), fitnessUpper.Model(),
     candidates.Keys(), interview.Model())
-  // Counter
-  ensures counter <= counter_in + CostCheckCDPCBranch(
-    rootCandidates, fitness, multiplicity, privateQuestions, interview)
+  // Cost
+  ensures counter_in < counter
+  ensures counter <= counter_in + 2*interview.NodeCount()*BudgetCDPCNode(n)
 {
+  ghost var mapContext := BitNestedMapCost(weight, BoolBits, BoolBits, n);
+  ghost var context := BitSetCost(weight, n);
+  candidates.universe_within_bound(rootCandidates, mapContext);
   reveal interview.NodeCount();
   reveal InterviewNodes();
-  cost_cdpc_candidate_monotonic(candidates, rootCandidates, fitness, multiplicity, privateQuestions);
 
   var empty:bool;
-  empty, counter := candidates.IsEmpty(counter_in);
+  empty, counter := candidates.IsEmpty(counter_in, mapContext);
   if empty {
-    accepted, counter := interview.IsEnd(counter);
+    accepted, counter := interview.IsEnd(counter, context);
     reveal CDPCBranch();
-    cost_branch_own_fits(interview.NodeCount(),
-      CostVerifyCDPCCertificateNode(rootCandidates, fitness, multiplicity, privateQuestions, interview),
+    branch_budget_own_fits(interview.NodeCount(),
+      BudgetCDPCNode(n),
       counter_in, counter);
     return accepted, counter;
   }
@@ -360,12 +405,12 @@ method {:isolate_assertions} CheckCDPCBranch<Q(!new)>(
   var privacyAccepted:bool;
   privacyAccepted, counter := CheckPrivateSafe(
     candidates, privateQuestions, multiplicity,
-    privateLower, privateUpper, counter);
+    privateLower, privateUpper, maximum, n, weight, counter);
   ghost var setupCounter := counter;
   if !privacyAccepted {
     reveal CDPCBranch();
-    cost_branch_own_fits(interview.NodeCount(),
-      CostVerifyCDPCCertificateNode(rootCandidates, fitness, multiplicity, privateQuestions, interview),
+    branch_budget_own_fits(interview.NodeCount(),
+      BudgetCDPCNode(n),
       counter_in, counter);
     return false, counter;
   }
@@ -373,15 +418,9 @@ method {:isolate_assertions} CheckCDPCBranch<Q(!new)>(
   accepted, counter := VerifyCDPCCore(
     rootCandidates, candidates, fitness, multiplicity,
     privateQuestions, privateLower, privateUpper,
-    fitnessLower, fitnessUpper, interview, counter);
+    fitnessLower, fitnessUpper, interview, maximum, n, weight, counter);
   reveal CDPCBranch();
-  cost_branch_combine(interview.NodeCount(),
-    CostVerifyCDPCCertificateNode(rootCandidates, fitness, multiplicity, privateQuestions, interview),
+  branch_budget_combine(interview.NodeCount(),
+    BudgetCDPCNode(n),
     counter_in, setupCounter, counter);
 }
-
-
-// Node count includes End leaves and counts both child positions, even when equal.
-// Each Ask carries one atomic question label, so explicit structural size is O(nodes).
-ghost function PolynomialCDPCCertificateSize(n:nat):nat
-{ 2*n*n + 1 }

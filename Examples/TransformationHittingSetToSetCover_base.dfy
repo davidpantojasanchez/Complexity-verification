@@ -1,10 +1,12 @@
 include "../Problems/HittingSet.dfy"
 include "../Problems/SetCover.dfy"
 include "../Reductions/ReductionHittingSetToSetCover.dfy"
-include "../Lemmas/Lemmas.dfy"
+include "../Arithmetic/BitLengths.dfy"
+include "../Foundations/Collections.dfy"
+include "../Foundations/LoopCosts.dfy"
 
 
-method TransformHittingSetToSetCover_base(U:set<int>, S:set<set<int>>, k:nat) returns (r:(set<set<int>>, set<set<set<int>>>, nat))
+method TransformHittingSetToSetCover_base(U:set<int>, S:set<set<int>>, k:nat) returns (r:SetCoverInstance<set<int>>)
   requires HittingSetValidInstance(U, S)
   ensures r == HittingSetToSetCover(U, S, k)
 {
@@ -21,7 +23,7 @@ method TransformHittingSetToSetCover_base(U:set<int>, S:set<set<int>>, k:nat) re
     {
       S', SS := AddSingletonSourceSet_base(U, S, k, S', SS);
     }
-    set_difference_empty(S, S');
+    difference_empty_set(S, S');
     return (S, SS, 0);
   }
   // Regular case
@@ -33,7 +35,7 @@ method TransformHittingSetToSetCover_base(U:set<int>, S:set<set<int>>, k:nat) re
   {
     U', SS := BuildIncidenceSet_base(U, S, k, U', SS);
   }
-  set_difference_empty(U, U');
+  difference_empty_set(U, U');
 
   return (S, SS, k);
 }
@@ -76,7 +78,8 @@ method BuildIncidenceSet_base(U:set<int>, S:set<set<int>>, k:nat, U':set<int>, S
 }
 
 
-method AddIncidentSourceSet_base(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, u:int, sets_in_S_that_contain_u:set<set<int>>) returns (S'':set<set<int>>, sets_in_S_that_contain_u':set<set<int>>)
+method AddIncidentSourceSet_base(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, u:int, sets_in_S_that_contain_u:set<set<int>>)
+    returns (S'':set<set<int>>, sets_in_S_that_contain_u':set<set<int>>)
   requires S' != {}
   requires S' <= S
   requires sets_in_S_that_contain_u == (set s | s in (S - S') && u in s)

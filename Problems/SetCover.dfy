@@ -1,3 +1,5 @@
+type SetCoverInstance<T> = (set<T>, set<set<T>>, nat)
+
 
 // Convencion del dominio: una instancia de Set Cover solo es valida si la familia
 // completa puede cubrir el universo. Por tanto, una familia que no lo cubre queda

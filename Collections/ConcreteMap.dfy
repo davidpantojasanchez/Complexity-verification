@@ -1,6 +1,6 @@
 include "Map.dfy"
 include "ConcreteSet.dfy"
-include "../Lemmas/Lemmas.dfy"
+include "CollectionUpdates.dfy"
 
 
 class ConcreteMap<K(==), V(==)> extends Map<K, V> {
@@ -18,26 +18,29 @@ class ConcreteMap<K(==), V(==)> extends Map<K, V> {
     entries := entries_in;
     universe := universe_in;
     reveal Model();
-    subset_cardinality_bound(entries_in.Keys, universe_in.Keys);
+    subset_cardinality_bound_set(entries_in.Keys, universe_in.Keys);
   }
 
   function ExecutableModel():map<K, V> { entries }
   ghost function Universe():map<K, V> { universe }
 
-  method Get(key:K, ghost counter_in:nat)
+  method Get(key:K, ghost counter_in:nat, ghost context:MapContext<K,V>)
       returns (value:V, ghost counter_out:nat)
     requires Valid()
     requires key in Model().Keys
     ensures value == Model()[key]
-    ensures counter_out == counter_in + CostGet()
-    ensures counter_out <= counter_in + UCostGet()
+    ensures counter_out == counter_in + Cost(TraversalWork(),
+      context.keyWeight(key), context)
+    ensures context.valueWeight(value) <= Size(context.keyWeight, context.valueWeight)
   {
     reveal Model();
     value := entries[key];
-    counter_out := counter_in + CostGet();
+    representation_member_map(Model(), context.keyWeight, context.valueWeight, key);
+    counter_out := counter_in + Cost(TraversalWork(),
+      context.keyWeight(key), context);
   }
 
-  method Insert(key:K, value:V, ghost counter_in:nat)
+  method Insert(key:K, value:V, ghost counter_in:nat, ghost context:MapContext<K,V>)
       returns (result:Map<K, V>, ghost counter_out:nat)
     requires Valid()
     ensures result.Valid()
@@ -45,16 +48,20 @@ class ConcreteMap<K(==), V(==)> extends Map<K, V> {
     ensures result.Model() == Model()[key := value]
     ensures result.Universe() == Universe()[key := value]
     ensures result.Keys() == Keys() + {key}
-    ensures counter_out == counter_in + CostInsert()
-    ensures counter_out <= counter_in + UCostInsert()
+    ensures counter_out == counter_in + Cost(TraversalWork(),
+      context.keyWeight(key) + context.valueWeight(value), context)
+    ensures result.ULeafBits(context.keyWeight, context.valueWeight) <= MaxLeafWeight(ULeafBits(context.keyWeight, context.valueWeight),
+        MaxLeafWeight(context.keyWeight(key), context.valueWeight(value)))
   {
     reveal Model();
     reveal Valid();
     result := new ConcreteMap(entries[key := value], universe[key := value]);
-    counter_out := counter_in + CostInsert();
+    max_leaf_bits_insert_map(Universe(), context.keyWeight, context.valueWeight, key, value);
+    counter_out := counter_in + Cost(TraversalWork(),
+      context.keyWeight(key) + context.valueWeight(value), context);
   }
 
-  method Remove(key:K, ghost counter_in:nat)
+  method Remove(key:K, ghost counter_in:nat, ghost context:MapContext<K,V>)
       returns (result:Map<K, V>, ghost counter_out:nat)
     requires Valid()
     ensures result.Valid()
@@ -64,75 +71,84 @@ class ConcreteMap<K(==), V(==)> extends Map<K, V> {
     ensures result.Model() == Model() - {key}
     ensures result.Universe() == Universe()
     ensures result.Keys() == Keys() - {key}
-    ensures counter_out == counter_in + CostRemove()
-    ensures counter_out <= counter_in + UCostRemove()
+    ensures counter_out == counter_in + Cost(TraversalWork(),
+      context.keyWeight(key), context)
+    ensures result.Size(context.keyWeight, context.valueWeight) <= Size(context.keyWeight, context.valueWeight)
+    ensures result.USize(context.keyWeight, context.valueWeight) == USize(context.keyWeight, context.valueWeight)
   {
     reveal Model();
     reveal Valid();
     result := new ConcreteMap(entries - {key}, universe);
-    counter_out := counter_in + CostRemove();
+    representation_submap_map(result.Model(), Model(), context.keyWeight, context.valueWeight);
+    counter_out := counter_in + Cost(TraversalWork(),
+      context.keyWeight(key), context);
   }
 
-  method PickKey(ghost counter_in:nat)
+  method PickKey(ghost counter_in:nat, ghost context:MapContext<K,V>)
       returns (key:K, ghost counter_out:nat)
     requires Model() != map[]
     requires Valid()
     ensures key in Model().Keys
     ensures key in Universe().Keys
-    ensures counter_out == counter_in + CostPickKey()
+    ensures counter_out == counter_in + Cost(1, 0, context)
+    ensures context.keyWeight(key) <= Size(context.keyWeight, context.valueWeight)
+    ensures context.keyWeight(key) <= LeafBits(context.keyWeight, context.valueWeight)
   {
     reveal Model();
     reveal Valid();
     key :| key in entries.Keys;
-    counter_out := counter_in + CostPickKey();
+    representation_member_map(Model(), context.keyWeight, context.valueWeight, key);
+    counter_out := counter_in + Cost(1, 0, context);
   }
 
-  method Count(ghost counter_in:nat)
-      returns (size:nat, ghost counter_out:nat)
+  method Count(ghost counter_in:nat, ghost context:MapContext<K,V>)
+      returns (cardinality:nat, ghost counter_out:nat)
     requires Valid()
-    ensures size == Cardinality()
-    ensures counter_out == counter_in + CostCount()
+    ensures cardinality == Cardinality()
+    ensures counter_out == counter_in + Cost(1, 0, context)
   {
     reveal Model();
-    size := |entries|;
-    counter_out := counter_in + CostCount();
+    cardinality := |entries|;
+    counter_out := counter_in + Cost(1, 0, context);
   }
 
-  method ContainsKey(key:K, ghost counter_in:nat)
+  method ContainsKey(key:K, ghost counter_in:nat, ghost context:MapContext<K,V>)
       returns (contains:bool, ghost counter_out:nat)
     requires Valid()
     ensures contains == (key in Model().Keys)
-    ensures counter_out == counter_in + CostContainsKey()
-    ensures counter_out <= counter_in + UCostContainsKey()
+    ensures counter_out == counter_in + Cost(TraversalWork(),
+      context.keyWeight(key), context)
   {
     reveal Model();
     contains := key in entries;
-    counter_out := counter_in + CostContainsKey();
+    counter_out := counter_in + Cost(TraversalWork(),
+      context.keyWeight(key), context);
   }
 
-  method IsEmpty(ghost counter_in:nat)
+  method IsEmpty(ghost counter_in:nat, ghost context:MapContext<K,V>)
       returns (empty:bool, ghost counter_out:nat)
     requires Valid()
     ensures empty == (Model() == map[])
-    ensures counter_out == counter_in + CostIsEmpty()
+    ensures counter_out == counter_in + Cost(1, 0, context)
   {
     reveal Model();
     empty := entries == map[];
-    counter_out := counter_in + CostIsEmpty();
+    counter_out := counter_in + Cost(1, 0, context);
   }
 
-  method Copy(ghost counter_in:nat)
+  method Copy(ghost counter_in:nat, ghost context:MapContext<K,V>)
       returns (result:Map<K, V>, ghost counter_out:nat)
     requires Valid()
     ensures result.Valid()
     ensures result.Model() == Model()
     ensures result.Universe() == Model()
-    ensures counter_out == counter_in + CostCopy()
-    ensures counter_out <= counter_in + UCostCopy()
+    ensures counter_out == counter_in + Cost(TraversalWork(), 0, context)
+    ensures result.Size(context.keyWeight, context.valueWeight) == Size(context.keyWeight, context.valueWeight) && result.USize(context.keyWeight,
+        context.valueWeight) == Size(context.keyWeight, context.valueWeight)
   {
     reveal Model();
     result := new ConcreteMap(entries, entries);
-    counter_out := counter_in + CostCopy();
+    counter_out := counter_in + Cost(TraversalWork(), 0, context);
   }
 }
 
@@ -152,47 +168,48 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     entries := entries_in;
     universe := universe_in;
     reveal Model();
-    subset_cardinality_bound(entries_in.Keys, universe_in.Keys);
+    subset_cardinality_bound_set(entries_in.Keys, universe_in.Keys);
     reveal UCardinalityKeys();
     max_by_monotonic(entries_in.Keys, universe_in.Keys, item => |item|);
-    nonnegative_product_monotonic(|entries_in|, MaxCardinality_map(entries_in.Keys), |universe_in|, MaxCardinality_map(universe_in.Keys));
+    nonnegative_product_monotonic(|entries_in|, 1 + MaxCardinality_map(entries_in.Keys), |universe_in|, 1 + MaxCardinality_map(universe_in.Keys));
   }
 
   function ExecutableModel():map<map<K, V>, R> { entries }
   ghost function Universe():map<map<K, V>, R> { universe }
 
-  method Get(key:Map<K, V>, ghost counter_in:nat)
+  method Get(key:Map<K, V>, ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>)
       returns (value:R, ghost counter_out:nat)
     requires Valid()
     requires key.Model() in Model().Keys
     ensures value == Model()[key.Model()]
-    ensures counter_out == counter_in + CostGet()
-    ensures counter_out <= counter_in + UCostGet()
+    ensures counter_out == counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight, context.innerValueWeight), context)
+    ensures context.valueWeight(value) <= Size(context.keyWeight, context.innerValueWeight, context.valueWeight)
   {
     reveal Model();
     reveal UCardinalityKeys();
     reveal key.Model();
     var concrete_key := key.ExecutableModel();
     value := entries[concrete_key];
-    counter_out := counter_in + CostGet();
+    representation_member_map_map_t(Model(), context.keyWeight, context.innerValueWeight, context.valueWeight, key.Model());
+    counter_out := counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight, context.innerValueWeight), context);
   }
 
-  method Insert(key:Map<K, V>, value:R, ghost counter_in:nat)
+  method Insert(key:Map<K, V>, value:R, ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>)
       returns (result:Map_Map_T<K, V, R>, ghost counter_out:nat)
     requires Valid()
-    requires key.Valid()
     ensures result.Valid()
     ensures result.Cardinality() <= Cardinality() + 1
-    ensures if key.Size() <= UCardinalityKeys()
-            then result.UCardinalityKeys() == UCardinalityKeys()
-            else result.UCardinalityKeys() == key.Size()
-    ensures result.UCardinalityKeys() == UCardinalityKeys() ||
-            result.UCardinalityKeys() == key.Size()
+    ensures result.UCardinalityKeys() == (if key.Cardinality() <= UCardinalityKeys() then UCardinalityKeys() else key.Cardinality())
     ensures result.Model() == Model()[key.Model() := value]
     ensures result.Universe() == Universe()[key.Model() := value]
     ensures result.Keys() == Keys() + {key.Model()}
-    ensures counter_out == counter_in + CostInsert()
-    ensures counter_out <= counter_in + UCostInsert()
+    ensures counter_out == counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight, context.innerValueWeight) + context.valueWeight(value), context)
+    ensures result.ULeafBits(context.keyWeight, context.innerValueWeight, context.valueWeight) <=
+          MaxLeafWeight(ULeafBits(context.keyWeight, context.innerValueWeight, context.valueWeight),
+            MaxLeafWeight(key.LeafBits(context.keyWeight, context.innerValueWeight), context.valueWeight(value)))
   {
     reveal Model();
     reveal UCardinalityKeys();
@@ -203,22 +220,27 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
       entries[concrete_key := value],
       universe[concrete_key := value]);
     insert_universe_measures_map_map_t(this, result, key, value);
-    counter_out := counter_in + CostInsert();
+    max_leaf_bits_insert_map(Universe(), child => MaxLeafBits_map(child, context.keyWeight, context.innerValueWeight),
+        context.valueWeight, key.Model(), value);
+    counter_out := counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight, context.innerValueWeight) + context.valueWeight(value), context);
   }
 
-  method Remove(key:Map<K, V>, ghost counter_in:nat)
+  method {:isolate_assertions} Remove(key:Map<K, V>, ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>)
       returns (result:Map_Map_T<K, V, R>, ghost counter_out:nat)
     requires Valid()
     ensures result.Valid()
-    ensures result.UCardinalityKeys() <= UCardinalityKeys()
+    ensures result.UCardinalityKeys() == UCardinalityKeys()
     ensures if key.Model() in Keys()
             then result.Cardinality() == Cardinality() - 1
             else result.Cardinality() == Cardinality()
     ensures result.Model() == Model() - {key.Model()}
     ensures result.Universe() == Universe()
     ensures result.Keys() == Keys() - {key.Model()}
-    ensures counter_out == counter_in + CostRemove()
-    ensures counter_out <= counter_in + UCostRemove()
+    ensures counter_out == counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight, context.innerValueWeight), context)
+    ensures result.Size(context.keyWeight, context.innerValueWeight, context.valueWeight) <= Size(context.keyWeight, context.innerValueWeight, context.valueWeight)
+    ensures result.USize(context.keyWeight, context.innerValueWeight, context.valueWeight) == USize(context.keyWeight, context.innerValueWeight, context.valueWeight)
   {
     reveal Model();
     reveal UCardinalityKeys();
@@ -226,21 +248,29 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     reveal key.Model();
     var concrete_key := key.ExecutableModel();
     result := new ConcreteMap_Map_T(entries - {concrete_key}, universe);
+    assert result.Keys() == Keys() - {key.Model()};
+    assert result.Cardinality() == |result.Keys()| && Cardinality() == |Keys()|;
+    assert if key.Model() in Keys() then |Keys() - {key.Model()}| == |Keys()| - 1
+      else Keys() - {key.Model()} == Keys();
     reveal result.UCardinalityKeys();
-    counter_out := counter_in + CostRemove();
+    representation_submap_map_map_t(result.Model(), Model(), context.keyWeight, context.innerValueWeight, context.valueWeight);
+    counter_out := counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight, context.innerValueWeight), context);
   }
 
-  method PickKey(ghost counter_in:nat)
+  method PickKey(ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>)
       returns (key:Map<K, V>, ghost counter_out:nat)
     requires Model() != map[]
     requires Valid()
     ensures key.Valid()
-    ensures key.Size() <= UCardinalityKeys()
-    ensures key.USize() <= UCardinalityKeys()
+    ensures key.Volume() <= UCardinalityKeys()
+    ensures key.UVolume() <= UCardinalityKeys()
     ensures key.Model() in Model().Keys
     ensures key.Universe() == key.Model()
-    ensures counter_out == counter_in + CostPickKey(key)
-    ensures counter_out <= counter_in + UCostPickKey()
+    ensures counter_out == counter_in + Cost(key.TraversalWork(), 0, context)
+    ensures key.USize(context.keyWeight, context.innerValueWeight) == key.Size(context.keyWeight, context.innerValueWeight)
+    ensures key.Size(context.keyWeight, context.innerValueWeight) <= Size(context.keyWeight, context.innerValueWeight, context.valueWeight)
+    ensures key.ULeafBits(context.keyWeight, context.innerValueWeight) <= LeafBits(context.keyWeight, context.innerValueWeight, context.valueWeight)
   {
     reveal Model();
     reveal UCardinalityKeys();
@@ -248,49 +278,51 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     var chosen:map<K, V> :| chosen in entries.Keys;
     max_by_member(universe.Keys, chosen, item => |item|);
     key := new ConcreteMap(chosen, chosen);
-    counter_out := counter_in + CostPickKey(key);
+    representation_member_map_map_t(Model(), context.keyWeight, context.innerValueWeight, context.valueWeight, key.Model());
+    counter_out := counter_in + Cost(key.TraversalWork(), 0, context);
   }
 
-  method Count(ghost counter_in:nat)
-      returns (size:nat, ghost counter_out:nat)
+  method Count(ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>)
+      returns (cardinality:nat, ghost counter_out:nat)
     requires Valid()
-    ensures size == Cardinality()
-    ensures counter_out == counter_in + CostCount()
+    ensures cardinality == Cardinality()
+    ensures counter_out == counter_in + Cost(1, 0, context)
   {
     reveal Model();
     reveal UCardinalityKeys();
-    size := |entries|;
-    counter_out := counter_in + CostCount();
+    cardinality := |entries|;
+    counter_out := counter_in + Cost(1, 0, context);
   }
 
-  method ContainsKey(key:Map<K, V>, ghost counter_in:nat)
+  method ContainsKey(key:Map<K, V>, ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>)
       returns (contains:bool, ghost counter_out:nat)
     requires Valid()
     ensures contains == (key.Model() in Model().Keys)
-    ensures counter_out == counter_in + CostContainsKey()
-    ensures counter_out <= counter_in + UCostContainsKey()
+    ensures counter_out == counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight, context.innerValueWeight), context)
   {
     reveal Model();
     reveal UCardinalityKeys();
     reveal key.Model();
     var concrete_key := key.ExecutableModel();
     contains := concrete_key in entries;
-    counter_out := counter_in + CostContainsKey();
+    counter_out := counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight, context.innerValueWeight), context);
   }
 
-  method IsEmpty(ghost counter_in:nat)
+  method IsEmpty(ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>)
       returns (empty:bool, ghost counter_out:nat)
     requires Valid()
     ensures empty == (Model() == map[])
-    ensures counter_out == counter_in + CostIsEmpty()
+    ensures counter_out == counter_in + Cost(1, 0, context)
   {
     reveal Model();
     reveal UCardinalityKeys();
     empty := entries == map[];
-    counter_out := counter_in + CostIsEmpty();
+    counter_out := counter_in + Cost(1, 0, context);
   }
 
-  method Copy(ghost counter_in:nat)
+  method Copy(ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>)
       returns (result:Map_Map_T<K, V, R>, ghost counter_out:nat)
     requires Valid()
     ensures result.Valid()
@@ -298,15 +330,17 @@ class ConcreteMap_Map_T<K(==), V(==), R(==)> extends Map_Map_T<K, V, R> {
     ensures result.UCardinalityKeys() <= UCardinalityKeys()
     ensures result.Model() == Model()
     ensures result.Universe() == Model()
-    ensures counter_out == counter_in + CostCopy()
-    ensures counter_out <= counter_in + UCostCopy()
+    ensures counter_out == counter_in + Cost(TraversalWork(), 0, context)
+    ensures result.Size(context.keyWeight, context.innerValueWeight, context.valueWeight) == Size(context.keyWeight, context.innerValueWeight,
+        context.valueWeight) && result.USize(context.keyWeight, context.innerValueWeight, context.valueWeight) == Size(context.keyWeight,
+        context.innerValueWeight, context.valueWeight)
   {
     reveal Model();
     reveal UCardinalityKeys();
     reveal Valid();
     result := new ConcreteMap_Map_T(entries, entries);
     reveal result.UCardinalityKeys();
-    counter_out := counter_in + CostCopy();
+    counter_out := counter_in + Cost(TraversalWork(), 0, context);
   }
 }
 
@@ -371,69 +405,79 @@ class ConcreteMap_Set_T<K(==), V(==)> extends Map_Set_T<K, V> {
     entries := entries_in;
     universe := universe_in;
     reveal Model();
-    subset_cardinality_bound(entries_in.Keys, universe_in.Keys);
+    subset_cardinality_bound_set(entries_in.Keys, universe_in.Keys);
     reveal UCardinalityKeys();
     max_by_monotonic(entries_in.Keys, universe_in.Keys, item => |item|);
-    nonnegative_product_monotonic(|entries_in|, MaxCardinality_set(entries_in.Keys), |universe_in|, MaxCardinality_set(universe_in.Keys));
+    nonnegative_product_monotonic(|entries_in|, 1 + MaxCardinality_set(entries_in.Keys), |universe_in|, 1 + MaxCardinality_set(universe_in.Keys));
   }
 
   function ExecutableModel():map<set<K>, V> { entries }
   ghost function Universe():map<set<K>, V> { universe }
 
-  method Get(key:Set<K>, ghost counter_in:nat) returns (value:V, ghost counter_out:nat)
+  method Get(key:Set<K>, ghost counter_in:nat, ghost context:MapContext<K,V>) returns (value:V, ghost counter_out:nat)
     requires Valid()
     requires key.Model() in Model().Keys
     ensures value == Model()[key.Model()]
-    ensures counter_out == counter_in + CostGet()
-    ensures counter_out <= counter_in + UCostGet()
+    ensures counter_out == counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight), context)
+    ensures context.valueWeight(value) <= Size(context.keyWeight, context.valueWeight)
   {
     reveal Model(), key.Model();
     value := entries[key.ExecutableModel()];
-    counter_out := counter_in + CostGet();
+    representation_member_map_set_t(Model(), context.keyWeight, context.valueWeight, key.Model());
+    counter_out := counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight), context);
   }
 
-  method ContainsKey(key:Set<K>, ghost counter_in:nat) returns (contains:bool, ghost counter_out:nat)
+  method ContainsKey(key:Set<K>, ghost counter_in:nat, ghost context:MapContext<K,V>) returns (contains:bool, ghost counter_out:nat)
     requires Valid()
     ensures contains == (key.Model() in Model().Keys)
-    ensures counter_out == counter_in + CostContainsKey()
-    ensures counter_out <= counter_in + UCostContainsKey()
+    ensures counter_out == counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight), context)
   {
     reveal Model(), key.Model();
     contains := key.ExecutableModel() in entries;
-    counter_out := counter_in + CostContainsKey();
+    counter_out := counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight), context);
   }
 
-  method Insert(key:Set<K>, value:V, ghost counter_in:nat) returns (result:Map_Set_T<K, V>, ghost counter_out:nat)
-    requires Valid() && key.Valid()
+  method Insert(key:Set<K>, value:V, ghost counter_in:nat, ghost context:MapContext<K,V>) returns (result:Map_Set_T<K, V>, ghost counter_out:nat)
+    requires Valid()
     ensures result.Valid()
     ensures result.Cardinality() <= Cardinality() + 1
-    ensures result.UCardinalityKeys() == (if key.Size() <= UCardinalityKeys() then UCardinalityKeys() else key.Size())
+    ensures result.UCardinalityKeys() == (if key.Cardinality() <= UCardinalityKeys() then UCardinalityKeys() else key.Cardinality())
     ensures result.Model() == Model()[key.Model() := value]
     ensures result.Universe() == Universe()[key.Model() := value]
-    ensures counter_out == counter_in + CostInsert()
-    ensures counter_out <= counter_in + UCostInsert()
+    ensures counter_out == counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight) + context.valueWeight(value), context)
+    ensures result.ULeafBits(context.keyWeight, context.valueWeight) <= MaxLeafWeight(ULeafBits(context.keyWeight, context.valueWeight),
+        MaxLeafWeight(key.LeafBits(context.keyWeight), context.valueWeight(value)))
   {
     reveal Model(), key.Model();
-    reveal Valid(), key.Valid();
+    reveal Valid();
     var concrete_key := key.ExecutableModel();
     result := new ConcreteMap_Set_T(entries[concrete_key := value], universe[concrete_key := value]);
     insert_universe_measures_map_set_t(this, result, key, value);
-    counter_out := counter_in + CostInsert();
+    max_leaf_bits_insert_map(Universe(), child => MaxLeafBits_set(child, context.keyWeight), context.valueWeight, key.Model(), value);
+    counter_out := counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight) + context.valueWeight(value), context);
   }
 
-  method Remove(key:Set<K>, ghost counter_in:nat)
+  method Remove(key:Set<K>, ghost counter_in:nat, ghost context:MapContext<K,V>)
       returns (result:Map_Set_T<K, V>, ghost counter_out:nat)
     requires Valid()
     ensures result.Valid()
-    ensures result.UCardinalityKeys() <= UCardinalityKeys()
+    ensures result.UCardinalityKeys() == UCardinalityKeys()
     ensures if key.Model() in Keys()
             then result.Cardinality() == Cardinality() - 1
             else result.Cardinality() == Cardinality()
     ensures result.Model() == Model() - {key.Model()}
     ensures result.Universe() == Universe()
     ensures result.Keys() == Keys() - {key.Model()}
-    ensures counter_out == counter_in + CostRemove()
-    ensures counter_out <= counter_in + UCostRemove()
+    ensures counter_out == counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight), context)
+    ensures result.Size(context.keyWeight, context.valueWeight) <= Size(context.keyWeight, context.valueWeight)
+    ensures result.USize(context.keyWeight, context.valueWeight) == USize(context.keyWeight, context.valueWeight)
   {
     reveal Model();
     reveal UCardinalityKeys();
@@ -442,20 +486,24 @@ class ConcreteMap_Set_T<K(==), V(==)> extends Map_Set_T<K, V> {
     var concrete_key := key.ExecutableModel();
     result := new ConcreteMap_Set_T(entries - {concrete_key}, universe);
     reveal result.UCardinalityKeys();
-    counter_out := counter_in + CostRemove();
+    representation_submap_map_set_t(result.Model(), Model(), context.keyWeight, context.valueWeight);
+    counter_out := counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight), context);
   }
 
-  method PickKey(ghost counter_in:nat)
+  method PickKey(ghost counter_in:nat, ghost context:MapContext<K,V>)
       returns (key:Set<K>, ghost counter_out:nat)
     requires Model() != map[]
     requires Valid()
     ensures key.Valid()
-    ensures key.Size() <= UCardinalityKeys()
-    ensures key.USize() <= UCardinalityKeys()
+    ensures key.Volume() <= UCardinalityKeys()
+    ensures key.UVolume() <= UCardinalityKeys()
     ensures key.Model() in Model().Keys
     ensures key.Universe() == key.Model()
-    ensures counter_out == counter_in + CostPickKey(key)
-    ensures counter_out <= counter_in + UCostPickKey()
+    ensures counter_out == counter_in + Cost(key.TraversalWork(), 0, context)
+    ensures key.USize(context.keyWeight) == key.Size(context.keyWeight)
+    ensures key.Size(context.keyWeight) <= Size(context.keyWeight, context.valueWeight)
+    ensures key.ULeafBits(context.keyWeight) <= LeafBits(context.keyWeight, context.valueWeight)
   {
     reveal Model();
     reveal UCardinalityKeys();
@@ -463,34 +511,35 @@ class ConcreteMap_Set_T<K(==), V(==)> extends Map_Set_T<K, V> {
     var chosen:set<K> :| chosen in entries.Keys;
     max_by_member(universe.Keys, chosen, item => |item|);
     key := new ConcreteSet(chosen, chosen);
-    counter_out := counter_in + CostPickKey(key);
+    representation_member_map_set_t(Model(), context.keyWeight, context.valueWeight, key.Model());
+    counter_out := counter_in + Cost(key.TraversalWork(), 0, context);
   }
 
-  method Count(ghost counter_in:nat)
-      returns (size:nat, ghost counter_out:nat)
+  method Count(ghost counter_in:nat, ghost context:MapContext<K,V>)
+      returns (cardinality:nat, ghost counter_out:nat)
     requires Valid()
-    ensures size == Cardinality()
-    ensures counter_out == counter_in + CostCount()
+    ensures cardinality == Cardinality()
+    ensures counter_out == counter_in + Cost(1, 0, context)
   {
     reveal Model();
     reveal UCardinalityKeys();
-    size := |entries|;
-    counter_out := counter_in + CostCount();
+    cardinality := |entries|;
+    counter_out := counter_in + Cost(1, 0, context);
   }
 
-  method IsEmpty(ghost counter_in:nat)
+  method IsEmpty(ghost counter_in:nat, ghost context:MapContext<K,V>)
       returns (empty:bool, ghost counter_out:nat)
     requires Valid()
     ensures empty == (Model() == map[])
-    ensures counter_out == counter_in + CostIsEmpty()
+    ensures counter_out == counter_in + Cost(1, 0, context)
   {
     reveal Model();
     reveal UCardinalityKeys();
     empty := entries == map[];
-    counter_out := counter_in + CostIsEmpty();
+    counter_out := counter_in + Cost(1, 0, context);
   }
 
-  method Copy(ghost counter_in:nat)
+  method Copy(ghost counter_in:nat, ghost context:MapContext<K,V>)
       returns (result:Map_Set_T<K, V>, ghost counter_out:nat)
     requires Valid()
     ensures result.Valid()
@@ -498,15 +547,16 @@ class ConcreteMap_Set_T<K(==), V(==)> extends Map_Set_T<K, V> {
     ensures result.UCardinalityKeys() <= UCardinalityKeys()
     ensures result.Model() == Model()
     ensures result.Universe() == Model()
-    ensures counter_out == counter_in + CostCopy()
-    ensures counter_out <= counter_in + UCostCopy()
+    ensures counter_out == counter_in + Cost(TraversalWork(), 0, context)
+    ensures result.Size(context.keyWeight, context.valueWeight) == Size(context.keyWeight, context.valueWeight) && result.USize(context.keyWeight,
+        context.valueWeight) == Size(context.keyWeight, context.valueWeight)
   {
     reveal Model();
     reveal UCardinalityKeys();
     reveal Valid();
     result := new ConcreteMap_Set_T(entries, entries);
     reveal result.UCardinalityKeys();
-    counter_out := counter_in + CostCopy();
+    counter_out := counter_in + Cost(TraversalWork(), 0, context);
   }
 
 }
@@ -535,50 +585,62 @@ class ConcreteMap_MapSet_T<K(==), V(==), R(==)> extends Map_MapSet_T<K, V, R> {
     entries := entries_in;
     universe := universe_in;
     reveal Model();
-    subset_cardinality_bound(entries_in.Keys, universe_in.Keys);
+    subset_cardinality_bound_set(entries_in.Keys, universe_in.Keys);
     reveal UCardinalityKeys(), UCardinalityKeysKeys();
     max_by_monotonic(entries_in.Keys, universe_in.Keys, item => |item|);
-    max_by_monotonic(entries_in.Keys, universe_in.Keys, SetKeyCardinality);
-    nonnegative_product_monotonic(MaxCardinality_map(entries_in.Keys), MaxSetKeyCardinality_map_set_t(entries_in.Keys), MaxCardinality_map(universe_in.Keys), MaxSetKeyCardinality_map_set_t(universe_in.Keys));
-    nonnegative_product_monotonic(|entries_in|, MaxCardinality_map(entries_in.Keys) * MaxSetKeyCardinality_map_set_t(entries_in.Keys), |universe_in|, MaxCardinality_map(universe_in.Keys) * MaxSetKeyCardinality_map_set_t(universe_in.Keys));
+    max_by_monotonic(entries_in.Keys, universe_in.Keys, KeyCardinality_map_set_t);
+    nonnegative_product_monotonic(MaxCardinality_map(entries_in.Keys), 1 + MaxSetKeyCardinality_map_set_t(entries_in.Keys),
+        MaxCardinality_map(universe_in.Keys), 1 + MaxSetKeyCardinality_map_set_t(universe_in.Keys));
+    nonnegative_product_monotonic(|entries_in|, 1 + MaxCardinality_map(entries_in.Keys) * (1 + MaxSetKeyCardinality_map_set_t(entries_in.Keys)),
+        |universe_in|, 1 + MaxCardinality_map(universe_in.Keys) * (1 + MaxSetKeyCardinality_map_set_t(universe_in.Keys)));
   }
 
   function ExecutableModel():map<map<set<K>, V>, R> { entries }
   ghost function Universe():map<map<set<K>, V>, R> { universe }
 
-  method Get(key:Map_Set_T<K, V>, ghost counter_in:nat) returns (value:R, ghost counter_out:nat)
+  method Get(key:Map_Set_T<K, V>, ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>) returns (value:R, ghost counter_out:nat)
     requires Valid()
     requires key.Model() in Model().Keys
     ensures value == Model()[key.Model()]
-    ensures counter_out == counter_in + CostGet()
-    ensures counter_out <= counter_in + UCostGet()
+    ensures counter_out == counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight, context.innerValueWeight), context)
+    ensures context.valueWeight(value) <= Size(context.keyWeight, context.innerValueWeight, context.valueWeight)
   {
     reveal Model(), key.Model();
     value := entries[key.ExecutableModel()];
-    counter_out := counter_in + CostGet();
+    representation_member_map_mapset_t(Model(), context.keyWeight, context.innerValueWeight, context.valueWeight, key.Model());
+    counter_out := counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight, context.innerValueWeight), context);
   }
 
-  method ContainsKey(key:Map_Set_T<K, V>, ghost counter_in:nat) returns (contains:bool, ghost counter_out:nat)
+  method ContainsKey(key:Map_Set_T<K, V>, ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>) returns (contains:bool, ghost counter_out:nat)
     requires Valid()
     ensures contains == (key.Model() in Model().Keys)
-    ensures counter_out == counter_in + CostContainsKey()
-    ensures counter_out <= counter_in + UCostContainsKey()
+    ensures counter_out == counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight, context.innerValueWeight), context)
   {
-    reveal Model(), key.Model();
     contains := key.ExecutableModel() in entries;
-    counter_out := counter_in + CostContainsKey();
+    assert contains == (key.Model() in Model().Keys) by {
+      reveal Model(), key.Model();
+    }
+    counter_out := counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight, context.innerValueWeight), context);
   }
 
-  method {:isolate_assertions} Insert(key:Map_Set_T<K, V>, value:R, ghost counter_in:nat) returns (result:Map_MapSet_T<K, V, R>, ghost counter_out:nat)
-    requires Valid() && key.Valid()
+  method {:isolate_assertions} Insert(key:Map_Set_T<K, V>, value:R, ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>)
+      returns (result:Map_MapSet_T<K, V, R>, ghost counter_out:nat)
+    requires Valid()
     ensures result.Valid()
     ensures result.Cardinality() <= Cardinality() + 1
     ensures result.UCardinalityKeys() == (if key.Cardinality() <= UCardinalityKeys() then UCardinalityKeys() else key.Cardinality())
     ensures result.UCardinalityKeysKeys() == (if key.CardinalityKeys() <= UCardinalityKeysKeys() then UCardinalityKeysKeys() else key.CardinalityKeys())
     ensures result.Model() == Model()[key.Model() := value]
     ensures result.Universe() == Universe()[key.Model() := value]
-    ensures counter_out == counter_in + CostInsert()
-    ensures counter_out <= counter_in + UCostInsert()
+    ensures counter_out == counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight, context.innerValueWeight) + context.valueWeight(value), context)
+    ensures result.ULeafBits(context.keyWeight, context.innerValueWeight, context.valueWeight) <=
+          MaxLeafWeight(ULeafBits(context.keyWeight, context.innerValueWeight, context.valueWeight),
+            MaxLeafWeight(key.LeafBits(context.keyWeight, context.innerValueWeight), context.valueWeight(value)))
   {
     reveal Model(), key.Model();
     var concrete_key := key.ExecutableModel();
@@ -586,25 +648,33 @@ class ConcreteMap_MapSet_T<K(==), V(==), R(==)> extends Map_MapSet_T<K, V, R> {
     ghost var updatedUniverse := universe[concrete_key := value];
     update_agreement_map_map_set_t(this, concrete_key, value);
     result := new ConcreteMap_MapSet_T(updatedEntries, updatedUniverse);
+    assert result.Model() == Model()[key.Model() := value] by {
+      assert result.Model() == updatedEntries;
+    }
     assert result.Universe() == Universe()[key.Model() := value];
     insert_universe_measures_map_map_set_t(this, result, key, value);
-    counter_out := counter_in + CostInsert();
+    max_leaf_bits_insert_map(Universe(), child => MaxLeafBits_map_set_t(child, context.keyWeight,
+        context.innerValueWeight), context.valueWeight, key.Model(), value);
+    counter_out := counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight, context.innerValueWeight) + context.valueWeight(value), context);
   }
 
-  method Remove(key:Map_Set_T<K, V>, ghost counter_in:nat)
+  method Remove(key:Map_Set_T<K, V>, ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>)
       returns (result:Map_MapSet_T<K, V, R>, ghost counter_out:nat)
     requires Valid()
     ensures result.Valid()
-    ensures result.UCardinalityKeys() <= UCardinalityKeys()
-    ensures result.UCardinalityKeysKeys() <= UCardinalityKeysKeys()
+    ensures result.UCardinalityKeys() == UCardinalityKeys()
+    ensures result.UCardinalityKeysKeys() == UCardinalityKeysKeys()
     ensures if key.Model() in Keys()
             then result.Cardinality() == Cardinality() - 1
             else result.Cardinality() == Cardinality()
     ensures result.Model() == Model() - {key.Model()}
     ensures result.Universe() == Universe()
     ensures result.Keys() == Keys() - {key.Model()}
-    ensures counter_out == counter_in + CostRemove()
-    ensures counter_out <= counter_in + UCostRemove()
+    ensures counter_out == counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight, context.innerValueWeight), context)
+    ensures result.Size(context.keyWeight, context.innerValueWeight, context.valueWeight) <= Size(context.keyWeight, context.innerValueWeight, context.valueWeight)
+    ensures result.USize(context.keyWeight, context.innerValueWeight, context.valueWeight) == USize(context.keyWeight, context.innerValueWeight, context.valueWeight)
   {
     reveal Model();
     reveal UCardinalityKeys(), UCardinalityKeysKeys();
@@ -613,10 +683,12 @@ class ConcreteMap_MapSet_T<K(==), V(==), R(==)> extends Map_MapSet_T<K, V, R> {
     var concrete_key := key.ExecutableModel();
     result := new ConcreteMap_MapSet_T(entries - {concrete_key}, universe);
     reveal result.UCardinalityKeys(), result.UCardinalityKeysKeys();
-    counter_out := counter_in + CostRemove();
+    representation_submap_map_mapset_t(result.Model(), Model(), context.keyWeight, context.innerValueWeight, context.valueWeight);
+    counter_out := counter_in + Cost(TraversalWork(),
+      key.Size(context.keyWeight, context.innerValueWeight), context);
   }
 
-  method PickKey(ghost counter_in:nat)
+  method PickKey(ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>)
       returns (key:Map_Set_T<K, V>, ghost counter_out:nat)
     requires Model() != map[]
     requires Valid()
@@ -625,12 +697,14 @@ class ConcreteMap_MapSet_T<K(==), V(==), R(==)> extends Map_MapSet_T<K, V, R> {
     ensures key.UCardinality() <= UCardinalityKeys()
     ensures key.CardinalityKeys() <= UCardinalityKeysKeys()
     ensures key.UCardinalityKeys() <= UCardinalityKeysKeys()
-    ensures key.Size() <= USizeKeys()
-    ensures key.USize() <= USizeKeys()
+    ensures key.Volume() <= UVolumeKeys()
+    ensures key.UVolume() <= UVolumeKeys()
     ensures key.Model() in Model().Keys
     ensures key.Universe() == key.Model()
-    ensures counter_out == counter_in + CostPickKey(key)
-    ensures counter_out <= counter_in + UCostPickKey()
+    ensures counter_out == counter_in + Cost(key.TraversalWork(), 0, context)
+    ensures key.USize(context.keyWeight, context.innerValueWeight) == key.Size(context.keyWeight, context.innerValueWeight)
+    ensures key.Size(context.keyWeight, context.innerValueWeight) <= Size(context.keyWeight, context.innerValueWeight, context.valueWeight)
+    ensures key.ULeafBits(context.keyWeight, context.innerValueWeight) <= LeafBits(context.keyWeight, context.innerValueWeight, context.valueWeight)
   {
     reveal Model();
     reveal UCardinalityKeys(), UCardinalityKeysKeys();
@@ -640,35 +714,36 @@ class ConcreteMap_MapSet_T<K(==), V(==), R(==)> extends Map_MapSet_T<K, V, R> {
     max_set_key_cardinality_member_map_set_t(universe.Keys, chosen);
     key := new ConcreteMap_Set_T(chosen, chosen);
     reveal key.UCardinalityKeys();
-    nonnegative_product_monotonic(key.Cardinality(), key.CardinalityKeys(), UCardinalityKeys(), UCardinalityKeysKeys());
-    counter_out := counter_in + CostPickKey(key);
+    nonnegative_product_monotonic(key.Cardinality(), 1 + key.CardinalityKeys(), UCardinalityKeys(), 1 + UCardinalityKeysKeys());
+    representation_member_map_mapset_t(Model(), context.keyWeight, context.innerValueWeight, context.valueWeight, key.Model());
+    counter_out := counter_in + Cost(key.TraversalWork(), 0, context);
   }
 
-  method Count(ghost counter_in:nat)
-      returns (size:nat, ghost counter_out:nat)
+  method Count(ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>)
+      returns (cardinality:nat, ghost counter_out:nat)
     requires Valid()
-    ensures size == Cardinality()
-    ensures counter_out == counter_in + CostCount()
+    ensures cardinality == Cardinality()
+    ensures counter_out == counter_in + Cost(1, 0, context)
   {
     reveal Model();
     reveal UCardinalityKeys(), UCardinalityKeysKeys();
-    size := |entries|;
-    counter_out := counter_in + CostCount();
+    cardinality := |entries|;
+    counter_out := counter_in + Cost(1, 0, context);
   }
 
-  method IsEmpty(ghost counter_in:nat)
+  method IsEmpty(ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>)
       returns (empty:bool, ghost counter_out:nat)
     requires Valid()
     ensures empty == (Model() == map[])
-    ensures counter_out == counter_in + CostIsEmpty()
+    ensures counter_out == counter_in + Cost(1, 0, context)
   {
     reveal Model();
     reveal UCardinalityKeys(), UCardinalityKeysKeys();
     empty := entries == map[];
-    counter_out := counter_in + CostIsEmpty();
+    counter_out := counter_in + Cost(1, 0, context);
   }
 
-  method Copy(ghost counter_in:nat)
+  method Copy(ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>)
       returns (result:Map_MapSet_T<K, V, R>, ghost counter_out:nat)
     requires Valid()
     ensures result.Valid()
@@ -678,20 +753,23 @@ class ConcreteMap_MapSet_T<K(==), V(==), R(==)> extends Map_MapSet_T<K, V, R> {
     ensures result.UCardinalityKeysKeys() <= UCardinalityKeysKeys()
     ensures result.Model() == Model()
     ensures result.Universe() == Model()
-    ensures counter_out == counter_in + CostCopy()
-    ensures counter_out <= counter_in + UCostCopy()
+    ensures counter_out == counter_in + Cost(TraversalWork(), 0, context)
+    ensures result.Size(context.keyWeight, context.innerValueWeight, context.valueWeight) == Size(context.keyWeight, context.innerValueWeight,
+        context.valueWeight) && result.USize(context.keyWeight, context.innerValueWeight, context.valueWeight) == Size(context.keyWeight,
+        context.innerValueWeight, context.valueWeight)
   {
     reveal Model();
     reveal UCardinalityKeys(), UCardinalityKeysKeys();
     reveal Valid();
     result := new ConcreteMap_MapSet_T(entries, entries);
     reveal result.UCardinalityKeys(), result.UCardinalityKeysKeys();
-    counter_out := counter_in + CostCopy();
+    counter_out := counter_in + Cost(TraversalWork(), 0, context);
   }
 
 }
 
-method New_Map_MapSet_T<K(==), V(==), R(==)>(ghost counter_in:nat) returns (result:Map_MapSet_T<K, V, R>, ghost counter_out:nat)
+method New_Map_MapSet_T<K(==), V(==), R(==)>(ghost counter_in:nat)
+    returns (result:Map_MapSet_T<K, V, R>, ghost counter_out:nat)
   ensures result.Init()
   ensures result.UCardinalityKeys() == 0
   ensures result.UCardinalityKeysKeys() == 0

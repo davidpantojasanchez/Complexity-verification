@@ -13,7 +13,8 @@ Hitting Set and CDPC as case studies.
 | `Reductions/` | Mathematical reductions. |
 | `Transformations/` | Executable problem transformations. |
 | `Collections/` | Collection traits and concrete implementations. |
-| `Lemmas/` | Reusable mathematical and cost lemmas. |
+| `Arithmetic/` | Scalar arithmetic, binary lengths and costed native operations. |
+| `Foundations/` | Shared ghost models, representation contexts and mathematical/cost proofs. |
 
 ## Verification
 

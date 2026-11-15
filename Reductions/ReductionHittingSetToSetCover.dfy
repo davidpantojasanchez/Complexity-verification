@@ -4,18 +4,29 @@ include "../Problems/SetCover.dfy"
 Reduction Hitting Set -> Set Cover
 */
 
-ghost function HittingSetToSetCover(U:set<int>, S:set<set<int>>, k:nat) : (r:(set<set<int>>, set<set<set<int>>>, nat))
+ghost function HittingSetToSetCover(U:set<int>, S:set<set<int>>, k:nat) : (r:SetCoverInstance<set<int>>)
   requires HittingSetValidInstance(U, S)
   ensures SetCoverValidInstance(r.0, r.1)
 {
   var newS: set<set<set<int>>> := (set u | u in U :: (set s | s in S && u in s));
-  if ({} in S) then (S, (set s | s in S :: {s}), 0) //que devuelva falso siempre
+  if ({} in S) then (S, (set s | s in S :: {s}), 0) // The empty source set has no hitting set.
   else
-   incidence_family_covers(U,S);
+   incidence_covers_setset(U,S);
    (S, newS, k)
 }
 
-lemma incidence_family_covers(U: set<int>, S: set<set<int>>)
+// The incidence construction preserves solutions in both directions.
+lemma hitting_set_to_set_cover_correct(U:set<int>, S:set<set<int>>, k:nat)
+  requires HittingSetValidInstance(U, S)
+  ensures var (SU,SS,Sk) := HittingSetToSetCover(U,S,k);
+          HittingSet(U,S,k) <==> SetCover(SU,SS,Sk)
+{
+  var (SU,SS,Sk) := HittingSetToSetCover(U,S,k);
+  hitting_set_to_set_cover_forward(U,S,k);
+  hitting_set_to_set_cover_backward(U,S,k);
+}
+
+lemma incidence_covers_setset(U: set<int>, S: set<set<int>>)
   requires HittingSetValidInstance(U, S)
   requires {} !in S
  ensures 
@@ -32,7 +43,7 @@ lemma incidence_family_covers(U: set<int>, S: set<set<int>>)
     
 }
 
-lemma {:induction C} incidence_family_cardinality_bound(U: set<int>, S:set<set<int>>, C:set<int>, CS:set<set<set<int>>>)
+lemma {:induction C} incidence_cardinality_bound_setsetset(U: set<int>, S:set<set<int>>, C:set<int>, CS:set<set<set<int>>>)
   requires C <= U 
   requires CS == (set x | x in C :: (set ys | ys in S && x in ys))
   ensures |CS| <= |C|
@@ -60,19 +71,14 @@ lemma {:induction C} incidence_family_cardinality_bound(U: set<int>, S:set<set<i
     else {
       assert |CS| == |CS'| + 1; 
     }
-    incidence_family_cardinality_bound(U,S,C-{x},CS');
+    incidence_cardinality_bound_setsetset(U,S,C-{x},CS');
     assert |CS'| <= |C-{x}|;
     assert |CS| <= |C|;
   }
 }
 
 
-//La anterior propuesta no era correcta porque |C| puede ser >= |CS|
-//Tenemos que asegurarnos de que tenemos solo un elemento de cada CS 
-//Por ejemplo {1,2}, {3,4} ->  -> CS = {{{1,2}}, {{3,4}}} 
-// C={1,2,3,4} con esta definicion pero debería ser {1,3} por ejemplo
-//Uno del mismo tamaño que CS
-
+// Choose canonical representatives when several elements have the same incidence set.
 ghost function Minimum(s:set<int>) : (x:int)
   requires s != {}
   ensures x in s && (forall y | y in s :: x <= y)
@@ -109,16 +115,6 @@ ghost function Minimum(s:set<int>) : (x:int)
 }
 
 
-lemma hitting_set_to_set_cover_correct(U:set<int>, S:set<set<int>>, k:nat)
-  requires HittingSetValidInstance(U, S)
-  ensures var (SU,SS,Sk) := HittingSetToSetCover(U,S,k);
-          HittingSet(U,S,k) <==> SetCover(SU,SS,Sk)
-{
-  var (SU,SS,Sk) := HittingSetToSetCover(U,S,k);
-  hitting_set_to_set_cover_forward(U,S,k);
-  hitting_set_to_set_cover_backward(U,S,k);
-}
-
 lemma hitting_set_to_set_cover_forward(U:set<int>, S:set<set<int>>, k:nat)
   requires HittingSetValidInstance(U, S)
   ensures var (US,SS,kS) := HittingSetToSetCover(U,S,k);
@@ -141,7 +137,7 @@ lemma hitting_set_to_set_cover_forward(U:set<int>, S:set<set<int>>, k:nat)
      var ss := (set ys | ys in US && y in ys);
      assert ss in CS && s in ss;
      }
-     incidence_family_cardinality_bound(U,S,C,CS);
+     incidence_cardinality_bound_setsetset(U,S,C,CS);
      assert |CS| <= |C| <= k;
      assert SetCoverCertificate(US, SS, kS, CS);
      //Idea de demo, la funcion es inyectiva 
@@ -151,9 +147,6 @@ lemma hitting_set_to_set_cover_forward(U:set<int>, S:set<set<int>>, k:nat)
 ghost function IncidentSets(U:set<int>, S: set<set<int>>, e:int): (r:set<set<int>>)
   requires HittingSetValidInstance(U, S)
 { set s | s in S && e in s}
-
-//lemma extensionality(s1:set<set<int>>, s2:set<set<int>>)
-//ensures s1 == s2 <==> forall xs | xs in s1 :: xs in s2 && forall xs | xs in s2 :: xs in s1
 
 ghost function MinimumEquivalentElement(U:set<int>, S: set<set<int>>, e:int): (m:int)
   requires HittingSetValidInstance(U, S)
@@ -233,7 +226,7 @@ lemma hitting_set_to_set_cover_backward(U:set<int>, S:set<set<int>>, k:nat)
         var allEs:set<int> := set e' | e' in U && IncidentSets(U,S,e') == IncidentSets(U,S,intersection);
         assert intersection in allEs;
         assert allEs != {};
-        assert intersection >= Minimum(allEs) == mse;
+        assert Minimum(allEs) <= intersection && Minimum(allEs) == mse;
         
         var allCs:set<int> := set e' | e' in U && xs in IncidentSets(U,S,e') && IncidentSets(U,S,e') in CS;
         assert mse in U && xs in IncidentSets(U,S,mse) && IncidentSets(U,S,mse) in CS;

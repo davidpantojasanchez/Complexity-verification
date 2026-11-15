@@ -1,4 +1,4 @@
-include "ArithmeticLemmas.dfy"
+include "../Arithmetic/Arithmetic.dfy"
 
 // Representation of the budget that is helpful for loops.
 ghost function {:opaque} LinearLoopBudget(
@@ -30,11 +30,21 @@ lemma linear_loop_budget_bound(base:nat, step:nat, processed:nat, bound:nat)
   nonnegative_product_monotonic(processed, step, bound, step);
 }
 
-// Transfer an upper budget, including tail costs, to the observed counter.
-lemma linear_loop_budget_transfer(spent:nat, budget:nat, upper:nat, tail:nat, total:nat)
-  requires spent <= budget <= upper
-  requires upper + tail <= total
-  ensures budget + tail <= total
+// Bound the iteration count and transfer the accumulated budget, including tail work.
+// Used only when linear_loop_budget_bound is insufficient.
+// base: budget before the first iteration.
+// step: budget per iteration.
+// processed: iterations performed.
+// bound: upper bound on that iteration count.
+// spent: observed accumulated cost, including the initial cost covered by base.
+// tail: budget for subsequent work (zero if absent).
+// total: target bound on spent + tail.
+lemma linear_loop_budget_transfer(base:nat, step:nat, processed:nat, bound:nat, spent:nat, tail:nat, total:nat)
+  requires processed <= bound
+  requires spent <= LinearLoopBudget(base, step, processed)
+  requires base + bound * step + tail <= total
+  ensures LinearLoopBudget(base, step, processed) + tail <= total
   ensures spent + tail <= total
-{}
-
+{
+  linear_loop_budget_bound(base, step, processed, bound);
+}

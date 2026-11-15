@@ -26,7 +26,8 @@ method VerifySetCoverCore_base(U:set<int>, S:set<set<int>>, k:nat, certificate:s
 }
 
 
-method CheckUniverseElement_base(U:set<int>, S:set<set<int>>, k:nat, certificate:set<set<int>>, remainingUniverse:set<int>) returns (elementCovered:bool, remainingUniverseOut:set<int>)
+method CheckUniverseElement_base(U:set<int>, S:set<set<int>>, k:nat, certificate:set<set<int>>, remainingUniverse:set<int>)
+    returns (elementCovered:bool, remainingUniverseOut:set<int>)
   requires remainingUniverse != {}
   requires remainingUniverse <= U
   requires IsCover(U - remainingUniverse, certificate)
@@ -49,7 +50,8 @@ method CheckUniverseElement_base(U:set<int>, S:set<set<int>>, k:nat, certificate
 }
 
 
-method CheckCoverSet_base(U:set<int>, S:set<set<int>>, k:nat, certificate:set<set<int>>, remainingCertificate:set<set<int>>, u:int) returns (elementCovered:bool, remainingCertificateOut:set<set<int>>)
+method CheckCoverSet_base(U:set<int>, S:set<set<int>>, k:nat, certificate:set<set<int>>, remainingCertificate:set<set<int>>, u:int)
+    returns (elementCovered:bool, remainingCertificateOut:set<set<int>>)
   requires remainingCertificate != {}
   requires remainingCertificate <= certificate
   requires !(exists i' | i' in certificate - remainingCertificate :: u in i')
