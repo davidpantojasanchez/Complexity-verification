@@ -26,7 +26,7 @@ class ConcreteSet<T(==)> extends Set<T> {
     ensures e in Model()
     ensures e in Universe()
     ensures counter_out == counter_in + Cost(1, 0, context)
-    ensures context.weight(e) <= Size(context.weight)
+    ensures context.weight(e) <= SizeBound(context.weight)
     ensures context.weight(e) <= LeafBits(context.weight)
   {
     reveal Model();
@@ -58,11 +58,11 @@ class ConcreteSet<T(==)> extends Set<T> {
   method Equal(other:Set<T>, ghost counter_in:nat, ghost context:SetContext<T>) returns (equal:bool, ghost counter_out:nat)
     requires Valid() && other.Valid()
     ensures equal == (Model() == other.Model())
-    ensures counter_out == counter_in + Cost(CombinedTraversalWork(other), other.Size(context.weight), context)
+    ensures counter_out == counter_in + Cost(CombinedTraversalWork(other), other.SizeBound(context.weight), context)
   {
     reveal Model(), other.Model();
     equal := elements == other.ExecutableModel();
-    counter_out := counter_in + Cost(CombinedTraversalWork(other), other.Size(context.weight), context);
+    counter_out := counter_in + Cost(CombinedTraversalWork(other), other.SizeBound(context.weight), context);
   }
 
   method Contains(e:T, ghost counter_in:nat, ghost context:SetContext<T>) returns (b:bool, ghost counter_out:nat)
@@ -104,8 +104,8 @@ class ConcreteSet<T(==)> extends Set<T> {
     ensures R.Universe() == Universe()
     ensures R.Model() == Model() - {e}
     ensures counter_out == counter_in + Cost(TraversalWork(), context.weight(e), context)
-    ensures R.Size(context.weight) <= Size(context.weight)
-    ensures R.USize(context.weight) == USize(context.weight)
+    ensures R.SizeBound(context.weight) <= SizeBound(context.weight)
+    ensures R.USizeBound(context.weight) == USizeBound(context.weight)
   {
     reveal Model();
     R := new ConcreteSet(elements - {e}, universe);
@@ -119,7 +119,7 @@ class ConcreteSet<T(==)> extends Set<T> {
     ensures R.Model() == Model()
     ensures R.Universe() == Model()
     ensures counter_out == counter_in + Cost(TraversalWork(), 0, context)
-    ensures R.Size(context.weight) == Size(context.weight) && R.USize(context.weight) == Size(context.weight)
+    ensures R.SizeBound(context.weight) == SizeBound(context.weight) && R.USizeBound(context.weight) == SizeBound(context.weight)
   {
     reveal Model();
     R := new ConcreteSet(elements, elements);
@@ -154,13 +154,13 @@ class ConcreteSetSet<T(==)> extends SetSet<T> {
     requires Model() != {}
     requires Valid()
     ensures e.Valid()
-    ensures e.Volume() <= UCardinality1()
-    ensures e.UVolume() <= UCardinality1()
+    ensures e.VolumeBound() <= UCardinality1()
+    ensures e.UVolumeBound() <= UCardinality1()
     ensures e.Model() in Model()
     ensures e.Universe() == e.Model()
     ensures counter_out == counter_in + Cost(e.TraversalWork(), 0, context)
-    ensures e.USize(context.weight) == e.Size(context.weight)
-    ensures e.Size(context.weight) <= Size(context.weight)
+    ensures e.USizeBound(context.weight) == e.SizeBound(context.weight)
+    ensures e.SizeBound(context.weight) <= SizeBound(context.weight)
     ensures e.ULeafBits(context.weight) <= LeafBits(context.weight)
   {
     reveal Model();
@@ -195,22 +195,22 @@ class ConcreteSetSet<T(==)> extends SetSet<T> {
   method Equal(other:SetSet<T>, ghost counter_in:nat, ghost context:SetContext<T>) returns (equal:bool, ghost counter_out:nat)
     requires Valid() && other.Valid()
     ensures equal == (Model() == other.Model())
-    ensures counter_out == counter_in + Cost(CombinedTraversalWork(other), other.Size(context.weight), context)
+    ensures counter_out == counter_in + Cost(CombinedTraversalWork(other), other.SizeBound(context.weight), context)
   {
     reveal Model(), other.Model();
     equal := elements == other.ExecutableModel();
-    counter_out := counter_in + Cost(CombinedTraversalWork(other), other.Size(context.weight), context);
+    counter_out := counter_in + Cost(CombinedTraversalWork(other), other.SizeBound(context.weight), context);
   }
 
   method Contains(e:Set<T>, ghost counter_in:nat, ghost context:SetContext<T>) returns (b:bool, ghost counter_out:nat)
     requires Valid()
     ensures b == (e.Model() in Model())
-    ensures counter_out == counter_in + Cost(TraversalWork(), e.Size(context.weight), context)
+    ensures counter_out == counter_in + Cost(TraversalWork(), e.SizeBound(context.weight), context)
   {
     reveal Model();
     reveal e.Model();
     b := e.ExecutableModel() in elements;
-    counter_out := counter_in + Cost(TraversalWork(), e.Size(context.weight), context);
+    counter_out := counter_in + Cost(TraversalWork(), e.SizeBound(context.weight), context);
   }
 
   method Add(e:Set<T>, ghost counter_in:nat, ghost context:SetContext<T>) returns (R:SetSet<T>, ghost counter_out:nat)
@@ -221,7 +221,7 @@ class ConcreteSetSet<T(==)> extends SetSet<T> {
     ensures R.UCardinality1() == (if e.Cardinality() <= UCardinality1() then UCardinality1() else e.Cardinality())
     ensures R.Universe() == Universe() + {e.Model()}
     ensures R.Model() == Model() + {e.Model()}
-    ensures counter_out == counter_in + Cost(TraversalWork(), e.Size(context.weight), context)
+    ensures counter_out == counter_in + Cost(TraversalWork(), e.SizeBound(context.weight), context)
     ensures R.ULeafBits(context.weight) <= MaxLeafWeight(ULeafBits(context.weight), e.LeafBits(context.weight))
   {
     reveal Model();
@@ -234,7 +234,7 @@ class ConcreteSetSet<T(==)> extends SetSet<T> {
       assert |elements + {e.ExecutableModel()}| == |elements| + 1;
     }
     max_leaf_bits_insert_set(Universe(), child => MaxLeafBits_set(child, context.weight), e.Model());
-    counter_out := counter_in + Cost(TraversalWork(), e.Size(context.weight), context);
+    counter_out := counter_in + Cost(TraversalWork(), e.SizeBound(context.weight), context);
   }
 
   method Remove(e:Set<T>, ghost counter_in:nat, ghost context:SetContext<T>) returns (R:SetSet<T>, ghost counter_out:nat)
@@ -245,16 +245,16 @@ class ConcreteSetSet<T(==)> extends SetSet<T> {
             else R.Cardinality() == Cardinality() - 1
     ensures R.Universe() == Universe()
     ensures R.Model() == Model() - {e.Model()}
-    ensures counter_out == counter_in + Cost(TraversalWork(), e.Size(context.weight), context)
-    ensures R.Size(context.weight) <= Size(context.weight)
-    ensures R.USize(context.weight) == USize(context.weight)
+    ensures counter_out == counter_in + Cost(TraversalWork(), e.SizeBound(context.weight), context)
+    ensures R.SizeBound(context.weight) <= SizeBound(context.weight)
+    ensures R.USizeBound(context.weight) == USizeBound(context.weight)
   {
     reveal Model();
     reveal e.Model();
     R := new ConcreteSetSet(elements - {e.ExecutableModel()}, universe);
     reveal UCardinality1(), R.UCardinality1();
     representation_subset_setset(R.Model(), Model(), context.weight);
-    counter_out := counter_in + Cost(TraversalWork(), e.Size(context.weight), context);
+    counter_out := counter_in + Cost(TraversalWork(), e.SizeBound(context.weight), context);
   }
 
   method Copy(ghost counter_in:nat, ghost context:SetContext<T>) returns (R:SetSet<T>, ghost counter_out:nat)
@@ -265,7 +265,7 @@ class ConcreteSetSet<T(==)> extends SetSet<T> {
     ensures R.Model() == Model()
     ensures R.Universe() == Model()
     ensures counter_out == counter_in + Cost(TraversalWork(), 0, context)
-    ensures R.Size(context.weight) == Size(context.weight) && R.USize(context.weight) == Size(context.weight)
+    ensures R.SizeBound(context.weight) == SizeBound(context.weight) && R.USizeBound(context.weight) == SizeBound(context.weight)
   {
     reveal Model();
     R := new ConcreteSetSet(elements, elements);
@@ -301,20 +301,20 @@ class ConcreteSetSetSet<T(==)> extends SetSetSet<T> {
   function ExecutableModel():set<set<set<T>>> { elements }
   ghost function Universe():set<set<set<T>>> { universe }
 
-  method {:isolate_assertions} Pick(ghost counter_in:nat, ghost context:SetContext<T>) returns (e:SetSet<T>, ghost counter_out:nat)
+  method Pick(ghost counter_in:nat, ghost context:SetContext<T>) returns (e:SetSet<T>, ghost counter_out:nat)
     requires Model() != {}
     requires Valid()
     ensures e.Valid()
     ensures e.Cardinality() <= UCardinality1() && e.UCardinality() <= UCardinality1()
     ensures e.Cardinality1() <= UCardinality2() && e.UCardinality1() <= UCardinality2()
-    ensures e.Volume() <= UVolume1()
-    ensures e.UVolume() <= UVolume1()
-    ensures e.UVolume1() <= UVolume2()
+    ensures e.VolumeBound() <= UVolumeBound1()
+    ensures e.UVolumeBound() <= UVolumeBound1()
+    ensures e.UVolumeBound1() <= UVolumeBound2()
     ensures e.Model() in Model()
     ensures e.Universe() == e.Model()
     ensures counter_out == counter_in + Cost(e.TraversalWork(), 0, context)
-    ensures e.USize(context.weight) == e.Size(context.weight)
-    ensures e.Size(context.weight) <= Size(context.weight)
+    ensures e.USizeBound(context.weight) == e.SizeBound(context.weight)
+    ensures e.SizeBound(context.weight) <= SizeBound(context.weight)
     ensures e.ULeafBits(context.weight) <= LeafBits(context.weight)
   {
     reveal Model();
@@ -352,22 +352,22 @@ class ConcreteSetSetSet<T(==)> extends SetSetSet<T> {
   method Equal(other:SetSetSet<T>, ghost counter_in:nat, ghost context:SetContext<T>) returns (equal:bool, ghost counter_out:nat)
     requires Valid() && other.Valid()
     ensures equal == (Model() == other.Model())
-    ensures counter_out == counter_in + Cost(CombinedTraversalWork(other), other.Size(context.weight), context)
+    ensures counter_out == counter_in + Cost(CombinedTraversalWork(other), other.SizeBound(context.weight), context)
   {
     reveal Model(), other.Model();
     equal := elements == other.ExecutableModel();
-    counter_out := counter_in + Cost(CombinedTraversalWork(other), other.Size(context.weight), context);
+    counter_out := counter_in + Cost(CombinedTraversalWork(other), other.SizeBound(context.weight), context);
   }
 
   method Contains(e:SetSet<T>, ghost counter_in:nat, ghost context:SetContext<T>) returns (b:bool, ghost counter_out:nat)
     requires Valid()
     ensures b == (e.Model() in Model())
-    ensures counter_out == counter_in + Cost(TraversalWork(), e.Size(context.weight), context)
+    ensures counter_out == counter_in + Cost(TraversalWork(), e.SizeBound(context.weight), context)
   {
     reveal Model();
     reveal e.Model();
     b := e.ExecutableModel() in elements;
-    counter_out := counter_in + Cost(TraversalWork(), e.Size(context.weight), context);
+    counter_out := counter_in + Cost(TraversalWork(), e.SizeBound(context.weight), context);
   }
 
   method Add(e:SetSet<T>, ghost counter_in:nat, ghost context:SetContext<T>) returns (R:SetSetSet<T>, ghost counter_out:nat)
@@ -379,7 +379,7 @@ class ConcreteSetSetSet<T(==)> extends SetSetSet<T> {
     ensures R.UCardinality2() == (if e.Cardinality1() <= UCardinality2() then UCardinality2() else e.Cardinality1())
     ensures R.Universe() == Universe() + {e.Model()}
     ensures R.Model() == Model() + {e.Model()}
-    ensures counter_out == counter_in + Cost(TraversalWork(), e.Size(context.weight), context)
+    ensures counter_out == counter_in + Cost(TraversalWork(), e.SizeBound(context.weight), context)
     ensures R.ULeafBits(context.weight) <= MaxLeafWeight(ULeafBits(context.weight), e.LeafBits(context.weight))
   {
     reveal Model();
@@ -392,7 +392,7 @@ class ConcreteSetSetSet<T(==)> extends SetSetSet<T> {
       assert |elements + {e.ExecutableModel()}| == |elements| + 1;
     }
     max_leaf_bits_insert_set(Universe(), child => MaxLeafBits_setset(child, context.weight), e.Model());
-    counter_out := counter_in + Cost(TraversalWork(), e.Size(context.weight), context);
+    counter_out := counter_in + Cost(TraversalWork(), e.SizeBound(context.weight), context);
   }
 
   method Remove(e:SetSet<T>, ghost counter_in:nat, ghost context:SetContext<T>) returns (R:SetSetSet<T>, ghost counter_out:nat)
@@ -400,22 +400,22 @@ class ConcreteSetSetSet<T(==)> extends SetSetSet<T> {
     ensures R.Valid()
     ensures R.UCardinality1() == UCardinality1()
     ensures R.UCardinality2() == UCardinality2()
-    ensures R.UVolume1() <= UVolume1()
-    ensures R.UVolume2() <= UVolume2()
+    ensures R.UVolumeBound1() <= UVolumeBound1()
+    ensures R.UVolumeBound2() <= UVolumeBound2()
     ensures if e.Model() !in Model() then R.Cardinality() == Cardinality()
             else R.Cardinality() == Cardinality() - 1
     ensures R.Universe() == Universe()
     ensures R.Model() == Model() - {e.Model()}
-    ensures counter_out == counter_in + Cost(TraversalWork(), e.Size(context.weight), context)
-    ensures R.Size(context.weight) <= Size(context.weight)
-    ensures R.USize(context.weight) == USize(context.weight)
+    ensures counter_out == counter_in + Cost(TraversalWork(), e.SizeBound(context.weight), context)
+    ensures R.SizeBound(context.weight) <= SizeBound(context.weight)
+    ensures R.USizeBound(context.weight) == USizeBound(context.weight)
   {
     reveal Model();
     reveal e.Model();
     R := new ConcreteSetSetSet(elements - {e.ExecutableModel()}, universe);
     reveal UCardinality1(), UCardinality2(), R.UCardinality1(), R.UCardinality2();
     representation_subset_setsetset(R.Model(), Model(), context.weight);
-    counter_out := counter_in + Cost(TraversalWork(), e.Size(context.weight), context);
+    counter_out := counter_in + Cost(TraversalWork(), e.SizeBound(context.weight), context);
   }
 
   method Copy(ghost counter_in:nat, ghost context:SetContext<T>) returns (R:SetSetSet<T>, ghost counter_out:nat)
@@ -423,14 +423,14 @@ class ConcreteSetSetSet<T(==)> extends SetSetSet<T> {
     ensures R.Valid()
     ensures R.UCardinality1() == Cardinality1()
     ensures R.UCardinality2() == Cardinality2()
-    ensures R.UVolume1() == Volume1()
-    ensures R.UVolume2() == Volume2()
-    ensures R.UVolume1() <= UVolume1()
-    ensures R.UVolume2() <= UVolume2()
+    ensures R.UVolumeBound1() == VolumeBound1()
+    ensures R.UVolumeBound2() == VolumeBound2()
+    ensures R.UVolumeBound1() <= UVolumeBound1()
+    ensures R.UVolumeBound2() <= UVolumeBound2()
     ensures R.Model() == Model()
     ensures R.Universe() == Model()
     ensures counter_out == counter_in + Cost(TraversalWork(), 0, context)
-    ensures R.Size(context.weight) == Size(context.weight) && R.USize(context.weight) == Size(context.weight)
+    ensures R.SizeBound(context.weight) == SizeBound(context.weight) && R.USizeBound(context.weight) == SizeBound(context.weight)
   {
     reveal Model();
     R := new ConcreteSetSetSet(elements, elements);
@@ -464,7 +464,7 @@ method New_SetSet<T(==)>(ghost counter_in:nat) returns (R:SetSet<T>, ghost count
 
 method New_SetSetSet<T(==)>(ghost counter_in:nat) returns (R:SetSetSet<T>, ghost counter_out:nat)
   ensures R.UCardinality1() == 0 && R.UCardinality2() == 0
-  ensures R.UVolume1() == 0 && R.UVolume2() == 0
+  ensures R.UVolumeBound1() == 0 && R.UVolumeBound2() == 0
   ensures R.Valid()
   ensures R.Model() == {}
   ensures R.Universe() == {}

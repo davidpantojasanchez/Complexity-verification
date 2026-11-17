@@ -1,4 +1,3 @@
-include "../Arithmetic/Arithmetic.dfy"
 
 // Maximum value of an element (e.g. a set) in the set items according to the property weight (e.g. cardinality)
 ghost function {:opaque} MaxBy<E>(items:set<E>, weight:E -> nat):(maximum:nat)

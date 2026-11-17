@@ -1,37 +1,16 @@
-include "../Foundations/Collections.dfy"
+include "../Foundations/CollectionLaws.dfy"
 include "CDPC.dfy"
 
-// Package the direct validity clauses for construction proofs.
-lemma cdpc_valid_instance_definition<Q(!new)>(
-    questions:set<Q>, fitness:map<Candidate<Q>, bool>,
-    multiplicity:map<Candidate<Q>, nat>, privateQuestions:set<Q>,
-    privateLower:real, privateUpper:real, fitnessLower:real, fitnessUpper:real)
-  requires fitness.Keys == multiplicity.Keys
-  requires fitness.Keys != {}
-  requires privateQuestions <= questions
-  requires forall candidate | candidate in fitness.Keys ::
-    candidate.Keys == questions && multiplicity[candidate] > 0
-  requires 0.0 <= privateLower <= privateUpper <= 1.0
-  requires 0.0 <= fitnessLower <= fitnessUpper <= 1.0
-  ensures CDPCValidInstance(questions, fitness, multiplicity, privateQuestions,
-    privateLower, privateUpper, fitnessLower, fitnessUpper)
+// Establish validity at the construction boundary using the candidate domains.
+lemma cdpc_valid_instance_definition<Q(!new)>(instance:CDPCModel<Q>)
+  requires instance.fitness.Keys == instance.multiplicity.Keys && instance.fitness.Keys != {}
+  requires instance.privateQuestions <= instance.questions
+  requires forall candidate | candidate in instance.fitness.Keys ::
+    candidate.Keys == instance.questions && instance.multiplicity[candidate] > 0
+  requires 0.0 <= instance.thresholds.privateLower <= instance.thresholds.privateUpper <= 1.0
+  requires 0.0 <= instance.thresholds.fitnessLower <= instance.thresholds.fitnessUpper <= 1.0
+  ensures CDPCValidInstance(instance)
 {
-  reveal CDPCValidInstance();
-}
-
-// In a valid instance the explicit component agrees with every candidate domain,
-// preserving the representative-based interpretation without a second source of truth.
-lemma cdpc_valid_instance_questions_determined<Q(!new)>(
-    questions:set<Q>, fitness:map<Candidate<Q>, bool>,
-    multiplicity:map<Candidate<Q>, nat>, privateQuestions:set<Q>,
-    privateLower:real, privateUpper:real, fitnessLower:real, fitnessUpper:real,
-    candidate:Candidate<Q>)
-  requires CDPCValidInstance(questions, fitness, multiplicity, privateQuestions,
-    privateLower, privateUpper, fitnessLower, fitnessUpper)
-  requires candidate in fitness.Keys
-  ensures candidate.Keys == questions
-{
-  reveal CDPCValidInstance();
 }
 
 lemma fit_sum_definition<Q(!new)>(candidates:set<Candidate<Q>>, fitness:map<Candidate<Q>, bool>, multiplicity:map<Candidate<Q>, nat>, sum:nat, filtered:set<Candidate<Q>>)
@@ -89,133 +68,9 @@ lemma multiplicity_sum_singleton<Q(!new)>(candidate:Candidate<Q>, multiplicity:m
       SequenceMultiplicitySum(enumeration, multiplicity);
 }
 
-lemma multiplicity_sum_pair<Q(!new)>(first:Candidate<Q>, second:Candidate<Q>, multiplicity:map<Candidate<Q>, nat>)
-  requires first != second
-  requires first in multiplicity.Keys
-  requires second in multiplicity.Keys
-  ensures MultiplicitySum(
-    {first, second}, multiplicity,
-    multiplicity[first] + multiplicity[second])
-{
-  reveal MultiplicitySum();
-  assert multiset([first, second]) == multiset({first, second});
-  reveal SequenceMultiplicitySum();
-  assert SequenceMultiplicitySum([], multiplicity) == 0;
-  assert SequenceMultiplicitySum([second], multiplicity) ==
-         multiplicity[second];
-  assert SequenceMultiplicitySum([first, second], multiplicity) ==
-         multiplicity[first] + multiplicity[second];
-  assert exists enumeration:seq<Candidate<Q>> |
-    multiset(enumeration) == multiset({first, second}) &&
-    (forall candidate | candidate in enumeration :: candidate in multiplicity.Keys) ::
-    multiplicity[first] + multiplicity[second] ==
-        SequenceMultiplicitySum(enumeration, multiplicity);
-}
-
-lemma empty_cdpc_branch<Q(!new)>(
-    fitness:map<Candidate<Q>, bool>,
-    multiplicity:map<Candidate<Q>, nat>,
-    privateQuestions:set<Q>,
-    privateLower:real,
-    privateUpper:real,
-    fitnessLower:real,
-    fitnessUpper:real,
-    interview:InterviewModel<Q>)
-  ensures CDPCBranch(
-    fitness, multiplicity, privateQuestions,
-    privateLower, privateUpper, fitnessLower, fitnessUpper,
-    {}, interview) == interview.End?
-{
-  reveal CDPCBranch();
-}
-
-lemma cdpc_branch_step<Q(!new)>(
-    fitness:map<Candidate<Q>, bool>,
-    multiplicity:map<Candidate<Q>, nat>,
-    privateQuestions:set<Q>,
-    privateLower:real,
-    privateUpper:real,
-    fitnessLower:real,
-    fitnessUpper:real,
-    candidates:set<Candidate<Q>>,
-    interview:InterviewModel<Q>)
-  requires candidates != {}
-  requires candidates <= fitness.Keys
-  requires candidates <= multiplicity.Keys
-  requires CDPCBranch(
-    fitness, multiplicity, privateQuestions,
-    privateLower, privateUpper, fitnessLower, fitnessUpper,
-    candidates, interview)
-  ensures PrivateSafe(candidates, multiplicity, privateQuestions,
-                      privateLower, privateUpper)
-  ensures CDPCInterviewSemantics(
-    fitness, multiplicity, privateQuestions,
-    privateLower, privateUpper, fitnessLower, fitnessUpper,
-    candidates, interview)
-{
-  reveal CDPCBranch();
-}
-
-lemma cdpc_end_step<Q(!new)>(
-    fitness:map<Candidate<Q>, bool>,
-    multiplicity:map<Candidate<Q>, nat>,
-    privateQuestions:set<Q>,
-    privateLower:real,
-    privateUpper:real,
-    fitnessLower:real,
-    fitnessUpper:real,
-    candidates:set<Candidate<Q>>)
-  requires candidates != {}
-  requires candidates <= fitness.Keys
-  requires candidates <= multiplicity.Keys
-  requires CDPCInterviewSemantics(
-    fitness, multiplicity, privateQuestions,
-    privateLower, privateUpper, fitnessLower, fitnessUpper,
-    candidates, End)
-  ensures PrivateSafe(candidates, multiplicity, privateQuestions,
-                      privateLower, privateUpper)
-  ensures ClassificationDecided(candidates, fitness, multiplicity,
-                                fitnessLower, fitnessUpper)
-{
-  reveal CDPCInterviewSemantics();
-}
-
-lemma cdpc_ask_step<Q(!new)>(
-    fitness:map<Candidate<Q>, bool>,
-    multiplicity:map<Candidate<Q>, nat>,
-    privateQuestions:set<Q>,
-    privateLower:real,
-    privateUpper:real,
-    fitnessLower:real,
-    fitnessUpper:real,
-    candidates:set<Candidate<Q>>,
-    interview:InterviewModel<Q>)
-  requires candidates != {}
-  requires candidates <= fitness.Keys
-  requires candidates <= multiplicity.Keys
-  requires interview.Ask?
-  requires CDPCInterviewSemantics(
-    fitness, multiplicity, privateQuestions,
-    privateLower, privateUpper, fitnessLower, fitnessUpper,
-    candidates, interview)
-  ensures CDPCBranch(
-    fitness, multiplicity, privateQuestions,
-    privateLower, privateUpper, fitnessLower, fitnessUpper,
-    FilterCandidates(candidates, interview.question, true),
-    interview.trueBranch)
-  ensures CDPCBranch(
-    fitness, multiplicity, privateQuestions,
-    privateLower, privateUpper, fitnessLower, fitnessUpper,
-    FilterCandidates(candidates, interview.question, false),
-    interview.falseBranch)
-{
-  reveal CDPCInterviewSemantics();
-}
-
-lemma {:isolate_assertions} cdpc_subtree_volume_bound<Q(!new)>(
+lemma {:isolate_assertions} cdpc_subtree_node_count_bound<Q(!new)>(
     fitness:map<Candidate<Q>, bool>, multiplicity:map<Candidate<Q>, nat>,
-    privateQuestions:set<Q>, privateLower:real, privateUpper:real,
-    fitnessLower:real, fitnessUpper:real, candidates:set<Candidate<Q>>,
+    privateQuestions:set<Q>, thresholds:CDPCThresholds<real>, candidates:set<Candidate<Q>>,
     remaining:set<Q>, tree:InterviewModel<Q>)
   decreases tree
   requires candidates <= fitness.Keys && candidates <= multiplicity.Keys
@@ -223,7 +78,7 @@ lemma {:isolate_assertions} cdpc_subtree_volume_bound<Q(!new)>(
   requires InterviewFits(tree, remaining)
   requires if candidates == {} then tree.End? else
     CDPCInterviewSemantics(fitness, multiplicity, privateQuestions,
-      privateLower, privateUpper, fitnessLower, fitnessUpper, candidates, tree)
+      thresholds, candidates, tree)
   ensures InterviewNodes(tree) <= 2*|candidates|*|remaining| + 1
 {
   reveal InterviewNodes(), InterviewFits(), CDPCInterviewSemantics(), CDPCBranch();
@@ -234,11 +89,11 @@ lemma {:isolate_assertions} cdpc_subtree_volume_bound<Q(!new)>(
     assert left + right == candidates;
     assert left * right == {};
     assert |left| + |right| == |candidates|;
-    cdpc_subtree_volume_bound(fitness, multiplicity, privateQuestions,
-      privateLower, privateUpper, fitnessLower, fitnessUpper,
+    cdpc_subtree_node_count_bound(fitness, multiplicity, privateQuestions,
+      thresholds,
       left, remaining - {q}, tree.trueBranch);
-    cdpc_subtree_volume_bound(fitness, multiplicity, privateQuestions,
-      privateLower, privateUpper, fitnessLower, fitnessUpper,
+    cdpc_subtree_node_count_bound(fitness, multiplicity, privateQuestions,
+      thresholds,
       right, remaining - {q}, tree.falseBranch);
     assert |remaining - {q}| == |remaining| - 1;
     cdpc_node_count_bound(|left|, |right|, |candidates|, |remaining|,
@@ -256,36 +111,23 @@ lemma cdpc_node_count_bound(left:nat, right:nat, population:nat, questions:nat, 
   assert 2*population*(questions-1) == 2*population*questions-2*population;
 }
 
-lemma cdpc_certificate_volume_bound<Q(!new)>(
-    questions:set<Q>, fitness:map<Candidate<Q>, bool>, multiplicity:map<Candidate<Q>, nat>,
-    privateQuestions:set<Q>, privateLower:real, privateUpper:real,
-    fitnessLower:real, fitnessUpper:real, tree:InterviewModel<Q>)
-  requires CDPCValidInstance(questions, fitness, multiplicity, privateQuestions,
-    privateLower, privateUpper, fitnessLower, fitnessUpper)
-  requires CDPCCertificate(questions, fitness, multiplicity, privateQuestions,
-    privateLower, privateUpper, fitnessLower, fitnessUpper, tree)
-  ensures InterviewNodes(tree) <= 2*|fitness.Keys|*|questions|+1
+lemma cdpc_certificate_node_count_bound<Q(!new)>(instance:CDPCModel<Q>, tree:InterviewModel<Q>)
+  requires CDPCValidInstance(instance)
+  requires CDPCCertificate(instance, tree)
+  ensures InterviewNodes(tree) <= 2*|instance.fitness.Keys|*|instance.questions|+1
 {
-  cdpc_subtree_volume_bound(fitness, multiplicity, privateQuestions,
-    privateLower, privateUpper, fitnessLower, fitnessUpper,
-    fitness.Keys, questions, tree);
+  cdpc_subtree_node_count_bound(instance.fitness, instance.multiplicity, instance.privateQuestions,
+    instance.thresholds, instance.fitness.Keys, instance.questions, tree);
 }
 
 
-lemma cdpc_over_limit_not_certificate<Q(!new)>(
-    questions:set<Q>, fitness:map<Candidate<Q>, bool>, multiplicity:map<Candidate<Q>, nat>,
-    privateQuestions:set<Q>, privateLower:real, privateUpper:real,
-    fitnessLower:real, fitnessUpper:real, tree:InterviewModel<Q>)
-  requires CDPCValidInstance(questions, fitness, multiplicity, privateQuestions,
-    privateLower, privateUpper, fitnessLower, fitnessUpper)
-  requires InterviewNodes(tree) > 2*|fitness.Keys|*|questions|+1
-  ensures !CDPCCertificate(questions, fitness, multiplicity, privateQuestions,
-    privateLower, privateUpper, fitnessLower, fitnessUpper, tree)
+lemma cdpc_over_limit_not_certificate<Q(!new)>(instance:CDPCModel<Q>, tree:InterviewModel<Q>)
+  requires CDPCValidInstance(instance)
+  requires InterviewNodes(tree) > 2*|instance.fitness.Keys|*|instance.questions|+1
+  ensures !CDPCCertificate(instance, tree)
 {
-  if CDPCCertificate(questions, fitness, multiplicity, privateQuestions,
-      privateLower, privateUpper, fitnessLower, fitnessUpper, tree) {
-    cdpc_certificate_volume_bound(questions, fitness, multiplicity, privateQuestions,
-      privateLower, privateUpper, fitnessLower, fitnessUpper, tree);
+  if CDPCCertificate(instance, tree) {
+    cdpc_certificate_node_count_bound(instance, tree);
   }
 }
 

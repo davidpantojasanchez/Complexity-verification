@@ -166,7 +166,7 @@ lemma interview_size_member<Q>(tree:InterviewModel<Q>, weight:Q -> nat, question
 }
 
 // A tree has unbounded depth: compose its node count with one leaf maximum.
-ghost function InterviewRepresentationSize<Q>(tree:InterviewModel<Q>, weight:Q -> nat):(size:nat)
+ghost function InterviewRepresentationSizeBound<Q>(tree:InterviewModel<Q>, weight:Q -> nat):(size:nat)
   ensures 1 <= size
   ensures InterviewNodes(tree) <= size
 {
@@ -175,8 +175,8 @@ ghost function InterviewRepresentationSize<Q>(tree:InterviewModel<Q>, weight:Q -
 }
 
 lemma interview_representation_bound<Q>(tree:InterviewModel<Q>, weight:Q -> nat)
-  ensures InterviewSize(tree, weight) <= InterviewRepresentationSize(tree, weight)
-  ensures InterviewRepresentationSize(tree, weight) <= 2*NatPower(InterviewSize(tree, weight)+1, 2)
+  ensures InterviewSize(tree, weight) <= InterviewRepresentationSizeBound(tree, weight)
+  ensures InterviewRepresentationSizeBound(tree, weight) <= 2*NatPower(InterviewSize(tree, weight)+1, 2)
 {
   var bits := MaxLeafBits_set(InterviewQuestions(tree), weight);
   max_by_properties(InterviewQuestions(tree), weight);
@@ -191,8 +191,8 @@ lemma interview_representation_bound<Q>(tree:InterviewModel<Q>, weight:Q -> nat)
 
 lemma interview_representation_step<Q>(tree:InterviewModel<Q>, answer:bool, weight:Q -> nat)
   requires tree.Ask?
-  ensures InterviewRepresentationSize(if answer then tree.trueBranch else tree.falseBranch, weight) < InterviewRepresentationSize(tree, weight)
-  ensures weight(tree.question) < InterviewRepresentationSize(tree, weight)
+  ensures InterviewRepresentationSizeBound(if answer then tree.trueBranch else tree.falseBranch, weight) < InterviewRepresentationSizeBound(tree, weight)
+  ensures weight(tree.question) < InterviewRepresentationSizeBound(tree, weight)
 {
   reveal InterviewQuestions(), InterviewNodes();
   var child := if answer then tree.trueBranch else tree.falseBranch;
@@ -202,11 +202,11 @@ lemma interview_representation_step<Q>(tree:InterviewModel<Q>, answer:bool, weig
     InterviewNodes(tree)-1, 1+MaxLeafBits_set(InterviewQuestions(tree), weight));
   var width := 1+MaxLeafBits_set(InterviewQuestions(tree), weight);
   calc {
-    InterviewRepresentationSize(child, weight);
+    InterviewRepresentationSizeBound(child, weight);
     <= (InterviewNodes(tree)-1)*width;
     < (InterviewNodes(tree)-1)*width+width;
     == InterviewNodes(tree)*width;
-    == InterviewRepresentationSize(tree, weight);
+    == InterviewRepresentationSizeBound(tree, weight);
   }
   nat_multiplication_monotonic(width, 1, InterviewNodes(tree));
 }
@@ -219,18 +219,18 @@ trait Interview<Q(==)> {
   ghost function NodeCount():nat { InterviewNodes(Model()) }
   ghost function Depth():nat { InterviewDepth(Model()) }
 
-  ghost function Size(weight:Q -> nat):(size:nat)
+  ghost function SizeBound(weight:Q -> nat):(size:nat)
     ensures 1 <= size && NodeCount() <= size
-  { InterviewRepresentationSize(Model(), weight) }
+  { InterviewRepresentationSizeBound(Model(), weight) }
 
   ghost function Questions():set<Q> { InterviewQuestions(Model()) }
 
   // Every tree access uses one unit of work and has no external weighted operand.
   ghost function Cost(context:SetContext<Q>):(cost:nat)
-    ensures (Size(context.weight) <= context.bound)
+    ensures (SizeBound(context.weight) <= context.bound)
       ==> (cost <= BudgetPrimitiveStep(context.bound))
   {
-    var size := Size(context.weight);
+    var size := SizeBound(context.weight);
     collection_step_bound(1, size, 0, context.bound);
     CostRepresentation(1, size, 0)
   }
@@ -242,13 +242,13 @@ trait Interview<Q(==)> {
   method Question(ghost counter_in:nat, ghost context:SetContext<Q>) returns (question:Q, ghost counter_out:nat)
     requires Model().Ask?
     ensures question == Model().question
-    ensures context.weight(question) < Size(context.weight)
+    ensures context.weight(question) < SizeBound(context.weight)
     ensures counter_out == counter_in + Cost(context)
 
   method Branch(answer:bool, ghost counter_in:nat, ghost context:SetContext<Q>) returns (branch:Interview<Q>, ghost counter_out:nat)
     requires Model().Ask?
     ensures branch.NodeCount() < NodeCount()
-    ensures branch.Size(context.weight) < Size(context.weight)
+    ensures branch.SizeBound(context.weight) < SizeBound(context.weight)
     ensures branch.Model() ==
             if answer then Model().trueBranch else Model().falseBranch
     ensures counter_out == counter_in + Cost(context)
@@ -257,7 +257,7 @@ trait Interview<Q(==)> {
   lemma size_bound(weight:Q -> nat, bits:nat)
     requires 1 <= bits
     requires forall question | question in Questions() :: weight(question) <= bits
-    ensures NodeCount() <= Size(weight) <= NodeCount()*(1+bits)
+    ensures NodeCount() <= SizeBound(weight) <= NodeCount()*(1+bits)
   {
     max_leaf_bits_bound_set(Questions(), weight, bits);
     nat_multiplication_monotonic(NodeCount(), 1+MaxLeafBits_set(Questions(), weight), 1+bits);
@@ -265,8 +265,8 @@ trait Interview<Q(==)> {
 
   lemma size_branch_bound(answer:bool, weight:Q -> nat)
     requires Model().Ask?
-    ensures InterviewRepresentationSize(if answer then Model().trueBranch else Model().falseBranch, weight) < Size(weight)
-    ensures weight(Model().question) < Size(weight)
+    ensures InterviewRepresentationSizeBound(if answer then Model().trueBranch else Model().falseBranch, weight) < SizeBound(weight)
+    ensures weight(Model().question) < SizeBound(weight)
   { interview_representation_step(Model(), answer, weight); }
 
   lemma interview_bound(remaining:set<Q>)

@@ -1,7 +1,7 @@
 include "../Polynomial/PolynomialCDPC.dfy"
 include "../Problems/CDPCRepresentation.dfy"
-include "../Foundations/CollectionSizes.dfy"
-include "../Foundations/Collections.dfy"
+include "../Foundations/ExactCollectionSizes.dfy"
+include "../Foundations/CollectionLaws.dfy"
 include "../Foundations/LoopCosts.dfy"
 include "../Problems/CDPCLemmas.dfy"
 include "../Collections/Set.dfy"
@@ -12,7 +12,7 @@ include "../Arithmetic/CostedArithmetic.dfy"
 
 // Classification and privacy checks
 
-method {:isolate_assertions} CheckClassification<Q(!new)>(
+method CheckClassification<Q(!new)>(
     candidates:Map_Map_T<Q, bool, bool>,
     fitness:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>,
@@ -29,9 +29,9 @@ method {:isolate_assertions} CheckClassification<Q(!new)>(
   requires candidates.Keys() <= fitness.Keys()
   requires candidates.Keys() <= multiplicity.Keys()
   // State in
-  requires fitness.Size(weight, BoolBits, BoolBits) <= n
-  requires candidates.Size(weight, BoolBits, BoolBits) <= n
-  requires multiplicity.Size(weight, BoolBits, NatBits) <= n
+  requires fitness.SizeBound(weight, BoolBits, BoolBits) <= n
+  requires candidates.SizeBound(weight, BoolBits, BoolBits) <= n
+  requires multiplicity.SizeBound(weight, BoolBits, NatBits) <= n
   requires NatBits(maximum) <= n
   requires forall candidate | candidate in candidates.Keys() :: multiplicity.Model()[candidate] <= maximum
   requires RationalBits(fitnessLower) <= n && RationalBits(fitnessUpper) <= n
@@ -78,9 +78,9 @@ method {:isolate_assertions} CheckPrivateSafe<Q(!new)>(
   requires candidates.Keys() <= multiplicity.Keys()
   requires privateQuestions.Init()
   // State in
-  requires privateQuestions.Size(weight) <= n
-  requires candidates.Size(weight, BoolBits, BoolBits) <= n
-  requires multiplicity.Size(weight, BoolBits, NatBits) <= n
+  requires privateQuestions.SizeBound(weight) <= n
+  requires candidates.SizeBound(weight, BoolBits, BoolBits) <= n
+  requires multiplicity.SizeBound(weight, BoolBits, NatBits) <= n
   requires NatBits(maximum) <= n
   requires forall candidate | candidate in candidates.Keys() :: multiplicity.Model()[candidate] <= maximum
   requires RationalBits(privateLower) <= n && RationalBits(privateUpper) <= n
@@ -155,7 +155,7 @@ method {:isolate_assertions} CheckPrivateSafe<Q(!new)>(
     privateQuestions.Cardinality(), n);
 }
 
-method {:isolate_assertions} CheckPrivateQuestion<Q(!new)>(
+method CheckPrivateQuestion<Q(!new)>(
     candidates:Map_Map_T<Q, bool, bool>,
     question:Q,
     multiplicity:Map_Map_T<Q, bool, nat>,
@@ -173,8 +173,8 @@ method {:isolate_assertions} CheckPrivateQuestion<Q(!new)>(
     candidates.Keys(), multiplicity.Model(), totalSum)
   // State in
   requires weight(question) <= n
-  requires candidates.Size(weight, BoolBits, BoolBits) <= n
-  requires multiplicity.Size(weight, BoolBits, NatBits) <= n
+  requires candidates.SizeBound(weight, BoolBits, BoolBits) <= n
+  requires multiplicity.SizeBound(weight, BoolBits, NatBits) <= n
   requires NatBits(maximum) <= n
   requires forall candidate | candidate in candidates.Keys() :: multiplicity.Model()[candidate] <= maximum
   requires RationalBits(privateLower) <= n && RationalBits(privateUpper) <= n
@@ -216,7 +216,7 @@ method {:isolate_assertions} FilterCandidateMap<Q(!new)>(
     returns (filtered:Map_Map_T<Q, bool, bool>, ghost counter:nat)
   // Representation in
   requires candidates.Valid()
-  requires candidates.Size(weight, BoolBits, BoolBits) <= n
+  requires candidates.SizeBound(weight, BoolBits, BoolBits) <= n
   requires weight(question) <= n
   // Representation out
   ensures filtered.Valid()
@@ -282,7 +282,7 @@ method {:isolate_assertions} FilterCandidateMapLoop<Q(!new)>(
              empty:bool, ghost counter:nat)
   // Progress in
   requires remaining_in.Model() != map[]
-  requires candidates.Size(weight, BoolBits, BoolBits) <= n
+  requires candidates.SizeBound(weight, BoolBits, BoolBits) <= n
   requires weight(question) <= n
   // Representation in
   requires remaining_in.UniverseWithin(candidates)
@@ -341,7 +341,7 @@ method {:isolate_assertions} FilterCandidateMapLoop<Q(!new)>(
 }
 
 // One accumulator covers map operations and length-sensitive additions.
-method {:isolate_assertions} ComputeMultiplicitySum<Q(!new)>(
+method ComputeMultiplicitySum<Q(!new)>(
     candidates:Map_Map_T<Q, bool, bool>,
     multiplicity:Map_Map_T<Q, bool, nat>,
     ghost maximum:nat, ghost n:nat, ghost weight:Q -> nat,
@@ -352,8 +352,8 @@ method {:isolate_assertions} ComputeMultiplicitySum<Q(!new)>(
   requires multiplicity.Valid()
   requires candidates.Keys() <= multiplicity.Keys()
   // State in
-  requires candidates.Size(weight, BoolBits, BoolBits) <= n
-  requires multiplicity.Size(weight, BoolBits, NatBits) <= n
+  requires candidates.SizeBound(weight, BoolBits, BoolBits) <= n
+  requires multiplicity.SizeBound(weight, BoolBits, NatBits) <= n
   requires NatBits(maximum) <= n
   requires forall candidate | candidate in candidates.Keys() ::
     multiplicity.Model()[candidate] <= maximum
@@ -370,7 +370,7 @@ method {:isolate_assertions} ComputeMultiplicitySum<Q(!new)>(
   ghost var context := BitNestedMapCost(weight, BoolBits, BoolBits, n);
   ghost var multiplicityContext := BitNestedMapCost(weight, BoolBits, NatBits, n);
   ghost var primitiveBudget := BudgetPrimitiveStep(n);
-  cdpc_sum_bits_bound(candidates.Cardinality(), maximum, n);
+  nat_bits_linear_bound(candidates.Cardinality());
   var remaining:Map_Map_T<Q, bool, bool>;
   // A recursive candidate map may have a wider universe than its current model.
   remaining, counter := candidates.Copy(counter, context);
@@ -399,8 +399,7 @@ method {:isolate_assertions} ComputeMultiplicitySum<Q(!new)>(
     decreases remaining.Cardinality()
     invariant empty == (remaining.Model() == map[])
     // Representation
-    invariant remaining.USize(weight, BoolBits, BoolBits) <= n
-    invariant remaining.UCardinalityKeys() <= n
+    invariant remaining.USizeBound(weight, BoolBits, BoolBits) <= n
     invariant remaining.UniverseWithin(candidates)
     invariant remaining.Keys() <= candidates.Keys()
     invariant candidates.Keys() <= multiplicity.Keys()
@@ -471,9 +470,9 @@ method {:isolate_assertions} ComputeFitSum<Q(!new)>(
   requires candidates.Keys() <= fitness.Keys()
   requires candidates.Keys() <= multiplicity.Keys()
   // State in
-  requires fitness.Size(weight, BoolBits, BoolBits) <= n
-  requires candidates.Size(weight, BoolBits, BoolBits) <= n
-  requires multiplicity.Size(weight, BoolBits, NatBits) <= n
+  requires fitness.SizeBound(weight, BoolBits, BoolBits) <= n
+  requires candidates.SizeBound(weight, BoolBits, BoolBits) <= n
+  requires multiplicity.SizeBound(weight, BoolBits, NatBits) <= n
   requires NatBits(maximum) <= n
   requires forall candidate | candidate in candidates.Keys() ::
     multiplicity.Model()[candidate] <= maximum
@@ -491,7 +490,7 @@ method {:isolate_assertions} ComputeFitSum<Q(!new)>(
   ghost var context := BitNestedMapCost(weight, BoolBits, BoolBits, n);
   ghost var multiplicityContext := BitNestedMapCost(weight, BoolBits, NatBits, n);
   ghost var primitiveBudget := BudgetPrimitiveStep(n);
-  cdpc_sum_bits_bound(candidates.Cardinality(), maximum, n);
+  nat_bits_linear_bound(candidates.Cardinality());
   var remaining:Map_Map_T<Q, bool, bool>;
   // A recursive candidate map may have a wider universe than its current model.
   remaining, counter := candidates.Copy(counter, context);
@@ -518,8 +517,7 @@ method {:isolate_assertions} ComputeFitSum<Q(!new)>(
     decreases remaining.Cardinality()
     invariant empty == (remaining.Model() == map[])
     // Representation
-    invariant remaining.USize(weight, BoolBits, BoolBits) <= n
-    invariant remaining.UCardinalityKeys() <= n
+    invariant remaining.USizeBound(weight, BoolBits, BoolBits) <= n
     invariant remaining.UniverseWithin(candidates)
     invariant remaining.Keys() <= candidates.Keys()
     invariant candidates.Keys() <= fitness.Keys()
@@ -603,8 +601,8 @@ method {:isolate_assertions} ComputePrivateSum<Q(!new)>(
   requires candidates.Keys() <= multiplicity.Keys()
   // State in
   requires weight(question) <= n
-  requires candidates.Size(weight, BoolBits, BoolBits) <= n
-  requires multiplicity.Size(weight, BoolBits, NatBits) <= n
+  requires candidates.SizeBound(weight, BoolBits, BoolBits) <= n
+  requires multiplicity.SizeBound(weight, BoolBits, NatBits) <= n
   requires NatBits(maximum) <= n
   requires forall candidate | candidate in candidates.Keys() ::
     multiplicity.Model()[candidate] <= maximum
@@ -623,7 +621,7 @@ method {:isolate_assertions} ComputePrivateSum<Q(!new)>(
   ghost var multiplicityContext := BitNestedMapCost(weight, BoolBits, NatBits, n);
   ghost var keyContext := NestedMapKeyContext(context);
   ghost var primitiveBudget := BudgetPrimitiveStep(n);
-  cdpc_sum_bits_bound(candidates.Cardinality(), maximum, n);
+  nat_bits_linear_bound(candidates.Cardinality());
   var remaining:Map_Map_T<Q, bool, bool>;
   // A recursive candidate map may have a wider universe than its current model.
   remaining, counter := candidates.Copy(counter, context);
@@ -650,8 +648,7 @@ method {:isolate_assertions} ComputePrivateSum<Q(!new)>(
     decreases remaining.Cardinality()
     invariant empty == (remaining.Model() == map[])
     // Representation
-    invariant remaining.USize(weight, BoolBits, BoolBits) <= n
-    invariant remaining.UCardinalityKeys() <= n
+    invariant remaining.USizeBound(weight, BoolBits, BoolBits) <= n
     invariant remaining.UniverseWithin(candidates)
     invariant remaining.Keys() <= candidates.Keys()
     invariant candidates.Keys() <= multiplicity.Keys()

@@ -11,69 +11,46 @@ Multiplicities are kept as integers; they are never expanded into individuals.
 
 type Candidate<Q(==)> = map<Q, bool>
 
-// Mathematical real thresholds do not determine stored rational sizes.
-type CDPCInstance<Q(==)> = (set<Q>, map<Candidate<Q>, bool>,
-  map<Candidate<Q>, nat>, set<Q>, real, real, real, real)
+// The threshold fields carry values. Interval validity belongs to the instance.
+datatype CDPCThresholds<T> = CDPCThresholds(privateLower:T, privateUpper:T, fitnessLower:T, fitnessUpper:T)
 
-ghost predicate CDPC<Q(!new)>(
-    questions:set<Q>,
-    fitness:map<Candidate<Q>, bool>,
-    multiplicity:map<Candidate<Q>, nat>,
-    privateQuestions:set<Q>,
-    privateLower:real,
-    privateUpper:real,
-    fitnessLower:real,
-    fitnessUpper:real)
-  requires CDPCValidInstance(questions, fitness, multiplicity, privateQuestions, privateLower, privateUpper, fitnessLower, fitnessUpper)
+datatype CDPCModel<Q(==)> = CDPCModel(questions:set<Q>, fitness:map<Candidate<Q>, bool>,
+  multiplicity:map<Candidate<Q>, nat>, privateQuestions:set<Q>, thresholds:CDPCThresholds<real>)
+
+ghost predicate CDPC<Q(!new)>(instance:CDPCModel<Q>)
+  requires CDPCValidInstance(instance)
 {
-  exists interview:InterviewModel<Q> ::
-    CDPCCertificate(
-      questions, fitness, multiplicity, privateQuestions,
-      privateLower, privateUpper, fitnessLower, fitnessUpper,
-      interview)
+  exists interview:InterviewModel<Q> :: CDPCCertificate(instance, interview)
 }
 
-ghost predicate CDPCValidInstance<Q(!new)>(
-    questions:set<Q>,
-    fitness:map<Candidate<Q>, bool>,
-    multiplicity:map<Candidate<Q>, nat>,
-    privateQuestions:set<Q>,
-    privateLower:real,
-    privateUpper:real,
-    fitnessLower:real,
-    fitnessUpper:real)
+ghost predicate CDPCValidInstance<Q(!new)>(instance:CDPCModel<Q>)
 {
+  var fitness := instance.fitness;
+  var multiplicity := instance.multiplicity;
+  var thresholds := instance.thresholds;
   fitness.Keys == multiplicity.Keys &&
   fitness.Keys != {} &&
-  privateQuestions <= questions &&
+  instance.privateQuestions <= instance.questions &&
   (forall candidate | candidate in fitness.Keys ::
-    candidate.Keys == questions && multiplicity[candidate] > 0) &&
-  0.0 <= privateLower <= privateUpper <= 1.0 &&
-  0.0 <= fitnessLower <= fitnessUpper <= 1.0
+    candidate.Keys == instance.questions && multiplicity[candidate] > 0) &&
+  0.0 <= thresholds.privateLower <= thresholds.privateUpper <= 1.0 &&
+  0.0 <= thresholds.fitnessLower <= thresholds.fitnessUpper <= 1.0
 }
 
-// Complete correctness at the root; CDPCInterviewSemantics below is the recursive
-// population semantics and intentionally remains separate from tree structure.
-ghost predicate CDPCCertificate<Q(!new)>(
-    questions:set<Q>, fitness:map<Candidate<Q>, bool>, multiplicity:map<Candidate<Q>, nat>,
-    privateQuestions:set<Q>, privateLower:real, privateUpper:real,
-    fitnessLower:real, fitnessUpper:real, interview:InterviewModel<Q>)
-  requires CDPCValidInstance(questions, fitness, multiplicity, privateQuestions,
-    privateLower, privateUpper, fitnessLower, fitnessUpper)
+// Complete correctness at the root, including the structure of the interview.
+ghost predicate CDPCCertificate<Q(!new)>(instance:CDPCModel<Q>, interview:InterviewModel<Q>)
+  requires CDPCValidInstance(instance)
 {
-  InterviewFits(interview, questions) &&
-  CDPCInterviewSemantics(fitness, multiplicity, privateQuestions,
-    privateLower, privateUpper, fitnessLower, fitnessUpper, fitness.Keys, interview)
+  InterviewFits(interview, instance.questions) &&
+  CDPCInterviewSemantics(instance.fitness, instance.multiplicity, instance.privateQuestions,
+    instance.thresholds, instance.fitness.Keys, interview)
 }
 
 ghost predicate {:opaque} CDPCInterviewSemantics<Q(!new)>(
     fitness:map<Candidate<Q>, bool>,
     multiplicity:map<Candidate<Q>, nat>,
     privateQuestions:set<Q>,
-    privateLower:real,
-    privateUpper:real,
-    fitnessLower:real,
-    fitnessUpper:real,
+    thresholds:CDPCThresholds<real>,
     candidates:set<Candidate<Q>>,
     interview:InterviewModel<Q>)
   requires candidates != {}
@@ -85,19 +62,19 @@ ghost predicate {:opaque} CDPCInterviewSemantics<Q(!new)>(
   // * Caso base
   case End =>
     // Se ha obtenido la información necesaria según x e y
-    ClassificationDecided(candidates, fitness, multiplicity, fitnessLower, fitnessUpper) &&
+    ClassificationDecided(candidates, fitness, multiplicity, thresholds.fitnessLower, thresholds.fitnessUpper) &&
     // Por cada caractrística privada, no se ha inferido más información que la permitida por a y b
-    PrivateSafe(candidates, multiplicity, privateQuestions, privateLower, privateUpper)
+    PrivateSafe(candidates, multiplicity, privateQuestions, thresholds.privateLower, thresholds.privateUpper)
   // * Casos recursivos
   case Ask(question, whenTrue, whenFalse) =>
     CDPCBranch(
       fitness, multiplicity, privateQuestions,
-      privateLower, privateUpper, fitnessLower, fitnessUpper,
+      thresholds,
       FilterCandidates(candidates, question, true),
       whenTrue) &&
     CDPCBranch(
       fitness, multiplicity, privateQuestions,
-      privateLower, privateUpper, fitnessLower, fitnessUpper,
+      thresholds,
       FilterCandidates(candidates, question, false),
       whenFalse)
 }
@@ -106,10 +83,7 @@ ghost predicate {:opaque} CDPCBranch<Q(!new)>(
     fitness:map<Candidate<Q>, bool>,
     multiplicity:map<Candidate<Q>, nat>,
     privateQuestions:set<Q>,
-    privateLower:real,
-    privateUpper:real,
-    fitnessLower:real,
-    fitnessUpper:real,
+    thresholds:CDPCThresholds<real>,
     candidates:set<Candidate<Q>>,
     interview:InterviewModel<Q>)
   requires candidates <= fitness.Keys
@@ -118,8 +92,8 @@ ghost predicate {:opaque} CDPCBranch<Q(!new)>(
 {
   if candidates == {} then interview.End?
   else
-    PrivateSafe(candidates, multiplicity, privateQuestions, privateLower, privateUpper) &&      // No es necesario
-    CDPCInterviewSemantics(fitness, multiplicity, privateQuestions, privateLower, privateUpper, fitnessLower, fitnessUpper, candidates, interview)
+    PrivateSafe(candidates, multiplicity, privateQuestions, thresholds.privateLower, thresholds.privateUpper) &&      // No es necesario
+    CDPCInterviewSemantics(fitness, multiplicity, privateQuestions, thresholds, candidates, interview)
 }
 
 ghost predicate ClassificationDecided<Q(!new)>(

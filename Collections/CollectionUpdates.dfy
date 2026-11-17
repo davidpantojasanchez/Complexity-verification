@@ -64,18 +64,3 @@ lemma insert_universe_measures_map_map_set_t<K, V, R>(
   max_by_insert(before.Universe().Keys, key.Model(), item => |item|);
   max_by_insert(before.Universe().Keys, key.Model(), KeyCardinality_map_set_t);
 }
-
-// Update agreement.
-// Lift native update agreement to wrapper models and universes during construction.
-
-lemma update_agreement_map_map_set_t<K, V, R>(
-    M:Map_MapSet_T<K, V, R>, key:map<set<K>, V>, value:R)
-  requires M.Valid()
-  ensures M.Model()[key := value].Keys <= M.Universe()[key := value].Keys
-  ensures forall entry {:trigger M.Model()[key := value][entry]} |
-    entry in M.Model()[key := value].Keys ::
-    M.Model()[key := value][entry] == M.Universe()[key := value][entry]
-{
-  reveal M.Valid();
-  update_agreement_map(M.Model(), M.Universe(), key, value);
-}

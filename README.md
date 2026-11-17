@@ -1,8 +1,7 @@
 # Complexity verification in Dafny
 
-This project uses Dafny to verify correctness and computational-complexity
-properties for certificate checkers and problem transformations, with Set Cover,
-Hitting Set and CDPC as case studies.
+This project uses Dafny to verify computational complexity properties,
+with the NP-complexity of Set Cover, Hitting Set and CDPC as case studies.
 
 ## Repository map
 

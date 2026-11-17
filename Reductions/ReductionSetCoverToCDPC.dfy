@@ -1,3 +1,4 @@
+include "../Arithmetic/Rationals.dfy"
 include "../Arithmetic/BitLengths.dfy"
 include "../Problems/SetCover.dfy"
 include "../Problems/CDPCLemmas.dfy"
@@ -9,26 +10,17 @@ The questions are the sets in S. After removing the empty set from S, {} is rese
 // Correctness of the reduction
 
 
-lemma set_cover_to_cdpc_correct<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
-  requires SetCoverValidInstance(U, S)
-  ensures var (questions, fitness, multiplicity, privateQuestions,
-               privateLower, privateUpper, fitnessLower, fitnessUpper) :=
-            SetCoverToCDPC(U, S, k);
-          SetCover(U, S, k) <==> CDPC(
-            questions, fitness, multiplicity, privateQuestions,
-            privateLower, privateUpper, fitnessLower, fitnessUpper)
+lemma set_cover_to_cdpc_correct<T(!new)>(instance:SetCoverModel<T>)
+  requires SetCoverValidInstance(instance)
+  ensures SetCover(instance) <==> CDPC(SetCoverToCDPC(instance))
 {
-  set_cover_to_cdpc_forward(U, S, k);
-  set_cover_to_cdpc_backward(U, S, k);
+  set_cover_to_cdpc_forward(instance);
+  set_cover_to_cdpc_backward(instance);
 }
 
-lemma set_cover_to_cdpc_forward<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
-  requires SetCoverValidInstance(U, S)
-  ensures var (questions, fitness, multiplicity, privateQuestions, privateLower, privateUpper, fitnessLower, fitnessUpper) :=
-            SetCoverToCDPC(U, S, k);
-          SetCover(U, S, k) ==> CDPC(
-            questions, fitness, multiplicity, privateQuestions,
-            privateLower, privateUpper, fitnessLower, fitnessUpper)
+lemma set_cover_to_cdpc_forward<T(!new)>(instance:SetCoverModel<T>)
+  requires SetCoverValidInstance(instance)
+  ensures SetCover(instance) ==> CDPC(SetCoverToCDPC(instance))
   // Unproved. Let source := S - {{}} and call set_cover_without_empty.
   // If |source| <= k, call set_cover_to_cdpc_trivial_correct.
   // Otherwise choose a SetCoverCertificate for source and call
@@ -36,14 +28,9 @@ lemma set_cover_to_cdpc_forward<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
   // semantic result supply the existential witness required by CDPC.
 
 
-lemma set_cover_to_cdpc_backward<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
-  requires SetCoverValidInstance(U, S)
-  ensures var (questions, fitness, multiplicity, privateQuestions,
-               privateLower, privateUpper, fitnessLower, fitnessUpper) :=
-            SetCoverToCDPC(U, S, k);
-          CDPC(questions, fitness, multiplicity, privateQuestions,
-               privateLower, privateUpper, fitnessLower, fitnessUpper)
-          ==> SetCover(U, S, k)
+lemma set_cover_to_cdpc_backward<T(!new)>(instance:SetCoverModel<T>)
+  requires SetCoverValidInstance(instance)
+  ensures CDPC(SetCoverToCDPC(instance)) ==> SetCover(instance)
   // Unproved. Let source := S - {{}} and call set_cover_without_empty.
   // If |source| <= k, call set_cover_to_cdpc_trivial_correct.
   // Otherwise choose an interview from CDPC and call
@@ -56,7 +43,7 @@ lemma set_cover_to_cdpc_backward<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
 
 // After a fresh set question is answered false, update the null-path population.
 lemma set_cover_cdpc_false_population_step<T(!new)>(U:set<T>, S:set<set<T>>, asked:set<set<T>>, question:set<T>)
-  requires SetCoverValidInstance(U, S)
+  requires SetCoverFamilyValid(U, S)
   requires {} !in S
   requires asked <= S
   requires question in S - asked
@@ -68,7 +55,7 @@ lemma set_cover_cdpc_false_population_step<T(!new)>(U:set<T>, S:set<set<T>>, ask
 // Combine the separate sums for the population reached along the false path.
 lemma set_cover_cdpc_false_population_sums<T(!new)>(U:set<T>, S:set<set<T>>, asked:set<set<T>>, omega:nat,
     fitness:map<Candidate<set<T>>, bool>, multiplicity:map<Candidate<set<T>>, nat>)
-  requires SetCoverValidInstance(U, S) && {} !in S && asked <= S && 0 < omega
+  requires SetCoverFamilyValid(U, S) && {} !in S && asked <= S && 0 < omega
   requires fitness.Keys == multiplicity.Keys
   requires SetCoverToCDPCFalsePopulation(U, S, {}) <= fitness.Keys
   requires SetCoverToCDPCFalsePopulation(U, S, asked) <= multiplicity.Keys
@@ -89,13 +76,13 @@ lemma set_cover_cdpc_false_population_sums<T(!new)>(U:set<T>, S:set<set<T>>, ask
 
 // A source cover yields the specific interview used by the forward direction.
 lemma set_cover_cdpc_cover_interview_certificate<T(!new)>(U:set<T>, S:set<set<T>>, k:nat, cover:set<set<T>>)
-  requires SetCoverValidInstance(U, S)
+  requires SetCoverValidInstance(SetSystemModel(U, S, k))
   requires {} !in S
   requires k < |S|
-  requires SetCoverCertificate(U, S, k, cover)
-  ensures var r := SetCoverToCDPCNontrivial(U, S, k);
-    CDPCCertificate(r.0, r.1, r.2, r.3, r.4, r.5, r.6, r.7,
-      SetCoverToCDPCInterview(cover, r.0))
+  requires SetCoverCertificate(SetSystemModel(U, S, k), cover)
+  ensures var r := SetCoverToCDPCNontrivial(SetSystemModel(U, S, k));
+    CDPCCertificate(r,
+      SetCoverToCDPCInterview(cover, r.questions))
   // Unproved. Induct over the constructed interview and generalize over asked
   // questions and the remaining cover. Use set_cover_cdpc_false_population_step
   // and set_cover_cdpc_false_population_sums for false branches; derive true
@@ -106,12 +93,12 @@ lemma set_cover_cdpc_cover_interview_certificate<T(!new)>(U:set<T>, S:set<set<T>
 
 // Extract a small cover by following only the null candidate's false path.
 lemma set_cover_cdpc_extract_cover<T(!new)>(U:set<T>, S:set<set<T>>, k:nat, interview:InterviewModel<set<T>>)
-  requires SetCoverValidInstance(U, S)
+  requires SetCoverValidInstance(SetSystemModel(U, S, k))
   requires {} !in S
   requires k < |S|
-  requires var r := SetCoverToCDPCNontrivial(U, S, k);
-    CDPCCertificate(r.0, r.1, r.2, r.3, r.4, r.5, r.6, r.7, interview)
-  ensures exists cover:set<set<T>> :: SetCoverCertificate(U, S, k, cover)
+  requires var r := SetCoverToCDPCNontrivial(SetSystemModel(U, S, k));
+    CDPCCertificate(r, interview)
+  ensures exists cover:set<set<T>> :: SetCoverCertificate(SetSystemModel(U, S, k), cover)
   // Unproved. Induct along the false branch using InterviewFits to avoid
   // repeated questions. Use set_cover_cdpc_false_population_step and
   // set_cover_cdpc_false_population_sums to track the null candidate's path.
@@ -121,40 +108,42 @@ lemma set_cover_cdpc_extract_cover<T(!new)>(U:set<T>, S:set<set<T>>, k:nat, inte
   // set_cover_cdpc_false_classification with sum uniqueness to show that no
   // element remains uncovered. Do not infer a bound on the whole tree.
 
-ghost function SetCoverToCDPC<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
-    : (r:CDPCInstance<set<T>>)
-  requires SetCoverValidInstance(U, S)
-  ensures CDPCValidInstance(r.0, r.1, r.2, r.3, r.4, r.5, r.6, r.7)
+ghost function SetCoverToCDPC<T(!new)>(instance:SetCoverModel<T>)
+    : (r:CDPCModel<set<T>>)
+  requires SetCoverValidInstance(instance)
+  ensures CDPCValidInstance(r)
 {
+  var U, S, k := instance.universe, instance.sets, instance.k;
   var nonemptySets := S - {{}};
   set_cover_without_empty(U, S, k);
   if |nonemptySets| <= k then
     SetCoverToCDPCPositiveInstance<T>()
   else
-    SetCoverToCDPCNontrivial(U, nonemptySets, k)
+    SetCoverToCDPCNontrivial(SetSystemModel(U, nonemptySets, k))
 }
 
 ghost function SetCoverToCDPCPositiveInstance<T(!new)>()
-    : (r:CDPCInstance<set<T>>)
-  ensures CDPCValidInstance(r.0, r.1, r.2, r.3, r.4, r.5, r.6, r.7)
-  ensures CDPC(r.0, r.1, r.2, r.3, r.4, r.5, r.6, r.7)
+    : (r:CDPCModel<set<T>>)
+  ensures CDPCValidInstance(r)
+  ensures CDPC(r)
 {
   var candidate:Candidate<set<T>> := map[{} := false];
   var fitness := map[candidate := true];
   var multiplicity:map<Candidate<set<T>>, nat> := map[candidate := 1];
   set_cover_to_cdpc_positive_instance_correct<T>();
-  ({{}}, fitness, multiplicity, {}, 0.0, 1.0, 0.0, 1.0)
+  CDPCModel({{}}, fitness, multiplicity, {}, CDPCThresholds(0.0, 1.0, 0.0, 1.0))
 }
 
-ghost function SetCoverToCDPCNontrivial<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
-    : (r:CDPCInstance<set<T>>)
-  requires SetCoverValidInstance(U, S)
-  requires {} !in S
-  requires k < |S|
-  ensures CDPCValidInstance(r.0, r.1, r.2, r.3, r.4, r.5, r.6, r.7)
-  ensures r.0 == S + {{}}
-  ensures r.3 == {{}}
+ghost function {:isolate_assertions} SetCoverToCDPCNontrivial<T(!new)>(instance:SetCoverModel<T>)
+    : (r:CDPCModel<set<T>>)
+  requires SetCoverValidInstance(instance)
+  requires {} !in instance.sets
+  requires instance.k < |instance.sets|
+  ensures CDPCValidInstance(r)
+  ensures r.questions == instance.sets + {{}}
+  ensures r.privateQuestions == {{}}
 {
+  var U, S, k := instance.universe, instance.sets, instance.k;
   assert IsCover(U, S);
   assert U != {} by {
     var s :| s in S;
@@ -190,9 +179,9 @@ ghost function SetCoverToCDPCNontrivial<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
   assert fitness.Keys == multiplicity.Keys == candidates;
   assert forall c | c in candidates :: multiplicity[c] > 0;
   assert forall c | c in candidates :: c.Keys == S + {{}};
-  cdpc_valid_instance_definition(
-    S + {{}}, fitness, multiplicity, {{}}, a, 1.0, 0.0, y);
-  (S + {{}}, fitness, multiplicity, {{}}, a, 1.0, 0.0, y)
+  var result := CDPCModel(S + {{}}, fitness, multiplicity, {{}}, CDPCThresholds(a, 1.0, 0.0, y));
+  cdpc_valid_instance_definition(result);
+  result
 }
 
 // Generadores de tipos de candidato
@@ -258,7 +247,7 @@ ghost function SetCoverToCDPCSetTypes<T(!new)>(S:set<set<T>>, selected:set<set<T
   requires {} !in S && selected <= S
 { set question | question in selected :: SetCoverToCDPCSetCandidate(S,question) }
 
-lemma {:isolate_assertions} set_cover_cdpc_remaining_set_sum<T(!new)>(U:set<T>, S:set<set<T>>, selected:set<set<T>>,
+lemma set_cover_cdpc_remaining_set_sum<T(!new)>(U:set<T>, S:set<set<T>>, selected:set<set<T>>,
     omega:nat, multiplicity:map<Candidate<set<T>>,nat>)
   requires {} !in S && selected <= S && omega > 0
   requires SetCoverToCDPCSetTypes(S,selected) <= multiplicity.Keys
@@ -296,9 +285,9 @@ ghost function {:opaque} SetCoverToCDPCFitnessUpper(s:nat, omega:nat) : (y:real)
 
 // Primer paso comun a las dos implicaciones de la reduccion.
 lemma set_cover_without_empty<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
-  requires SetCoverValidInstance(U, S)
+  requires SetCoverValidInstance(SetSystemModel(U, S, k))
   ensures IsCover(U, S - {{}})
-  ensures SetCover(U, S, k) == SetCover(U, S - {{}}, k)
+  ensures SetCover(SetSystemModel(U, S, k)) == SetCover(SetSystemModel(U, S - {{}}, k))
 {
   forall u | u in U
     ensures exists s | s in S - {{}} :: u in s
@@ -306,9 +295,9 @@ lemma set_cover_without_empty<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
     var s :| s in S && u in s;
     assert s != {};
   }
-  if SetCover(U, S, k) {
-    var cover :| SetCoverCertificate(U, S, k, cover);
-    assert SetCoverCertificate(U, S, k, cover);
+  if SetCover(SetSystemModel(U, S, k)) {
+    var cover :| SetCoverCertificate(SetSystemModel(U, S, k), cover);
+    assert SetCoverCertificate(SetSystemModel(U, S, k), cover);
     forall u | u in U
       ensures exists s | s in cover - {{}} :: u in s
     {
@@ -317,13 +306,13 @@ lemma set_cover_without_empty<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
     }
     assert IsCover(U, cover - {{}});
     assert |cover - {{}}| <= |cover|;
-    assert SetCoverCertificate(U, S - {{}}, k, cover - {{}});
+    assert SetCoverCertificate(SetSystemModel(U, S - {{}}, k), cover - {{}});
   }
-  if SetCover(U, S - {{}}, k) {
-    var cover :| SetCoverCertificate(U, S - {{}}, k, cover);
-    assert SetCoverCertificate(U, S - {{}}, k, cover);
+  if SetCover(SetSystemModel(U, S - {{}}, k)) {
+    var cover :| SetCoverCertificate(SetSystemModel(U, S - {{}}, k), cover);
+    assert SetCoverCertificate(SetSystemModel(U, S - {{}}, k), cover);
     assert cover <= S;
-    assert SetCoverCertificate(U, S, k, cover);
+    assert SetCoverCertificate(SetSystemModel(U, S, k), cover);
   }
 }
 
@@ -332,8 +321,8 @@ lemma set_cover_to_cdpc_positive_instance_correct<T(!new)>()
     var candidate:Candidate<set<T>> := map[{} := false];
     ghost var fitness := map[candidate := true];
     var multiplicity:map<Candidate<set<T>>, nat> := map[candidate := 1];
-    CDPCValidInstance({{}}, fitness, multiplicity, {}, 0.0, 1.0, 0.0, 1.0) &&
-      CDPC({{}}, fitness, multiplicity, {}, 0.0, 1.0, 0.0, 1.0)
+    var instance := CDPCModel({{}}, fitness, multiplicity, {}, CDPCThresholds(0.0, 1.0, 0.0, 1.0));
+    CDPCValidInstance(instance) && CDPC(instance)
 {
   var candidate:Candidate<set<T>> := map[{} := false];
   var fitness := map[candidate := true];
@@ -354,8 +343,9 @@ lemma set_cover_to_cdpc_positive_instance_correct<T(!new)>()
   reveal InterviewFits();
   assert InterviewFits(End, questions);
   reveal CDPCInterviewSemantics();
-  assert CDPCInterviewSemantics(fitness, multiplicity, {}, 0.0, 1.0, 0.0, 1.0, fitness.Keys, End);
-  assert CDPCCertificate(questions, fitness, multiplicity, {}, 0.0, 1.0, 0.0, 1.0, End);
+  var thresholds := CDPCThresholds(0.0, 1.0, 0.0, 1.0);
+  assert CDPCInterviewSemantics(fitness, multiplicity, {}, thresholds, fitness.Keys, End);
+  assert CDPCCertificate(CDPCModel(questions, fitness, multiplicity, {}, thresholds), End);
 }
 
 // Su validez estructural esta probada, pero todavia no su aceptacion por CDPCInterviewSemantics.
@@ -378,14 +368,14 @@ ghost function SetCoverToCDPCInterview<T(!new)>(cover:set<set<T>>, available:set
 
 // The trivial branch also covers an empty universe and a set of empty sets.
 lemma set_cover_to_cdpc_trivial_correct<T(!new)>(U:set<T>, S:set<set<T>>, k:nat)
-  requires SetCoverValidInstance(U, S)
+  requires SetCoverValidInstance(SetSystemModel(U, S, k))
   requires |S-{{}}| <= k
-  ensures SetCover(U, S, k)
-  ensures var r := SetCoverToCDPC(U, S, k);
-    CDPC(r.0, r.1, r.2, r.3, r.4, r.5, r.6, r.7)
+  ensures SetCover(SetSystemModel(U, S, k))
+  ensures var r := SetCoverToCDPC(SetSystemModel(U, S, k));
+    CDPC(r)
 {
   set_cover_without_empty(U, S, k);
-  assert SetCoverCertificate(U, S, k, S-{{}});
+  assert SetCoverCertificate(SetSystemModel(U, S, k), S-{{}});
 }
 
 // Scalar facts used by both directions; they do not assume an interview or
@@ -399,7 +389,7 @@ lemma set_cover_cdpc_omega_bounds(n:nat, s:nat)
 }
 
 // After j false answers, r original elements and s-j set types remain.
-lemma {:isolate_assertions} set_cover_cdpc_false_privacy(n:nat, s:nat, k:nat, omega:nat, j:nat, r:nat)
+lemma set_cover_cdpc_false_privacy(n:nat, s:nat, k:nat, omega:nat, j:nat, r:nat)
   requires 0 < n && k < s && 0 < omega
   requires j <= k && r <= n
   ensures var total := r*omega+omega*omega+(s-j);
@@ -417,7 +407,7 @@ lemma {:isolate_assertions} set_cover_cdpc_false_privacy(n:nat, s:nat, k:nat, om
 }
 
 // A true answer leaves one set type and r element generators, all unfit.
-lemma {:isolate_assertions} set_cover_cdpc_true_privacy(n:nat, s:nat, k:nat, omega:nat, r:nat)
+lemma set_cover_cdpc_true_privacy(n:nat, s:nat, k:nat, omega:nat, r:nat)
   requires 0 < n && k < s && 0 < omega
   requires r <= n && n*s <= omega
   ensures var total := r*omega+1;
@@ -436,7 +426,7 @@ lemma {:isolate_assertions} set_cover_cdpc_true_privacy(n:nat, s:nat, k:nat, ome
 }
 
 // More than k distinct false answers violate privacy, even when r is zero.
-lemma {:isolate_assertions} set_cover_cdpc_false_privacy_limit(n:nat, s:nat, k:nat, omega:nat, j:nat, r:nat)
+lemma set_cover_cdpc_false_privacy_limit(n:nat, s:nat, k:nat, omega:nat, j:nat, r:nat)
   requires 0 < n && k < j <= s && 0 < omega
   requires n*s < omega
   ensures var total := r*omega+omega*omega+(s-j);
@@ -461,7 +451,7 @@ lemma {:isolate_assertions} set_cover_cdpc_false_privacy_limit(n:nat, s:nat, k:n
 
 // On the null candidate's path classification is possible exactly when every
 // original element has been eliminated. Only this path needs a k-question bound.
-lemma {:isolate_assertions} set_cover_cdpc_false_classification(s:nat, omega:nat, j:nat, r:nat)
+lemma set_cover_cdpc_false_classification(s:nat, omega:nat, j:nat, r:nat)
   requires 0 < s && s < omega && j <= s
   ensures var total := r*omega+omega*omega+(s-j);
     (SetCoverToCDPCFitnessUpper(s,omega)*(total as real) <= ((omega*omega) as real)) == (r == 0)
@@ -509,9 +499,9 @@ ghost function SetCoverToCDPCFalsePopulation<T(!new)>(U:set<T>, S:set<set<T>>, a
 }
 
 // Separate the surviving population by its private bit and fitness label.
-lemma {:isolate_assertions} set_cover_cdpc_false_population_partition<T(!new)>(U:set<T>, S:set<set<T>>, asked:set<set<T>>,
+lemma set_cover_cdpc_false_population_partition<T(!new)>(U:set<T>, S:set<set<T>>, asked:set<set<T>>,
     fitness:map<Candidate<set<T>>,bool>)
-  requires SetCoverValidInstance(U,S) && {} !in S && asked <= S
+  requires SetCoverFamilyValid(U, S) && {} !in S && asked <= S
   requires SetCoverToCDPCFalsePopulation(U,S,{}) <= fitness.Keys
   requires forall candidate | candidate in SetCoverToCDPCFalsePopulation(U,S,{}) ::
     fitness[candidate] == (candidate == SetCoverToCDPCNullCandidate(S))
@@ -543,9 +533,9 @@ lemma {:isolate_assertions} set_cover_cdpc_false_population_partition<T(!new)>(U
 // A surviving answer type retains its entire original fiber: identical maps
 // cannot be separated by asking more source questions. This is what makes the
 // aggregated multiplicity omega*|fiber| agree with the number of original elements.
-lemma {:isolate_assertions} set_cover_cdpc_remaining_element_sum<T(!new)>(U:set<T>, S:set<set<T>>, asked:set<set<T>>,
+lemma set_cover_cdpc_remaining_element_sum<T(!new)>(U:set<T>, S:set<set<T>>, asked:set<set<T>>,
     omega:nat, multiplicity:map<Candidate<set<T>>, nat>)
-  requires SetCoverValidInstance(U,S) && asked <= S && 0 < omega
+  requires SetCoverFamilyValid(U, S) && asked <= S && 0 < omega
   requires (set element | element in U :: SetCoverToCDPCElementCandidate(S, element)) <= multiplicity.Keys
   requires forall candidate | candidate in (set element | element in U :: SetCoverToCDPCElementCandidate(S, element)) ::
     multiplicity[candidate] == SetCoverToCDPCCandidateMultiplicity(U,S,omega,candidate)

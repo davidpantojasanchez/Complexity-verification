@@ -1,23 +1,33 @@
-type HittingSetInstance<T> = (set<T>, set<set<T>>, nat)
+include "../Foundations/CollectionLaws.dfy"
+include "SetSystem.dfy"
+
+type HittingSetModel<T> = SetSystemModel<T>
 
 
-ghost predicate HittingSet<T>(universe:set<T>, sets:set<set<T>>, cardinality:nat)
-  requires HittingSetValidInstance(universe, sets)
+ghost predicate HittingSet<T>(instance:HittingSetModel<T>)
+  requires HittingSetValidInstance(instance)
 {
-  exists s:set<T> | s <= universe :: HittingSetCertificate(universe, sets, cardinality, s)
+  exists s:set<T> | s <= instance.universe :: HittingSetCertificate(instance, s)
 }
 
-ghost predicate HittingSetValidInstance<T>(universe:set<T>, sets:set<set<T>>)
+ghost predicate HittingSetValidInstance<T>(instance:HittingSetModel<T>)
 {
-  forall s | s in sets :: s <= universe
+  SetSystemMembersWithinUniverse(instance.universe, instance.sets)
 }
 
-ghost predicate HittingSetCertificate<T>(universe:set<T>, sets:set<set<T>>, cardinality:nat, hittingSet:set<T>)
+ghost predicate HittingSetCertificate<T>(instance:HittingSetModel<T>, hittingSet:set<T>)
 {
-  hittingSet <= universe && HitsAllSets(sets, hittingSet) && |hittingSet| <= cardinality
+  hittingSet <= instance.universe && HitsAllSets(instance.sets, hittingSet) && |hittingSet| <= instance.k
 }
 
 ghost predicate HitsAllSets<T>(sets:set<set<T>>, s:set<T>)
 {
   forall s1 | s1 in sets :: s * s1 != {}
+}
+
+lemma hitting_set_certificate_cardinality_bound<T>(instance:HittingSetModel<T>, hittingSet:set<T>)
+  requires HittingSetCertificate(instance, hittingSet)
+  ensures |hittingSet| <= |instance.universe|
+{
+  subset_cardinality_bound_set(hittingSet, instance.universe);
 }

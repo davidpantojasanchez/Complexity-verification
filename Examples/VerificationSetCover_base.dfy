@@ -2,13 +2,14 @@ include "../Problems/SetCover.dfy"
 
 
 // Native variant of the admissible-certificate core.
-method VerifySetCoverCore_base(U:set<int>, S:set<set<int>>, k:nat, certificate:set<set<int>>) returns (accepted:bool)
-  requires SetCoverValidInstance(U, S)
-  requires |certificate| <= |S|
-  requires forall s | s in certificate :: |s| <= |U|
-  ensures accepted == SetCoverCertificate(U, S, k, certificate)
-  ensures accepted ==> SetCover(U, S, k)
+method VerifySetCoverCore_base<T(==)>(instance:SetCoverModel<T>, certificate:set<set<T>>) returns (accepted:bool)
+  requires SetCoverValidInstance(instance)
+  requires |certificate| <= |instance.sets|
+  requires forall s | s in certificate :: |s| <= |instance.universe|
+  ensures accepted == SetCoverCertificate(instance, certificate)
+  ensures accepted ==> SetCover(instance)
 {
+  var U, S, k := instance.universe, instance.sets, instance.k;
   if (k < |certificate|) { return false; }
   if (!(certificate <= S)) { return false; }
   var remainingUniverse := U;
@@ -26,8 +27,8 @@ method VerifySetCoverCore_base(U:set<int>, S:set<set<int>>, k:nat, certificate:s
 }
 
 
-method CheckUniverseElement_base(U:set<int>, S:set<set<int>>, k:nat, certificate:set<set<int>>, remainingUniverse:set<int>)
-    returns (elementCovered:bool, remainingUniverseOut:set<int>)
+method CheckUniverseElement_base<T(==)>(U:set<T>, S:set<set<T>>, k:nat, certificate:set<set<T>>, remainingUniverse:set<T>)
+    returns (elementCovered:bool, remainingUniverseOut:set<T>)
   requires remainingUniverse != {}
   requires remainingUniverse <= U
   requires IsCover(U - remainingUniverse, certificate)
@@ -50,8 +51,8 @@ method CheckUniverseElement_base(U:set<int>, S:set<set<int>>, k:nat, certificate
 }
 
 
-method CheckCoverSet_base(U:set<int>, S:set<set<int>>, k:nat, certificate:set<set<int>>, remainingCertificate:set<set<int>>, u:int)
-    returns (elementCovered:bool, remainingCertificateOut:set<set<int>>)
+method CheckCoverSet_base<T(==)>(U:set<T>, S:set<set<T>>, k:nat, certificate:set<set<T>>, remainingCertificate:set<set<T>>, u:T)
+    returns (elementCovered:bool, remainingCertificateOut:set<set<T>>)
   requires remainingCertificate != {}
   requires remainingCertificate <= certificate
   requires !(exists i' | i' in certificate - remainingCertificate :: u in i')

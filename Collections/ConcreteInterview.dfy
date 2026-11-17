@@ -27,7 +27,7 @@ class ConcreteInterview<Q(==)> extends Interview<Q> {
       returns (question:Q, ghost counter_out:nat)
     requires Model().Ask?
     ensures question == Model().question
-    ensures context.weight(question) < Size(context.weight)
+    ensures context.weight(question) < SizeBound(context.weight)
     ensures counter_out == counter_in + Cost(context)
   {
     reveal Model();
@@ -40,7 +40,7 @@ class ConcreteInterview<Q(==)> extends Interview<Q> {
       returns (branch:Interview<Q>, ghost counter_out:nat)
     requires Model().Ask?
     ensures branch.NodeCount() < NodeCount()
-    ensures branch.Size(context.weight) < Size(context.weight)
+    ensures branch.SizeBound(context.weight) < SizeBound(context.weight)
     ensures branch.Model() ==
             if answer then Model().trueBranch else Model().falseBranch
     ensures counter_out == counter_in + Cost(context)
@@ -57,8 +57,8 @@ class ConcreteInterview<Q(==)> extends Interview<Q> {
 method New_Interview<Q(==)>(tree:InterviewModel<Q>, ghost counter_in:nat, ghost context:SetContext<Q>)
     returns (interview:Interview<Q>, ghost counter_out:nat)
   ensures interview.Model() == tree
-  ensures counter_out == counter_in + CostNew_Interview(InterviewRepresentationSize(tree, context.weight))
+  ensures counter_out == counter_in + CostNew_Interview(InterviewRepresentationSizeBound(tree, context.weight))
 {
   interview := new ConcreteInterview(tree);
-  counter_out := counter_in + CostNew_Interview(InterviewRepresentationSize(tree, context.weight));
+  counter_out := counter_in + CostNew_Interview(InterviewRepresentationSizeBound(tree, context.weight));
 }

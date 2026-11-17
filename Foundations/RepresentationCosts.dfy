@@ -1,4 +1,4 @@
-include "CollectionSizes.dfy"
+include "../Arithmetic/PolynomialBounds.dfy"
 
 // The bound is a proof scale. The weights alone determine representation sizes.
 datatype SetContext<!E> = BitSetCost(ghost weight:E -> nat, ghost bound:nat := 0)

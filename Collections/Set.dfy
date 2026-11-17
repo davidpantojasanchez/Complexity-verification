@@ -1,4 +1,4 @@
-include "../Foundations/Collections.dfy"
+include "../Foundations/CollectionLaws.dfy"
 include "../Foundations/RepresentationCosts.dfy"
 include "../Foundations/CollectionRepresentation.dfy"
 /*
@@ -17,8 +17,8 @@ trait SetFamily<E> {
   ghost function Cardinality():nat { |Model()| }
   ghost function UCardinality():nat { |Universe()| }
 
-  ghost function Volume():nat
-  ghost function UVolume():nat
+  ghost function VolumeBound():nat
+  ghost function UVolumeBound():nat
 
   ghost predicate Init() {
     Valid() && Model() == Universe()
@@ -29,8 +29,8 @@ trait SetFamily<E> {
   }
 
   // Structural work factors used by the common cost calculation.
-  ghost function CombinedTraversalWork(other:SetFamily<E>):nat { Volume() + other.Volume() + 1 }
-  ghost function TraversalWork():nat { Volume() + 1 }
+  ghost function CombinedTraversalWork(other:SetFamily<E>):nat { VolumeBound() + other.VolumeBound() + 1 }
+  ghost function TraversalWork():nat { VolumeBound() + 1 }
 
   lemma universe_within_transitive(middle:SetFamily<E>, reference:SetFamily<E>)
     requires UniverseWithin(middle)
@@ -54,30 +54,30 @@ trait Set<T(==)> extends SetFamily<T> {
   {
     Model() <= Universe() &&
     Cardinality() <= UCardinality() &&
-    Volume() <= UVolume()
+    VolumeBound() <= UVolumeBound()
   }
   
-  ghost function Volume():nat { Cardinality() }
-  ghost function UVolume():nat { UCardinality() }
+  ghost function VolumeBound():nat { Cardinality() }
+  ghost function UVolumeBound():nat { UCardinality() }
 
-  ghost function Size(weight:T -> nat):(size:nat)
-    ensures size == StructuralSize(Volume(), LeafBits(weight))
-    ensures Volume() <= size && LeafBits(weight) <= size
+  ghost function SizeBound(weight:T -> nat):(size:nat)
+    ensures size == RepresentationSizeBound(VolumeBound(), LeafBits(weight))
+    ensures VolumeBound() <= size && LeafBits(weight) <= size
     ensures Cardinality() <= size
     ensures 1 <= size
-    ensures Valid() ==> size <= USize(weight)
+    ensures Valid() ==> size <= USizeBound(weight)
   {
     representation_subset_set(Model(), Universe(), weight, Valid());
-    RepresentationSize_set(Model(), weight)
+    RepresentationSizeBound_set(Model(), weight)
   }
 
-  ghost function USize(weight:T -> nat):(size:nat)
-    ensures size == StructuralSize(UVolume(), ULeafBits(weight))
-    ensures UVolume() <= size && ULeafBits(weight) <= size
+  ghost function USizeBound(weight:T -> nat):(size:nat)
+    ensures size == RepresentationSizeBound(UVolumeBound(), ULeafBits(weight))
+    ensures UVolumeBound() <= size && ULeafBits(weight) <= size
     ensures UCardinality() <= size
     ensures 1 <= size
   {
-    RepresentationSize_set(Universe(), weight)
+    RepresentationSizeBound_set(Universe(), weight)
   }
 
   // Leaf interpretation is shared by model, retained universe and operands.
@@ -94,10 +94,10 @@ trait Set<T(==)> extends SetFamily<T> {
 
   ghost function Cost(work:nat, operandSize:nat, context:SetContext<T>):(cost:nat)
     ensures
-      (work <= context.bound+1 && Size(context.weight) <= context.bound && operandSize <= context.bound)
+      (work <= context.bound+1 && SizeBound(context.weight) <= context.bound && operandSize <= context.bound)
       ==> (cost <= BudgetPrimitiveStep(context.bound))
   {
-    var size := Size(context.weight);
+    var size := SizeBound(context.weight);
     collection_step_bound(work, size, operandSize, context.bound);
     CostRepresentation(work, size, operandSize)
   }
@@ -117,14 +117,14 @@ trait Set<T(==)> extends SetFamily<T> {
     requires Valid()
     ensures e in Model()
     ensures e in Universe()
-    ensures context.weight(e) <= Size(context.weight)
+    ensures context.weight(e) <= SizeBound(context.weight)
     ensures context.weight(e) <= LeafBits(context.weight)
     ensures counter_out == counter_in + Cost(1, 0, context)
 
   method Equal(other:Set<T>, ghost counter_in:nat, ghost context:SetContext<T>) returns (equal:bool, ghost counter_out:nat)
     requires Valid() && other.Valid()
     ensures equal == (Model() == other.Model())
-    ensures counter_out == counter_in + Cost(CombinedTraversalWork(other), other.Size(context.weight), context)
+    ensures counter_out == counter_in + Cost(CombinedTraversalWork(other), other.SizeBound(context.weight), context)
 
   method Contains(e:T, ghost counter_in:nat, ghost context:SetContext<T>) returns (b:bool, ghost counter_out:nat)
     requires Valid()
@@ -148,8 +148,8 @@ trait Set<T(==)> extends SetFamily<T> {
             else R.Cardinality() == Cardinality() - 1
     ensures R.Universe() == Universe()
     ensures R.Model() == Model() - {e}
-    ensures R.Size(context.weight) <= Size(context.weight)
-    ensures R.USize(context.weight) == USize(context.weight)
+    ensures R.SizeBound(context.weight) <= SizeBound(context.weight)
+    ensures R.USizeBound(context.weight) == USizeBound(context.weight)
     ensures counter_out == counter_in + Cost(TraversalWork(), context.weight(e), context)
 
   method Copy(ghost counter_in:nat, ghost context:SetContext<T>) returns (R:Set<T>, ghost counter_out:nat)
@@ -157,7 +157,7 @@ trait Set<T(==)> extends SetFamily<T> {
     ensures R.Valid()
     ensures R.Model() == Model()
     ensures R.Universe() == Model()
-    ensures R.Size(context.weight) == Size(context.weight) && R.USize(context.weight) == Size(context.weight)
+    ensures R.SizeBound(context.weight) == SizeBound(context.weight) && R.USizeBound(context.weight) == SizeBound(context.weight)
     ensures counter_out == counter_in + Cost(TraversalWork(), 0, context)
 
   // Complexity bounds
@@ -173,18 +173,18 @@ trait Set<T(==)> extends SetFamily<T> {
   }
 
   lemma u_size_bound(volume:nat, bits:nat, weight:T -> nat)
-    requires UVolume() <= volume && ULeafBits(weight) <= bits && 1 <= bits
-    ensures USize(weight) <= StructuralSize(volume, bits)
+    requires UVolumeBound() <= volume && ULeafBits(weight) <= bits && 1 <= bits
+    ensures USizeBound(weight) <= RepresentationSizeBound(volume, bits)
   {
-    structural_size_monotonic(UVolume(), ULeafBits(weight), volume, bits);
+    representation_size_bound_monotonic(UVolumeBound(), ULeafBits(weight), volume, bits);
   }
 
 
   lemma universe_within_bound(U:Set<T>, context:SetContext<T>)
     requires UniverseWithin(U)
     ensures Cardinality() <= UCardinality() <= U.Cardinality() <= U.UCardinality()
-    ensures Volume() <= UVolume() <= U.Volume() <= U.UVolume()
-    ensures Size(context.weight) <= USize(context.weight) <= U.Size(context.weight) <= U.USize(context.weight)
+    ensures VolumeBound() <= UVolumeBound() <= U.VolumeBound() <= U.UVolumeBound()
+    ensures SizeBound(context.weight) <= USizeBound(context.weight) <= U.SizeBound(context.weight) <= U.USizeBound(context.weight)
     ensures LeafBits(context.weight) <= ULeafBits(context.weight) <= U.LeafBits(context.weight) <= U.ULeafBits(context.weight)
   {
     representation_subset_set(Universe(), U.Model(), context.weight);
@@ -205,39 +205,39 @@ trait SetSet<T(==)> extends SetFamily<set<T>> {
     Model() <= Universe() &&
     Cardinality() <= UCardinality() &&
     Cardinality1() <= UCardinality1() &&
-    Volume() <= UVolume() &&
-    Volume1() <= UVolume1()
+    VolumeBound() <= UVolumeBound() &&
+    VolumeBound1() <= UVolumeBound1()
   }
 
   ghost function Cardinality1():nat { MaxCardinality_set(Model()) }
   ghost function {:opaque} UCardinality1():nat { MaxCardinality_set(Universe()) }
 
-  ghost function Volume():nat { Cardinality() * (1 + Cardinality1()) }
-  ghost function UVolume():nat { UCardinality() * (1 + UCardinality1()) }
-  ghost function Volume1():nat { Cardinality1() }
-  ghost function UVolume1():nat { UCardinality1() }
+  ghost function VolumeBound():nat { Cardinality() * (1 + Cardinality1()) }
+  ghost function UVolumeBound():nat { UCardinality() * (1 + UCardinality1()) }
+  ghost function VolumeBound1():nat { Cardinality1() }
+  ghost function UVolumeBound1():nat { UCardinality1() }
 
-  ghost function Size(weight:T -> nat):(size:nat)
-    ensures size == StructuralSize(Volume(), LeafBits(weight))
-    ensures Volume() <= size && LeafBits(weight) <= size
+  ghost function SizeBound(weight:T -> nat):(size:nat)
+    ensures size == RepresentationSizeBound(VolumeBound(), LeafBits(weight))
+    ensures VolumeBound() <= size && LeafBits(weight) <= size
     ensures Cardinality() <= size && Cardinality1() <= size
-    ensures Volume1() <= size
+    ensures VolumeBound1() <= size
     ensures 1 <= size
-    ensures Valid() ==> size <= USize(weight)
+    ensures Valid() ==> size <= USizeBound(weight)
   {
     representation_subset_setset(Model(), Universe(), weight, Valid());
-    RepresentationSize_setset(Model(), weight)
+    RepresentationSizeBound_setset(Model(), weight)
   }
 
-  ghost function USize(weight:T -> nat):(size:nat)
-    ensures size == StructuralSize(UVolume(), ULeafBits(weight))
-    ensures UVolume() <= size && ULeafBits(weight) <= size
+  ghost function USizeBound(weight:T -> nat):(size:nat)
+    ensures size == RepresentationSizeBound(UVolumeBound(), ULeafBits(weight))
+    ensures UVolumeBound() <= size && ULeafBits(weight) <= size
     ensures UCardinality() <= size && UCardinality1() <= size
-    ensures UVolume1() <= size
+    ensures UVolumeBound1() <= size
     ensures 1 <= size
   {
     reveal UCardinality1();
-    RepresentationSize_setset(Universe(), weight)
+    RepresentationSizeBound_setset(Universe(), weight)
   }
 
   ghost function LeafBits(weight:T -> nat):(bits:nat)
@@ -253,10 +253,10 @@ trait SetSet<T(==)> extends SetFamily<set<T>> {
 
   ghost function Cost(work:nat, operandSize:nat, context:SetContext<T>):(cost:nat)
     ensures
-      (work <= context.bound+1 && Size(context.weight) <= context.bound && operandSize <= context.bound)
+      (work <= context.bound+1 && SizeBound(context.weight) <= context.bound && operandSize <= context.bound)
       ==> (cost <= BudgetPrimitiveStep(context.bound))
   {
-    var size := Size(context.weight);
+    var size := SizeBound(context.weight);
     collection_step_bound(work, size, operandSize, context.bound);
     CostRepresentation(work, size, operandSize)
   }
@@ -275,24 +275,24 @@ trait SetSet<T(==)> extends SetFamily<set<T>> {
     requires Model() != {}
     requires Valid()
     ensures e.Valid()
-    ensures e.Volume() <= UCardinality1()
-    ensures e.UVolume() <= UCardinality1()
+    ensures e.VolumeBound() <= UCardinality1()
+    ensures e.UVolumeBound() <= UCardinality1()
     ensures e.Model() in Model()
     ensures e.Universe() == e.Model()
-    ensures e.USize(context.weight) == e.Size(context.weight)
-    ensures e.Size(context.weight) <= Size(context.weight)
+    ensures e.USizeBound(context.weight) == e.SizeBound(context.weight)
+    ensures e.SizeBound(context.weight) <= SizeBound(context.weight)
     ensures e.ULeafBits(context.weight) <= LeafBits(context.weight)
     ensures counter_out == counter_in + Cost(e.TraversalWork(), 0, context)
 
   method Equal(other:SetSet<T>, ghost counter_in:nat, ghost context:SetContext<T>) returns (equal:bool, ghost counter_out:nat)
     requires Valid() && other.Valid()
     ensures equal == (Model() == other.Model())
-    ensures counter_out == counter_in + Cost(CombinedTraversalWork(other), other.Size(context.weight), context)
+    ensures counter_out == counter_in + Cost(CombinedTraversalWork(other), other.SizeBound(context.weight), context)
 
   method Contains(e:Set<T>, ghost counter_in:nat, ghost context:SetContext<T>) returns (b:bool, ghost counter_out:nat)
     requires Valid()
     ensures b == (e.Model() in Model())
-    ensures counter_out == counter_in + Cost(TraversalWork(), e.Size(context.weight), context)
+    ensures counter_out == counter_in + Cost(TraversalWork(), e.SizeBound(context.weight), context)
 
   method Add(e:Set<T>, ghost counter_in:nat, ghost context:SetContext<T>) returns (R:SetSet<T>, ghost counter_out:nat)
     requires Valid()
@@ -303,7 +303,7 @@ trait SetSet<T(==)> extends SetFamily<set<T>> {
     ensures R.Universe() == Universe() + {e.Model()}
     ensures R.Model() == Model() + {e.Model()}
     ensures R.ULeafBits(context.weight) <= MaxLeafWeight(ULeafBits(context.weight), e.LeafBits(context.weight))
-    ensures counter_out == counter_in + Cost(TraversalWork(), e.Size(context.weight), context)
+    ensures counter_out == counter_in + Cost(TraversalWork(), e.SizeBound(context.weight), context)
 
   method Remove(e:Set<T>, ghost counter_in:nat, ghost context:SetContext<T>) returns (R:SetSet<T>, ghost counter_out:nat)
     requires Valid()
@@ -313,9 +313,9 @@ trait SetSet<T(==)> extends SetFamily<set<T>> {
             else R.Cardinality() == Cardinality() - 1
     ensures R.Universe() == Universe()
     ensures R.Model() == Model() - {e.Model()}
-    ensures R.Size(context.weight) <= Size(context.weight)
-    ensures R.USize(context.weight) == USize(context.weight)
-    ensures counter_out == counter_in + Cost(TraversalWork(), e.Size(context.weight), context)
+    ensures R.SizeBound(context.weight) <= SizeBound(context.weight)
+    ensures R.USizeBound(context.weight) == USizeBound(context.weight)
+    ensures counter_out == counter_in + Cost(TraversalWork(), e.SizeBound(context.weight), context)
 
   method Copy(ghost counter_in:nat, ghost context:SetContext<T>) returns (R:SetSet<T>, ghost counter_out:nat)
     requires Valid()
@@ -324,7 +324,7 @@ trait SetSet<T(==)> extends SetFamily<set<T>> {
     ensures R.UCardinality1() <= UCardinality1()
     ensures R.Model() == Model()
     ensures R.Universe() == Model()
-    ensures R.Size(context.weight) == Size(context.weight) && R.USize(context.weight) == Size(context.weight)
+    ensures R.SizeBound(context.weight) == SizeBound(context.weight) && R.USizeBound(context.weight) == SizeBound(context.weight)
     ensures counter_out == counter_in + Cost(TraversalWork(), 0, context)
 
   // Complexity bounds
@@ -338,19 +338,19 @@ trait SetSet<T(==)> extends SetFamily<set<T>> {
   }
 
   lemma u_size_bound(volume:nat, bits:nat, weight:T -> nat)
-    requires UVolume() <= volume && ULeafBits(weight) <= bits && 1 <= bits
-    ensures USize(weight) <= StructuralSize(volume, bits)
+    requires UVolumeBound() <= volume && ULeafBits(weight) <= bits && 1 <= bits
+    ensures USizeBound(weight) <= RepresentationSizeBound(volume, bits)
   {
-    structural_size_monotonic(UVolume(), ULeafBits(weight), volume, bits);
+    representation_size_bound_monotonic(UVolumeBound(), ULeafBits(weight), volume, bits);
   }
 
   lemma universe_within_bound(U:SetSet<T>, context:SetContext<T>)
     requires UniverseWithin(U)
     ensures Cardinality() <= UCardinality() <= U.Cardinality() <= U.UCardinality()
     ensures Cardinality1() <= UCardinality1() <= U.Cardinality1() <= U.UCardinality1()
-    ensures Volume() <= UVolume() <= U.Volume() <= U.UVolume()
-    ensures Volume1() <= UVolume1() <= U.Volume1() <= U.UVolume1()
-    ensures Size(context.weight) <= USize(context.weight) <= U.Size(context.weight) <= U.USize(context.weight)
+    ensures VolumeBound() <= UVolumeBound() <= U.VolumeBound() <= U.UVolumeBound()
+    ensures VolumeBound1() <= UVolumeBound1() <= U.VolumeBound1() <= U.UVolumeBound1()
+    ensures SizeBound(context.weight) <= USizeBound(context.weight) <= U.SizeBound(context.weight) <= U.USizeBound(context.weight)
     ensures LeafBits(context.weight) <= ULeafBits(context.weight) <= U.LeafBits(context.weight) <= U.ULeafBits(context.weight)
   {
     representation_subset_setset(Universe(), U.Model(), context.weight);
@@ -362,7 +362,7 @@ trait SetSet<T(==)> extends SetFamily<set<T>> {
 
   lemma u_volume_bound(count:nat, member:nat)
     requires UCardinality() <= count && UCardinality1() <= member
-    ensures UVolume() <= count*(1+member)
+    ensures UVolumeBound() <= count*(1+member)
   {
     nonnegative_product_monotonic(UCardinality(), 1 + UCardinality1(), count, 1 + member);
   }
@@ -390,9 +390,9 @@ trait SetSetSet<T(==)> extends SetFamily<set<set<T>>> {
     Cardinality() <= UCardinality() &&
     Cardinality1() <= UCardinality1() &&
     Cardinality2() <= UCardinality2() &&
-    Volume() <= UVolume() &&
-    Volume1() <= UVolume1() &&
-    Volume2() <= UVolume2()
+    VolumeBound() <= UVolumeBound() &&
+    VolumeBound1() <= UVolumeBound1() &&
+    VolumeBound2() <= UVolumeBound2()
   }
 
   ghost function Cardinality1():nat { MaxCardinality_set(Model()) }
@@ -400,36 +400,36 @@ trait SetSetSet<T(==)> extends SetFamily<set<set<T>>> {
   ghost function Cardinality2():nat { MaxMemberCardinality_setset(Model()) }
   ghost function {:opaque} UCardinality2():nat { MaxMemberCardinality_setset(Universe()) }
 
-  ghost function Volume():nat { Cardinality() * (1 + Volume1()) }
-  ghost function UVolume():nat { UCardinality() * (1 + UVolume1()) }
-  ghost function Volume1():nat { Cardinality1() * (1 + Cardinality2()) }
-  ghost function UVolume1():nat { UCardinality1() * (1 + UCardinality2()) }
-  ghost function Volume2():nat { Cardinality2() }
-  ghost function UVolume2():nat { UCardinality2() }
+  ghost function VolumeBound():nat { Cardinality() * (1 + VolumeBound1()) }
+  ghost function UVolumeBound():nat { UCardinality() * (1 + UVolumeBound1()) }
+  ghost function VolumeBound1():nat { Cardinality1() * (1 + Cardinality2()) }
+  ghost function UVolumeBound1():nat { UCardinality1() * (1 + UCardinality2()) }
+  ghost function VolumeBound2():nat { Cardinality2() }
+  ghost function UVolumeBound2():nat { UCardinality2() }
 
-  ghost function Size(weight:T -> nat):(size:nat)
-    ensures size == StructuralSize(Volume(), LeafBits(weight))
-    ensures Volume() <= size && LeafBits(weight) <= size
+  ghost function SizeBound(weight:T -> nat):(size:nat)
+    ensures size == RepresentationSizeBound(VolumeBound(), LeafBits(weight))
+    ensures VolumeBound() <= size && LeafBits(weight) <= size
     ensures Cardinality() <= size && Cardinality1() <= size && Cardinality2() <= size
-    ensures Volume1() <= size && Volume2() <= size
+    ensures VolumeBound1() <= size && VolumeBound2() <= size
     ensures 1 <= size
-    ensures Valid() ==> size <= USize(weight)
+    ensures Valid() ==> size <= USizeBound(weight)
   {
-    assert Cardinality2() <= Volume1();
-    assert Volume1() <= Volume();
+    assert Cardinality2() <= VolumeBound1();
+    assert VolumeBound1() <= VolumeBound();
     representation_subset_setsetset(Model(), Universe(), weight, Valid());
-    RepresentationSize_setsetset(Model(), weight)
+    RepresentationSizeBound_setsetset(Model(), weight)
   }
 
-  ghost function USize(weight:T -> nat):(size:nat)
-    ensures size == StructuralSize(UVolume(), ULeafBits(weight))
-    ensures UVolume() <= size && ULeafBits(weight) <= size
+  ghost function USizeBound(weight:T -> nat):(size:nat)
+    ensures size == RepresentationSizeBound(UVolumeBound(), ULeafBits(weight))
+    ensures UVolumeBound() <= size && ULeafBits(weight) <= size
     ensures UCardinality() <= size && UCardinality1() <= size && UCardinality2() <= size
-    ensures UVolume1() <= size && UVolume2() <= size
+    ensures UVolumeBound1() <= size && UVolumeBound2() <= size
     ensures 1 <= size
   {
     reveal UCardinality1(), UCardinality2();
-    RepresentationSize_setsetset(Universe(), weight)
+    RepresentationSizeBound_setsetset(Universe(), weight)
   }
 
   ghost function LeafBits(weight:T -> nat):(bits:nat)
@@ -445,10 +445,10 @@ trait SetSetSet<T(==)> extends SetFamily<set<set<T>>> {
 
   ghost function Cost(work:nat, operandSize:nat, context:SetContext<T>):(cost:nat)
     ensures
-      (work <= context.bound+1 && Size(context.weight) <= context.bound && operandSize <= context.bound)
+      (work <= context.bound+1 && SizeBound(context.weight) <= context.bound && operandSize <= context.bound)
       ==> (cost <= BudgetPrimitiveStep(context.bound))
   {
-    var size := Size(context.weight);
+    var size := SizeBound(context.weight);
     collection_step_bound(work, size, operandSize, context.bound);
     CostRepresentation(work, size, operandSize)
   }
@@ -469,13 +469,13 @@ trait SetSetSet<T(==)> extends SetFamily<set<set<T>>> {
     ensures e.Valid()
     ensures e.Cardinality() <= UCardinality1() && e.UCardinality() <= UCardinality1()
     ensures e.Cardinality1() <= UCardinality2() && e.UCardinality1() <= UCardinality2()
-    ensures e.Volume() <= UVolume1()
-    ensures e.UVolume() <= UVolume1()
-    ensures e.UVolume1() <= UVolume2()
+    ensures e.VolumeBound() <= UVolumeBound1()
+    ensures e.UVolumeBound() <= UVolumeBound1()
+    ensures e.UVolumeBound1() <= UVolumeBound2()
     ensures e.Model() in Model()
     ensures e.Universe() == e.Model()
-    ensures e.USize(context.weight) == e.Size(context.weight)
-    ensures e.Size(context.weight) <= Size(context.weight)
+    ensures e.USizeBound(context.weight) == e.SizeBound(context.weight)
+    ensures e.SizeBound(context.weight) <= SizeBound(context.weight)
     ensures e.ULeafBits(context.weight) <= LeafBits(context.weight)
     ensures counter_out == counter_in + Cost(e.TraversalWork(), 0, context)
 
@@ -483,12 +483,12 @@ trait SetSetSet<T(==)> extends SetFamily<set<set<T>>> {
   method Equal(other:SetSetSet<T>, ghost counter_in:nat, ghost context:SetContext<T>) returns (equal:bool, ghost counter_out:nat)
     requires Valid() && other.Valid()
     ensures equal == (Model() == other.Model())
-    ensures counter_out == counter_in + Cost(CombinedTraversalWork(other), other.Size(context.weight), context)
+    ensures counter_out == counter_in + Cost(CombinedTraversalWork(other), other.SizeBound(context.weight), context)
 
   method Contains(e:SetSet<T>, ghost counter_in:nat, ghost context:SetContext<T>) returns (b:bool, ghost counter_out:nat)
     requires Valid()
     ensures b == (e.Model() in Model())
-    ensures counter_out == counter_in + Cost(TraversalWork(), e.Size(context.weight), context)
+    ensures counter_out == counter_in + Cost(TraversalWork(), e.SizeBound(context.weight), context)
 
   method Add(e:SetSet<T>, ghost counter_in:nat, ghost context:SetContext<T>) returns (R:SetSetSet<T>, ghost counter_out:nat)
     requires Valid()
@@ -500,35 +500,35 @@ trait SetSetSet<T(==)> extends SetFamily<set<set<T>>> {
     ensures R.Universe() == Universe() + {e.Model()}
     ensures R.Model() == Model() + {e.Model()}
     ensures R.ULeafBits(context.weight) <= MaxLeafWeight(ULeafBits(context.weight), e.LeafBits(context.weight))
-    ensures counter_out == counter_in + Cost(TraversalWork(), e.Size(context.weight), context)
+    ensures counter_out == counter_in + Cost(TraversalWork(), e.SizeBound(context.weight), context)
 
   method Remove(e:SetSet<T>, ghost counter_in:nat, ghost context:SetContext<T>) returns (R:SetSetSet<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
     ensures R.UCardinality1() == UCardinality1()
     ensures R.UCardinality2() == UCardinality2()
-    ensures R.UVolume1() <= UVolume1()
-    ensures R.UVolume2() <= UVolume2()
+    ensures R.UVolumeBound1() <= UVolumeBound1()
+    ensures R.UVolumeBound2() <= UVolumeBound2()
     ensures if e.Model() !in Model() then R.Cardinality() == Cardinality()
             else R.Cardinality() == Cardinality() - 1
     ensures R.Universe() == Universe()
     ensures R.Model() == Model() - {e.Model()}
-    ensures R.Size(context.weight) <= Size(context.weight)
-    ensures R.USize(context.weight) == USize(context.weight)
-    ensures counter_out == counter_in + Cost(TraversalWork(), e.Size(context.weight), context)
+    ensures R.SizeBound(context.weight) <= SizeBound(context.weight)
+    ensures R.USizeBound(context.weight) == USizeBound(context.weight)
+    ensures counter_out == counter_in + Cost(TraversalWork(), e.SizeBound(context.weight), context)
 
   method Copy(ghost counter_in:nat, ghost context:SetContext<T>) returns (R:SetSetSet<T>, ghost counter_out:nat)
     requires Valid()
     ensures R.Valid()
     ensures R.UCardinality1() == Cardinality1()
     ensures R.UCardinality2() == Cardinality2()
-    ensures R.UVolume1() == Volume1()
-    ensures R.UVolume2() == Volume2()
-    ensures R.UVolume1() <= UVolume1()
-    ensures R.UVolume2() <= UVolume2()
+    ensures R.UVolumeBound1() == VolumeBound1()
+    ensures R.UVolumeBound2() == VolumeBound2()
+    ensures R.UVolumeBound1() <= UVolumeBound1()
+    ensures R.UVolumeBound2() <= UVolumeBound2()
     ensures R.Model() == Model()
     ensures R.Universe() == Model()
-    ensures R.Size(context.weight) == Size(context.weight) && R.USize(context.weight) == Size(context.weight)
+    ensures R.SizeBound(context.weight) == SizeBound(context.weight) && R.USizeBound(context.weight) == SizeBound(context.weight)
     ensures counter_out == counter_in + Cost(TraversalWork(), 0, context)
 
   // Complexity bounds
@@ -542,10 +542,10 @@ trait SetSetSet<T(==)> extends SetFamily<set<set<T>>> {
   }
 
   lemma u_size_bound(volume:nat, bits:nat, weight:T -> nat)
-    requires UVolume() <= volume && ULeafBits(weight) <= bits && 1 <= bits
-    ensures USize(weight) <= StructuralSize(volume, bits)
+    requires UVolumeBound() <= volume && ULeafBits(weight) <= bits && 1 <= bits
+    ensures USizeBound(weight) <= RepresentationSizeBound(volume, bits)
   {
-    structural_size_monotonic(UVolume(), ULeafBits(weight), volume, bits);
+    representation_size_bound_monotonic(UVolumeBound(), ULeafBits(weight), volume, bits);
   }
 
   lemma universe_within_bound(U:SetSetSet<T>, context:SetContext<T>)
@@ -553,10 +553,10 @@ trait SetSetSet<T(==)> extends SetFamily<set<set<T>>> {
     ensures Cardinality() <= UCardinality() <= U.Cardinality() <= U.UCardinality()
     ensures Cardinality1() <= UCardinality1() <= U.Cardinality1() <= U.UCardinality1()
     ensures Cardinality2() <= UCardinality2() <= U.Cardinality2() <= U.UCardinality2()
-    ensures Volume() <= UVolume() <= U.Volume() <= U.UVolume()
-    ensures Volume1() <= UVolume1() <= U.Volume1() <= U.UVolume1()
-    ensures Volume2() <= UVolume2() <= U.Volume2() <= U.UVolume2()
-    ensures Size(context.weight) <= USize(context.weight) <= U.Size(context.weight) <= U.USize(context.weight)
+    ensures VolumeBound() <= UVolumeBound() <= U.VolumeBound() <= U.UVolumeBound()
+    ensures VolumeBound1() <= UVolumeBound1() <= U.VolumeBound1() <= U.UVolumeBound1()
+    ensures VolumeBound2() <= UVolumeBound2() <= U.VolumeBound2() <= U.UVolumeBound2()
+    ensures SizeBound(context.weight) <= USizeBound(context.weight) <= U.SizeBound(context.weight) <= U.USizeBound(context.weight)
     ensures LeafBits(context.weight) <= ULeafBits(context.weight) <= U.LeafBits(context.weight) <= U.ULeafBits(context.weight)
   {
     representation_subset_setsetset(Universe(), U.Model(), context.weight);
@@ -565,18 +565,18 @@ trait SetSetSet<T(==)> extends SetFamily<set<set<T>>> {
     max_by_monotonic(Universe(), U.Model(), item => |item|);
     max_by_monotonic(Universe(), U.Model(), item => MaxCardinality_set(item));
     nonnegative_product_monotonic(UCardinality1(), 1 + UCardinality2(), U.Cardinality1(), 1 + U.Cardinality2());
-    nonnegative_product_monotonic(UCardinality(), 1 + UVolume1(), U.Cardinality(), 1 + U.Volume1());
+    nonnegative_product_monotonic(UCardinality(), 1 + UVolumeBound1(), U.Cardinality(), 1 + U.VolumeBound1());
   }
 
   lemma u_volume_bound(count:nat, members:nat, leaves:nat)
     requires UCardinality() <= count && UCardinality1() <= members
     requires UCardinality2() <= leaves
-    ensures UVolume() <= count*(1+members*(1+leaves))
-    ensures UVolume1() <= members*(1+leaves)
-    ensures UVolume2() <= leaves
+    ensures UVolumeBound() <= count*(1+members*(1+leaves))
+    ensures UVolumeBound1() <= members*(1+leaves)
+    ensures UVolumeBound2() <= leaves
   {
     nonnegative_product_monotonic(UCardinality1(), 1 + UCardinality2(), members, 1 + leaves);
-    nonnegative_product_monotonic(UCardinality(), 1 + UVolume1(), count, 1 + members*(1+leaves));
+    nonnegative_product_monotonic(UCardinality(), 1 + UVolumeBound1(), count, 1 + members*(1+leaves));
   }
 
   lemma u_cardinality1_bound(bound:nat)

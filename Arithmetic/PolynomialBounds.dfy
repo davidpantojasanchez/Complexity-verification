@@ -1,4 +1,4 @@
-include "../Arithmetic/Arithmetic.dfy"
+include "Arithmetic.dfy"
 
 // The coefficient and degree are fixed before quantifying over the domain.
 // A partial measured function is allowed, but must be defined throughout that domain.
@@ -19,14 +19,6 @@ lemma polynomial_witness<X(!new)>(
     domain:X -> bool, size:X -> nat, value:X --> nat, coefficient:nat, degree:nat)
   requires HasPolynomialBound(domain, size, value, coefficient, degree)
   ensures IsPolynomial(domain, size, value)
-{}
-
-lemma apply_polynomial_bound<X(!new)>(
-    domain:X -> bool, size:X -> nat, value:X --> nat, coefficient:nat, degree:nat, x:X)
-  requires HasPolynomialBound(domain, size, value, coefficient, degree)
-  requires domain(x)
-  ensures value.requires(x)
-  ensures value(x) <= coefficient * NatPower(size(x)+1, degree)
 {}
 
 // Every lower monomial fits the same envelope, including n=0 and degree=0.
@@ -66,12 +58,9 @@ lemma polynomial_product_bound(n:nat, x:nat, y:nat, cx:nat, cy:nat, dx:nat, dy:n
   nonnegative_product_monotonic(x, y, cx*px, cy*py);
   power_product(n+1, dx, dy);
   calc {
-    (cx*px)*(cy*py);
-    == { multiplication_associative(cx, px, cy*py); } cx*(px*(cy*py));
-    == { multiplication_associative(px, cy, py); } cx*((px*cy)*py);
-    == cx*((cy*px)*py);
-    == { multiplication_associative(cy, px, py); } cx*(cy*(px*py));
-    == { multiplication_associative(cx, cy, px*py); } (cx*cy)*(px*py);
+    x*y;
+    <= (cx*px)*(cy*py);
+    == (cx*cy)*(px*py);
     == (cx*cy)*NatPower(n+1, dx+dy);
   }
 }
@@ -84,11 +73,6 @@ lemma polynomial_degree_weaken(n:nat, value:nat, coefficient:nat, degree:nat, la
   assert NatPower(n+1, degree) <= NatPower(n+1, larger);
   nat_multiplication_monotonic(coefficient, NatPower(n+1, degree), NatPower(n+1, larger));
 }
-
-lemma scaled_sum_bound(x:nat, y:nat, cx:nat, cy:nat, power:nat)
-  requires 1 <= power && x <= cx*power && y <= cy*power
-  ensures x+y+1 <= (cx+cy+1)*power
-{}
 
 lemma sum_two_scaled_bound(x:nat, y:nat, cx:nat, cy:nat, power:nat)
   requires x <= cx*power && y <= cy*power

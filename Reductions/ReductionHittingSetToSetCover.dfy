@@ -1,246 +1,163 @@
 include "../Problems/HittingSet.dfy"
 include "../Problems/SetCover.dfy"
+
 /*
 Reduction Hitting Set -> Set Cover
 */
 
-ghost function HittingSetToSetCover(U:set<int>, S:set<set<int>>, k:nat) : (r:SetCoverInstance<set<int>>)
-  requires HittingSetValidInstance(U, S)
-  ensures SetCoverValidInstance(r.0, r.1)
+ghost function HittingSetToSetCover<T>(instance:HittingSetModel<T>) : (r:SetCoverModel<set<T>>)
+  requires HittingSetValidInstance(instance)
+  ensures SetCoverValidInstance(r)
+  ensures {} !in instance.sets ==> r == SetSystemModel(instance.sets,
+    (set u | u in instance.universe :: (set s | s in instance.sets && u in s)), instance.k)
 {
-  var newS: set<set<set<int>>> := (set u | u in U :: (set s | s in S && u in s));
-  if ({} in S) then (S, (set s | s in S :: {s}), 0) // The empty source set has no hitting set.
+  var U, S := instance.universe, instance.sets;
+  if {} in S then
+    SetSystemModel(S, (set s | s in S :: {s}), 0) // The empty source set has no hitting set.
   else
-   incidence_covers_setset(U,S);
-   (S, newS, k)
+    incidence_covers_setset(U, S);
+    SetSystemModel(S, (set u | u in U :: (set s | s in S && u in s)), instance.k)
 }
 
 // The incidence construction preserves solutions in both directions.
-lemma hitting_set_to_set_cover_correct(U:set<int>, S:set<set<int>>, k:nat)
-  requires HittingSetValidInstance(U, S)
-  ensures var (SU,SS,Sk) := HittingSetToSetCover(U,S,k);
-          HittingSet(U,S,k) <==> SetCover(SU,SS,Sk)
+lemma hitting_set_to_set_cover_correct<T(!new)>(instance:HittingSetModel<T>)
+  requires HittingSetValidInstance(instance)
+  ensures HittingSet(instance) <==> SetCover(HittingSetToSetCover(instance))
 {
-  var (SU,SS,Sk) := HittingSetToSetCover(U,S,k);
-  hitting_set_to_set_cover_forward(U,S,k);
-  hitting_set_to_set_cover_backward(U,S,k);
+  hitting_set_to_set_cover_forward(instance);
+  hitting_set_to_set_cover_backward(instance);
 }
 
-lemma incidence_covers_setset(U: set<int>, S: set<set<int>>)
-  requires HittingSetValidInstance(U, S)
+ghost function IncidentSets<T>(S:set<set<T>>, element:T) : (incidence:set<set<T>>)
+  ensures incidence <= S
+{ set s | s in S && element in s }
+
+lemma incidence_covers_setset<T>(U:set<T>, S:set<set<T>>)
+  requires SetSystemMembersWithinUniverse(U, S)
   requires {} !in S
- ensures 
-   var newS: set<set<set<int>>> := (set u | u in U :: (set s | s in S && u in s));
-   IsCover(S,newS)
-{ var newS: set<set<set<int>>> := (set u | u in U :: (set s | s in S && u in s));
-  forall e | e in S ensures (exists s | s in newS :: e in s)
-  {    assert e != {};
-       assert exists n :: n in e; 
-       var n :| n in e;
-       assert e in (set s | s in S && n in s);
-       assert (set s | s in S && n in s) in newS;
-    }
-    
-}
-
-lemma {:induction C} incidence_cardinality_bound_setsetset(U: set<int>, S:set<set<int>>, C:set<int>, CS:set<set<set<int>>>)
-  requires C <= U 
-  requires CS == (set x | x in C :: (set ys | ys in S && x in ys))
-  ensures |CS| <= |C|
-  //EJEMPLO: C={1,2}, S={{1,2}} CS ={ {{1,2}} } 
+  ensures IsCover(S, set u | u in U :: (set s | s in S && u in s))
 {
-  if C=={} { assert |CS|==|C|==0; }
-    else{ 
-
-    var x:| x in C;
-    var CS' := (set y | y in C-{x} :: (set ys | ys in S && y in ys));
-    
-    assert CS == CS' +{(set ys | ys in S && x in ys)} by{
-      calc{  CS;{}
-          (set y | y in C :: (set ys | ys in S && y in ys));
-          {assert C==C-{x}+{x};}
-          (set y | y in C-{x}+{x} :: (set ys | ys in S && y in ys));
-          (set y | y in C-{x} :: (set ys | ys in S && y in ys)) + {(set ys | ys in S && x in ys)};
-          CS' + {(set ys | ys in S && x in ys)};
-        }
-    }
-    if ((set ys | ys in S && x in ys) in CS') {
-      assert CS' == CS;
-      assert |CS| == |CS'|;    
-    }
-    else {
-      assert |CS| == |CS'| + 1; 
-    }
-    incidence_cardinality_bound_setsetset(U,S,C-{x},CS');
-    assert |CS'| <= |C-{x}|;
-    assert |CS| <= |C|;
+  var incidences := set u | u in U :: (set s | s in S && u in s);
+  forall s | s in S
+    ensures exists incidence | incidence in incidences :: s in incidence
+  {
+    assert s != {};
+    var u :| u in s;
+    assert u in U;
+    var incidence := set member | member in S && u in member;
+    assert s in incidence && incidence in incidences;
   }
 }
 
-
-// Choose canonical representatives when several elements have the same incidence set.
-ghost function Minimum(s:set<int>) : (x:int)
-  requires s != {}
-  ensures x in s && (forall y | y in s :: x <= y)
-  decreases |s|
+lemma incidence_cardinality_bound_setsetset<T>(S:set<set<T>>, C:set<T>, CS:set<set<set<T>>>)
+  requires CS == (set x | x in C :: (set s | s in S && x in s))
+  ensures |CS| <= |C|
+  decreases |C|
 {
-  var candidate :| candidate in s;
-  if s == {candidate} then
-    candidate
-  else
-    assert s - {candidate} != {};
-    var restMin := Minimum(s - {candidate});
-    if candidate <= restMin then
-      assert forall y | y in s :: candidate <= y by {
-        forall y | y in s
-          ensures candidate <= y
-        {
-          if y != candidate {
-            assert y in s - {candidate};
-          }
-        }
-      }
-      candidate
-    else
-      assert forall y | y in s :: restMin <= y by {
-        forall y | y in s
-          ensures restMin <= y
-        {
-          if y != candidate {
-            assert y in s - {candidate};
-          }
-        }
-      }
-      restMin
+  if C == {} {
+    assert CS == {};
+  } else {
+    var x :| x in C;
+    var rest := C - {x};
+    var restIncidences := set y | y in rest :: (set s | s in S && y in s);
+    incidence_cardinality_bound_setsetset(S, rest, restIncidences);
+    assert C == rest + {x};
+    assert CS == restIncidences + {(set s | s in S && x in s)};
+  }
 }
 
-
-lemma hitting_set_to_set_cover_forward(U:set<int>, S:set<set<int>>, k:nat)
-  requires HittingSetValidInstance(U, S)
-  ensures var (US,SS,kS) := HittingSetToSetCover(U,S,k);
-          HittingSet(U,S,k) ==> SetCover(US,SS,kS)
+lemma hitting_set_to_set_cover_forward<T>(instance:HittingSetModel<T>)
+  requires HittingSetValidInstance(instance)
+  ensures HittingSet(instance) ==> SetCover(HittingSetToSetCover(instance))
 {
-  var (US,SS,kS) := HittingSetToSetCover(U,S,k);
-  if (HittingSet(U,S,k)) {
-    if ({} in S) { assert false; }
-    else { 
-    var C:set<int> :| HittingSetCertificate(U, S, k, C);      // {2,4}
-    assert HittingSetCertificate(U, S, k, C);
-    var CS := (set x | x in C :: (set y | y in US && x in y)); // { {{1,2,3},{2,4}}, {{2,4},{3,4},{4,5}} }
+  if HittingSet(instance) {
+    var U, S := instance.universe, instance.sets;
+    var C :| C <= U && HittingSetCertificate(instance, C);
+    assert {} !in S;
+    var target := HittingSetToSetCover(instance);
+    var CS := set x | x in C :: (set s | s in S && x in s);
 
-    //Para demostrar que es cobertura hay que demostrar lo siguiente
-    forall s | s in US 
-    ensures (exists ss | ss in CS :: s in ss)
+    forall s | s in target.universe
+      ensures exists incidence | incidence in CS :: s in incidence
     {
-     assert C * s != {}; //por ser C Hitting-set
-     var y :| y in C * s; 
-     var ss := (set ys | ys in US && y in ys);
-     assert ss in CS && s in ss;
-     }
-     incidence_cardinality_bound_setsetset(U,S,C,CS);
-     assert |CS| <= |C| <= k;
-     assert SetCoverCertificate(US, SS, kS, CS);
-     //Idea de demo, la funcion es inyectiva 
- }
-}
-}
-ghost function IncidentSets(U:set<int>, S: set<set<int>>, e:int): (r:set<set<int>>)
-  requires HittingSetValidInstance(U, S)
-{ set s | s in S && e in s}
-
-ghost function MinimumEquivalentElement(U:set<int>, S: set<set<int>>, e:int): (m:int)
-  requires HittingSetValidInstance(U, S)
-  requires e in U && IncidentSets(U,S,e) != {}
-{ 
-  assert e in U && IncidentSets(U,S,e) == IncidentSets(U,S,e);
-  var allEs:set<int> := set e' | e' in U && IncidentSets(U,S,e') == IncidentSets(U,S,e);
-  assert e in U && IncidentSets(U,S,e) == IncidentSets(U,S,e);
-  assert e in allEs;
-  Minimum(allEs)
+      assert C * s != {};
+      var x :| x in C * s;
+      var incidence := set member | member in S && x in member;
+      assert s in incidence && incidence in CS;
+    }
+    incidence_cardinality_bound_setsetset(S, C, CS);
+    assert SetCoverCertificate(target, CS);
+  }
 }
 
-ghost function MinimumCoveredElement(U:set<int>, S:set<set<int>>,k:nat,CS: set<set<set<int>>>, xs:set<int>): (m:int)
-  requires HittingSetValidInstance(U, S)
-  requires xs in S 
-  requires exists e :: e in U && xs in IncidentSets(U,S,e) && IncidentSets(U,S,e) in CS
-  requires var (US,SS,kS) := HittingSetToSetCover(U,S,k);
-           CS <= SS && IsCover(US, CS) && {} !in CS && |CS| <= kS
-{ 
-  var allEs:set<int> := set e' | e' in U && xs in IncidentSets(U,S,e') && IncidentSets(U,S,e') in CS;
-  assert exists e :: e in U && xs in IncidentSets(U,S,e) && IncidentSets(U,S,e) in CS;
-  var e:int :| e in U && xs in IncidentSets(U,S,e) && IncidentSets(U,S,e) in CS;
-  assert e in allEs;
-  Minimum(allEs)
+// Choose a source representative by its incidence set.
+ghost function IncidenceRepresentative<T>(U:set<T>, S:set<set<T>>, incidence:set<set<T>>) : (representative:T)
+  requires SetSystemMembersWithinUniverse(U, S)
+  requires exists u | u in U :: IncidentSets(S, u) == incidence
+  ensures representative in U && IncidentSets(S, representative) == incidence
+{
+  var representative :| representative in U && IncidentSets(S, representative) == incidence;
+  representative
 }
 
-
-lemma {:induction C,CS} canonical_representatives_cardinality(U:set<int>, S:set<set<int>>, k:nat, C:set<int>,CS:set<set<set<int>>>)
-  requires HittingSetValidInstance(U, S)
-  requires C <= U 
-  requires CS <= (set u | u in U :: (set s | s in S && u in s)) && {} !in CS
-  requires C == set e | e in U  && (set s | s in S && e in s) in CS :: MinimumEquivalentElement(U,S,e)
+// The map from selected incidences to representatives is inverted by incidence.
+lemma incidence_representatives<T(!new)>(U:set<T>, S:set<set<T>>, CS:set<set<set<T>>>) returns (C:set<T>)
+  requires SetSystemMembersWithinUniverse(U, S)
+  requires forall incidence | incidence in CS :: exists u | u in U :: IncidentSets(S, u) == incidence
+  ensures C <= U
+  ensures Image_set(C, u => IncidentSets(S, u)) == CS
   ensures |C| == |CS|
 {
-  if CS== {} {}
-  else {
-    var cs:| cs in CS;
-    var ecs :| ecs in U && (set s | s in S && ecs in s) == cs && ecs in C ;
-    assert C - {ecs} == set e | e in U  && (set s | s in S && e in s) in CS-{cs} :: MinimumEquivalentElement(U,S,e);
-    canonical_representatives_cardinality(U,S,k,C-{ecs},CS-{cs});
+  C := set incidence | incidence in CS :: IncidenceRepresentative(U, S, incidence);
+  var encode := (u:T) => IncidentSets(S, u);
+
+  forall u | u in C
+    ensures u in U && encode(u) in CS
+    ensures IncidenceRepresentative(U, S, encode(u)) == u
+  {
+    var incidence :| incidence in CS && IncidenceRepresentative(U, S, incidence) == u;
   }
+  forall first, second | first in C && second in C && encode(first) == encode(second)
+    ensures first == second
+  {}
+  injective_image_cardinality_set(C, encode);
+  forall incidence | incidence in CS
+    ensures incidence in Image_set(C, encode)
+  {
+    var u := IncidenceRepresentative(U, S, incidence);
+    assert u in C;
+  }
+  assert Image_set(C, encode) == CS;
 }
 
-
-
-lemma hitting_set_to_set_cover_backward(U:set<int>, S:set<set<int>>, k:nat)
-  requires HittingSetValidInstance(U, S)
-  ensures var (US,SS,kS) := HittingSetToSetCover(U,S,k);
-          HittingSet(U,S,k) <== SetCover(US,SS,kS)
+lemma hitting_set_to_set_cover_backward<T(!new)>(instance:HittingSetModel<T>)
+  requires HittingSetValidInstance(instance)
+  ensures SetCover(HittingSetToSetCover(instance)) ==> HittingSet(instance)
 {
-  var (US,SS,kS) := HittingSetToSetCover(U,S,k);
-  if (SetCover(US,SS,kS)) {
-    var CS':set<set<set<int>>> :| SetCoverCertificate(US, SS, kS, CS'); // { {{1,2,3},{2,4}}, {{2,4},{3,4},{4,5}} }
-    
-    assert SetCoverCertificate(US, SS, kS, CS');
-    if ({} in S) { 
-      //Hay que demostrar que SetCover devuelve falso
-      // para (S, (set s | s in S :: {s}), 0)
-      assert !IsCover(S,{});
-    }
-    else { 
-      var CS :set<set<set<int>>> := CS' -{{}};
-      assert CS <= SS && IsCover(US, CS) && |CS| <= kS && {} !in CS;
-
-      var C:set<int> := set e | e in U  && (set s | s in S && e in s) in CS :: MinimumEquivalentElement(U,S,e);
-      forall xs | xs in S
-      ensures xs * C != {} 
+  var target := HittingSetToSetCover(instance);
+  if SetCover(target) {
+    var U, S := instance.universe, instance.sets;
+    var CS :| CS <= target.sets && SetCoverCertificate(target, CS);
+    if {} in S {
+      assert CS == {};
+      assert !IsCover(S, {});
+    } else {
+      forall incidence | incidence in CS
+        ensures exists u | u in U :: IncidentSets(S, u) == incidence
       {
-        var cs :| cs in CS && xs in cs;
-        var intersection := MinimumCoveredElement(U,S,k,CS,xs);
-        assert intersection in xs;
-        assert intersection in U;
-        assert (set s | s in S && intersection in s) in CS;
-        assert xs in IncidentSets(U,S,intersection) && IncidentSets(U,S,intersection) in CS;
-        
-        var mse := MinimumEquivalentElement(U,S,intersection);
-        var allEs:set<int> := set e' | e' in U && IncidentSets(U,S,e') == IncidentSets(U,S,intersection);
-        assert intersection in allEs;
-        assert allEs != {};
-        assert Minimum(allEs) <= intersection && Minimum(allEs) == mse;
-        
-        var allCs:set<int> := set e' | e' in U && xs in IncidentSets(U,S,e') && IncidentSets(U,S,e') in CS;
-        assert mse in U && xs in IncidentSets(U,S,mse) && IncidentSets(U,S,mse) in CS;
-        assert mse in allCs;
-        assert intersection <= mse;
-        assert intersection == mse;
-
-        assert intersection in C;
-        assert intersection in xs * C;
+        assert incidence in target.sets;
+        var u :| u in U && (set member | member in S && u in member) == incidence;
+        assert IncidentSets(S, u) == incidence;
       }
-      assert HitsAllSets(S, C);
-      canonical_representatives_cardinality(U,S,k,C,CS);
-      assert |C| ==|CS|;
-      assert HittingSetCertificate(U, S, k, C);
+      var C := incidence_representatives(U, S, CS);
+      forall s | s in S
+        ensures s * C != {}
+      {
+        var incidence :| incidence in CS && s in incidence;
+        var u :| u in C && IncidentSets(S, u) == incidence;
+        assert u in s * C;
+      }
+      assert HittingSetCertificate(instance, C);
     }
   }
 }

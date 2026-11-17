@@ -1,18 +1,19 @@
 include "../Problems/SetCover.dfy"
 include "../Arithmetic/BitLengths.dfy"
-include "../Foundations/Collections.dfy"
+include "../Foundations/CollectionLaws.dfy"
 include "../Foundations/LoopCosts.dfy"
 
 
 // Native variant of the admissible-certificate core.
-method VerifySetCoverCore_simple(U:set<int>, S:set<set<int>>, k:nat, certificate:set<set<int>>) returns (accepted:bool, ghost counter:nat)
-  requires SetCoverValidInstance(U, S)
-  requires |certificate| <= |S|
-  requires (forall s | s in certificate :: |s| <= |U|)
-  ensures accepted == SetCoverCertificate(U, S, k, certificate)
-  ensures accepted ==> SetCover(U, S, k)
-  ensures counter <= BudgetVerifySetCoverCore_simple(U, S, k)
+method {:isolate_assertions} VerifySetCoverCore_simple<T(==)>(instance:SetCoverModel<T>, certificate:set<set<T>>) returns (accepted:bool, ghost counter:nat)
+  requires SetCoverValidInstance(instance)
+  requires |certificate| <= |instance.sets|
+  requires (forall s | s in certificate :: |s| <= |instance.universe|)
+  ensures accepted == SetCoverCertificate(instance, certificate)
+  ensures accepted ==> SetCover(instance)
+  ensures counter <= BudgetVerifySetCoverCore_simple(instance.universe, instance.sets, instance.k)
 {
+  var U, S, k := instance.universe, instance.sets, instance.k;
   assert forall i | i in certificate :: |i| <= |U|;
   counter := 0;
   var remainingUniverse := U; counter := counter + |U|;
@@ -22,7 +23,7 @@ method VerifySetCoverCore_simple(U:set<int>, S:set<set<int>>, k:nat, certificate
     return false, counter;
   }
   var isSubset:bool;
-  isSubset, counter := IsSubset(U, certificate, S, counter);
+  isSubset, counter := IsSubset_simple(U, certificate, S, counter);
 
   if (!isSubset) {
     assert counter <= |U| + 1 + BudgetIsSubset_simple(U, certificate, S);
@@ -40,14 +41,18 @@ method VerifySetCoverCore_simple(U:set<int>, S:set<set<int>>, k:nat, certificate
     accepted, remainingUniverse, counter := CheckUniverseElement_simple(U, S, k, certificate, remainingUniverse, counter);
   }
   counter := counter + 1;
-  assert counter <= |U| + BudgetIsSubset_simple(U, certificate, S) + 2 + |U|*(BudgetCheckUniverseElement_simple(U, S, k) + 1);
+  assert counter <= |U| + BudgetIsSubset_simple(U, certificate, S) + 2 + |U|*(BudgetCheckUniverseElement_simple(U, S, k) + 1) by {
+    var stepBudget := BudgetCheckUniverseElement_simple(U, S, k) + 1;
+    subset_cardinality_bound_set(remainingUniverse, U);
+    nonnegative_product_monotonic(|U|-|remainingUniverse|, stepBudget, |U|, stepBudget);
+  }
   budget_verify_set_cover_core_bound_simple(U, S, k, certificate);
   assert accepted ==> U-remainingUniverse == U;
-  assert accepted ==> SetCoverCertificate(U, S, k, certificate);
+  assert accepted ==> SetCoverCertificate(instance, certificate);
 }
 
 
-method IsSubset(U:set<int>, S1:set<set<int>>, S2:set<set<int>>, ghost counter_in:nat) returns (b:bool, ghost counter:nat)
+method IsSubset_simple<T(==)>(U:set<T>, S1:set<set<T>>, S2:set<set<T>>, ghost counter_in:nat) returns (b:bool, ghost counter:nat)
   requires forall s |s in S2 :: s <= U
   ensures b == (S1 <= S2)
   ensures counter <= counter_in + BudgetIsSubset_simple(U, S1, S2)
@@ -68,7 +73,7 @@ method IsSubset(U:set<int>, S1:set<set<int>>, S2:set<set<int>>, ghost counter_in
 }
 
 
-method IsSubsetStep_simple(U:set<int>, S1:set<set<int>>, S2:set<set<int>>, S1':set<set<int>>, ghost counter_in:nat, b:bool) returns (S1'':set<set<int>>, b':bool, ghost counter:nat)
+method IsSubsetStep_simple<T(==)>(U:set<T>, S1:set<set<T>>, S2:set<set<T>>, S1':set<set<T>>, ghost counter_in:nat, b:bool) returns (S1'':set<set<T>>, b':bool, ghost counter:nat)
   requires S1' != {}
   requires S1' <= S1
   requires b == ((S1 - S1') <= S2)
@@ -79,14 +84,14 @@ method IsSubsetStep_simple(U:set<int>, S1:set<set<int>>, S2:set<set<int>>, S1':s
 {
   counter := counter_in;
   subset_cardinality_bound_set(S1', S1);
-  var s:set<int> :| s in S1'; counter := counter + |U|;
+  var s:set<T> :| s in S1'; counter := counter + |U|;
   b' := b && s in S2; counter := counter + |S2|*|U|;
   S1'' := S1' - {s}; counter := counter + |S1|*|U|;
 }
 
 
-method CheckUniverseElement_simple(U:set<int>, S:set<set<int>>, k:nat, certificate:set<set<int>>, remainingUniverse:set<int>, ghost counter_in:nat)
-    returns (covered:bool, remainingUniverseOut:set<int>, ghost counter:nat)
+method CheckUniverseElement_simple<T(==)>(U:set<T>, S:set<set<T>>, k:nat, certificate:set<set<T>>, remainingUniverse:set<T>, ghost counter_in:nat)
+    returns (covered:bool, remainingUniverseOut:set<T>, ghost counter:nat)
   requires remainingUniverse != {}
   requires remainingUniverse <= U
   requires |certificate| <= |S|
@@ -118,8 +123,8 @@ method CheckUniverseElement_simple(U:set<int>, S:set<set<int>>, k:nat, certifica
 }
 
 
-method CheckCoverSet_simple(U:set<int>, S:set<set<int>>, k:nat, certificate:set<set<int>>, remainingCertificate:set<set<int>>, u:int, ghost counter_in:nat)
-    returns (elementCovered:bool, remainingCertificateOut:set<set<int>>, ghost counter:nat)
+method CheckCoverSet_simple<T(==)>(U:set<T>, S:set<set<T>>, k:nat, certificate:set<set<T>>, remainingCertificate:set<set<T>>, u:T, ghost counter_in:nat)
+    returns (elementCovered:bool, remainingCertificateOut:set<set<T>>, ghost counter:nat)
   requires remainingCertificate != {}
   requires remainingCertificate <= certificate
   requires !(exists i' | i' in certificate - remainingCertificate :: u in i')
@@ -135,32 +140,32 @@ method CheckCoverSet_simple(U:set<int>, S:set<set<int>>, k:nat, certificate:set<
 }
 
 
-ghost function BudgetIsSubsetStep_simple(U: set<int>, S1:set<set<int>>, S2:set<set<int>>) : (o:nat)
+ghost function BudgetIsSubsetStep_simple<T>(U: set<T>, S1:set<set<T>>, S2:set<set<T>>) : (o:nat)
 {
   |S1|*|U| + |S2|*|U| + |U|
 }
-ghost function BudgetIsSubset_simple(U: set<int>, S1:set<set<int>>, S2:set<set<int>>) : (o:nat)
+ghost function BudgetIsSubset_simple<T>(U: set<T>, S1:set<set<T>>, S2:set<set<T>>) : (o:nat)
 {
   |S1|*|S1|*|U| + |S1|*|S2|*|U| + 2*|S1|*|U| + |S1| + 2
 }
-ghost function CostCheckCoverSet_simple(U: set<int>, S: set<set<int>>, k: nat) : (o:nat) {
+ghost function CostCheckCoverSet_simple<T>(U: set<T>, S: set<set<T>>, k: nat) : (o:nat) {
   |S|*|U| + 2*|U|
 }
-ghost function BudgetCheckUniverseElement_simple(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
+ghost function BudgetCheckUniverseElement_simple<T>(U: set<T>, S: set<set<T>>, k: nat) : (o:nat)
   ensures |S|*|U| + |U| + 2 + |S|*(CostCheckCoverSet_simple(U, S, k) + 1) == o
 {
   |U|*|S|*|S| + 3*|U|*|S| + |U| + |S| + 2
 }
 
 
-ghost function BudgetVerifySetCoverCore_simple(U: set<int>, S: set<set<int>>, k: nat) : (o:nat)
+ghost function BudgetVerifySetCoverCore_simple<T>(U: set<T>, S: set<set<T>>, k: nat) : (o:nat)
 {
   
   |S|*|S|*|U|*|U| + 2*|S|*|S|*|U| + 3*|S|*|U|*|U| + 3*|S|*|U| + |U|*|U| + |S| + 4*|U| + 4
 }
 
 
-lemma budget_verify_set_cover_core_bound_simple(U: set<int>, S: set<set<int>>, k: nat, certificate: set<set<int>>)
+lemma budget_verify_set_cover_core_bound_simple<T>(U: set<T>, S: set<set<T>>, k: nat, certificate: set<set<T>>)
   requires |certificate| <= |S|
   ensures |U| + BudgetIsSubset_simple(U, certificate, S) + 2 + |U|*(BudgetCheckUniverseElement_simple(U, S, k) + 1) <= BudgetVerifySetCoverCore_simple(U, S, k)
 {

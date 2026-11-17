@@ -2,15 +2,16 @@ include "../Problems/HittingSet.dfy"
 include "../Problems/SetCover.dfy"
 include "../Reductions/ReductionHittingSetToSetCover.dfy"
 include "../Arithmetic/BitLengths.dfy"
-include "../Foundations/Collections.dfy"
+include "../Foundations/CollectionLaws.dfy"
 include "../Foundations/LoopCosts.dfy"
 
 
-method TransformHittingSetToSetCover_base(U:set<int>, S:set<set<int>>, k:nat) returns (r:SetCoverInstance<set<int>>)
-  requires HittingSetValidInstance(U, S)
-  ensures r == HittingSetToSetCover(U, S, k)
+method TransformHittingSetToSetCover_base<T(==)>(instance:HittingSetModel<T>) returns (r:SetCoverModel<set<T>>)
+  requires HittingSetValidInstance(instance)
+  ensures r == HittingSetToSetCover(instance)
 {
-  var SS:set<set<set<int>>> := {};
+  var U, S, k := instance.universe, instance.sets, instance.k;
+  var SS:set<set<set<T>>> := {};
   // Edge case
   var S_contains_empty:bool := {} in S;
   if (S_contains_empty) {
@@ -24,7 +25,7 @@ method TransformHittingSetToSetCover_base(U:set<int>, S:set<set<int>>, k:nat) re
       S', SS := AddSingletonSourceSet_base(U, S, k, S', SS);
     }
     difference_empty_set(S, S');
-    return (S, SS, 0);
+    return SetSystemModel(S, SS, 0);
   }
   // Regular case
   var U' := U;
@@ -36,12 +37,25 @@ method TransformHittingSetToSetCover_base(U:set<int>, S:set<set<int>>, k:nat) re
     U', SS := BuildIncidenceSet_base(U, S, k, U', SS);
   }
   difference_empty_set(U, U');
+  ghost var target := HittingSetToSetCover(instance);
+  assert SS == target.sets by {
+    forall incidence | incidence in SS
+      ensures incidence in target.sets
+    {
+      var u :| u in U && (set s | s in S && u in s) == incidence;
+    }
+    forall incidence | incidence in target.sets
+      ensures incidence in SS
+    {
+      var u :| u in U && (set s | s in S && u in s) == incidence;
+    }
+  }
 
-  return (S, SS, k);
+  return SetSystemModel(S, SS, k);
 }
 
 
-method BuildIncidenceSet_base(U:set<int>, S:set<set<int>>, k:nat, U':set<int>, SS:set<set<set<int>>>) returns (U'':set<int>, SS':set<set<set<int>>>)
+method BuildIncidenceSet_base<T(==)>(U:set<T>, S:set<set<T>>, k:nat, U':set<T>, SS:set<set<set<T>>>) returns (U'':set<T>, SS':set<set<set<T>>>)
   requires U' != {}
   requires U' <= U
   requires SS == (set u | u in (U - U') :: (set s | s in S && u in s))
@@ -52,7 +66,7 @@ method BuildIncidenceSet_base(U:set<int>, S:set<set<int>>, k:nat, U':set<int>, S
   var u :| u in U';
   U'' := U' - {u};
 
-  var sets_in_S_that_contain_u:set<set<int>> := {};
+  var sets_in_S_that_contain_u:set<set<T>> := {};
   var S' := S;
   while (S' != {})
     decreases |S'|
@@ -78,8 +92,8 @@ method BuildIncidenceSet_base(U:set<int>, S:set<set<int>>, k:nat, U':set<int>, S
 }
 
 
-method AddIncidentSourceSet_base(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, u:int, sets_in_S_that_contain_u:set<set<int>>)
-    returns (S'':set<set<int>>, sets_in_S_that_contain_u':set<set<int>>)
+method AddIncidentSourceSet_base<T(==)>(U:set<T>, S:set<set<T>>, k:nat, S':set<set<T>>, u:T, sets_in_S_that_contain_u:set<set<T>>)
+    returns (S'':set<set<T>>, sets_in_S_that_contain_u':set<set<T>>)
   requires S' != {}
   requires S' <= S
   requires sets_in_S_that_contain_u == (set s | s in (S - S') && u in s)
@@ -101,7 +115,7 @@ method AddIncidentSourceSet_base(U:set<int>, S:set<set<int>>, k:nat, S':set<set<
 }
 
 
-method AddSingletonSourceSet_base(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, SS:set<set<set<int>>>) returns (S'':set<set<int>>, SS':set<set<set<int>>>)
+method AddSingletonSourceSet_base<T(==)>(U:set<T>, S:set<set<T>>, k:nat, S':set<set<T>>, SS:set<set<set<T>>>) returns (S'':set<set<T>>, SS':set<set<set<T>>>)
   requires S' != {}
   requires S' <= S
   requires SS == (set s | s in (S - S') :: {s})

@@ -1,4 +1,4 @@
-include "../Foundations/Collections.dfy"
+include "../Foundations/CollectionLaws.dfy"
 include "Set.dfy"
 /*
 Traits for immutable maps
@@ -17,8 +17,8 @@ trait MapFamily<K, V> {
   ghost function Cardinality():nat { |Model()| }
   ghost function UCardinality():nat { |Universe()| }
   
-  ghost function Volume():nat
-  ghost function UVolume():nat
+  ghost function VolumeBound():nat
+  ghost function UVolumeBound():nat
 
   ghost function Keys():set<K> { Model().Keys }
   ghost function Values():set<V> { Model().Values }
@@ -32,7 +32,7 @@ trait MapFamily<K, V> {
     (forall key | key in Universe().Keys :: Universe()[key] == reference.Model()[key])
   }
 
-  ghost function TraversalWork():nat { Volume() + 1 }
+  ghost function TraversalWork():nat { VolumeBound() + 1 }
 
   lemma universe_within_transitive(middle:MapFamily<K, V>, reference:MapFamily<K, V>)
     requires UniverseWithin(middle)
@@ -54,30 +54,30 @@ trait Map<T0(==), T1(==)> extends MapFamily<T0, T1> {
     Model().Keys <= Universe().Keys &&
     (forall key | key in Model().Keys :: Model()[key] == Universe()[key]) &&
     Cardinality() <= UCardinality() &&
-    Volume() <= UVolume()
+    VolumeBound() <= UVolumeBound()
   }
 
-  ghost function Volume():nat { Cardinality() }
-  ghost function UVolume():nat { UCardinality() }
+  ghost function VolumeBound():nat { Cardinality() }
+  ghost function UVolumeBound():nat { UCardinality() }
 
-  ghost function Size(keyWeight:T0 -> nat, valueWeight:T1 -> nat):(size:nat)
-    ensures size == StructuralSize(Volume(), LeafBits(keyWeight, valueWeight))
-    ensures Volume() <= size && LeafBits(keyWeight, valueWeight) <= size
+  ghost function SizeBound(keyWeight:T0 -> nat, valueWeight:T1 -> nat):(size:nat)
+    ensures size == RepresentationSizeBound(VolumeBound(), LeafBits(keyWeight, valueWeight))
+    ensures VolumeBound() <= size && LeafBits(keyWeight, valueWeight) <= size
     ensures Cardinality() <= size
     ensures 1 <= size
-    ensures Valid() ==> size <= USize(keyWeight, valueWeight)
+    ensures Valid() ==> size <= USizeBound(keyWeight, valueWeight)
   {
     representation_submap_map(Model(), Universe(), keyWeight, valueWeight, Valid());
-    RepresentationSize_map(Model(), keyWeight, valueWeight)
+    RepresentationSizeBound_map(Model(), keyWeight, valueWeight)
   }
 
-  ghost function USize(keyWeight:T0 -> nat, valueWeight:T1 -> nat):(size:nat)
-    ensures size == StructuralSize(UVolume(), ULeafBits(keyWeight, valueWeight))
-    ensures UVolume() <= size && ULeafBits(keyWeight, valueWeight) <= size
+  ghost function USizeBound(keyWeight:T0 -> nat, valueWeight:T1 -> nat):(size:nat)
+    ensures size == RepresentationSizeBound(UVolumeBound(), ULeafBits(keyWeight, valueWeight))
+    ensures UVolumeBound() <= size && ULeafBits(keyWeight, valueWeight) <= size
     ensures UCardinality() <= size
     ensures 1 <= size
   {
-    RepresentationSize_map(Universe(), keyWeight, valueWeight)
+    RepresentationSizeBound_map(Universe(), keyWeight, valueWeight)
   }
 
   ghost function LeafBits(keyWeight:T0 -> nat, valueWeight:T1 -> nat):(bits:nat)
@@ -93,10 +93,10 @@ trait Map<T0(==), T1(==)> extends MapFamily<T0, T1> {
 
   ghost function Cost(work:nat, operandSize:nat, context:MapContext<T0,T1>):(cost:nat)
     ensures
-      (work <= context.bound+1 && Size(context.keyWeight, context.valueWeight) <= context.bound && operandSize <= context.bound)
+      (work <= context.bound+1 && SizeBound(context.keyWeight, context.valueWeight) <= context.bound && operandSize <= context.bound)
       ==> (cost <= BudgetPrimitiveStep(context.bound))
   {
-    var size := Size(context.keyWeight, context.valueWeight);
+    var size := SizeBound(context.keyWeight, context.valueWeight);
     collection_step_bound(work, size, operandSize, context.bound);
     CostRepresentation(work, size, operandSize)
   }
@@ -105,7 +105,7 @@ trait Map<T0(==), T1(==)> extends MapFamily<T0, T1> {
     requires Valid()
     requires key in Model().Keys
     ensures value == Model()[key]
-    ensures context.valueWeight(value) <= Size(context.keyWeight, context.valueWeight)
+    ensures context.valueWeight(value) <= SizeBound(context.keyWeight, context.valueWeight)
     ensures counter_out == counter_in + Cost(TraversalWork(),
       context.keyWeight(key), context)
 
@@ -132,8 +132,8 @@ trait Map<T0(==), T1(==)> extends MapFamily<T0, T1> {
     ensures result.Model() == Model() - {key}
     ensures result.Universe() == Universe()
     ensures result.Keys() == Keys() - {key}
-    ensures result.Size(context.keyWeight, context.valueWeight) <= Size(context.keyWeight, context.valueWeight)
-    ensures result.USize(context.keyWeight, context.valueWeight) == USize(context.keyWeight, context.valueWeight)
+    ensures result.SizeBound(context.keyWeight, context.valueWeight) <= SizeBound(context.keyWeight, context.valueWeight)
+    ensures result.USizeBound(context.keyWeight, context.valueWeight) == USizeBound(context.keyWeight, context.valueWeight)
     ensures counter_out == counter_in + Cost(TraversalWork(),
       context.keyWeight(key), context)
 
@@ -143,7 +143,7 @@ trait Map<T0(==), T1(==)> extends MapFamily<T0, T1> {
     requires Valid()
     ensures key in Model().Keys
     ensures key in Universe().Keys
-    ensures context.keyWeight(key) <= Size(context.keyWeight, context.valueWeight)
+    ensures context.keyWeight(key) <= SizeBound(context.keyWeight, context.valueWeight)
     ensures context.keyWeight(key) <= LeafBits(context.keyWeight, context.valueWeight)
     ensures counter_out == counter_in + Cost(1, 0, context)
 
@@ -168,8 +168,8 @@ trait Map<T0(==), T1(==)> extends MapFamily<T0, T1> {
     ensures result.Valid()
     ensures result.Model() == Model()
     ensures result.Universe() == Model()
-    ensures result.Size(context.keyWeight, context.valueWeight) == Size(context.keyWeight, context.valueWeight) && result.USize(context.keyWeight,
-        context.valueWeight) == Size(context.keyWeight, context.valueWeight)
+    ensures result.SizeBound(context.keyWeight, context.valueWeight) == SizeBound(context.keyWeight, context.valueWeight) && result.USizeBound(context.keyWeight,
+        context.valueWeight) == SizeBound(context.keyWeight, context.valueWeight)
     ensures counter_out == counter_in + Cost(TraversalWork(), 0, context)
 
   // Complexity bounds
@@ -183,10 +183,10 @@ trait Map<T0(==), T1(==)> extends MapFamily<T0, T1> {
   }
 
   lemma u_size_bound(volume:nat, bits:nat, keyWeight:T0 -> nat, valueWeight:T1 -> nat)
-    requires UVolume() <= volume && ULeafBits(keyWeight, valueWeight) <= bits && 1 <= bits
-    ensures USize(keyWeight, valueWeight) <= StructuralSize(volume, bits)
+    requires UVolumeBound() <= volume && ULeafBits(keyWeight, valueWeight) <= bits && 1 <= bits
+    ensures USizeBound(keyWeight, valueWeight) <= RepresentationSizeBound(volume, bits)
   {
-    structural_size_monotonic(UVolume(), ULeafBits(keyWeight, valueWeight), volume, bits);
+    representation_size_bound_monotonic(UVolumeBound(), ULeafBits(keyWeight, valueWeight), volume, bits);
   }
 
   lemma universe_within_bound(U:Map<T0, T1>, context:MapContext<T0,T1>)
@@ -194,9 +194,9 @@ trait Map<T0(==), T1(==)> extends MapFamily<T0, T1> {
     ensures Universe().Keys <= U.Model().Keys
     ensures forall key | key in Universe().Keys :: Universe()[key] == U.Model()[key]
     ensures Cardinality() <= UCardinality() <= U.Cardinality() <= U.UCardinality()
-    ensures Volume() <= UVolume() <= U.Volume() <= U.UVolume()
-    ensures Size(context.keyWeight, context.valueWeight) <= USize(context.keyWeight, context.valueWeight) <= U.Size(context.keyWeight,
-        context.valueWeight) <= U.USize(context.keyWeight, context.valueWeight)
+    ensures VolumeBound() <= UVolumeBound() <= U.VolumeBound() <= U.UVolumeBound()
+    ensures SizeBound(context.keyWeight, context.valueWeight) <= USizeBound(context.keyWeight, context.valueWeight) <= U.SizeBound(context.keyWeight,
+        context.valueWeight) <= U.USizeBound(context.keyWeight, context.valueWeight)
     ensures LeafBits(context.keyWeight, context.valueWeight) <= ULeafBits(context.keyWeight, context.valueWeight) <= U.LeafBits(context.keyWeight,
         context.valueWeight) <= U.ULeafBits(context.keyWeight, context.valueWeight)
   {
@@ -220,39 +220,39 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> extends MapFamily<map<T0, T1>, T2> {
     (forall key | key in Model().Keys :: Model()[key] == Universe()[key]) &&
     Cardinality() <= UCardinality() &&
     CardinalityKeys() <= UCardinalityKeys() &&
-    Volume() <= UVolume() &&
-    VolumeKeys() <= UVolumeKeys()
+    VolumeBound() <= UVolumeBound() &&
+    VolumeBoundKeys() <= UVolumeBoundKeys()
   }
 
   ghost function CardinalityKeys():nat { MaxCardinality_map(Model().Keys) }
   ghost function {:opaque} UCardinalityKeys():nat { MaxCardinality_map(Universe().Keys) }
 
-  ghost function Volume():nat { Cardinality() * (1 + CardinalityKeys()) }
-  ghost function UVolume():nat { UCardinality() * (1 + UCardinalityKeys()) }
-  ghost function VolumeKeys():nat { CardinalityKeys() }
-  ghost function UVolumeKeys():nat { UCardinalityKeys() }
+  ghost function VolumeBound():nat { Cardinality() * (1 + CardinalityKeys()) }
+  ghost function UVolumeBound():nat { UCardinality() * (1 + UCardinalityKeys()) }
+  ghost function VolumeBoundKeys():nat { CardinalityKeys() }
+  ghost function UVolumeBoundKeys():nat { UCardinalityKeys() }
 
-  ghost function Size(keyWeight:T0 -> nat, innerValueWeight:T1 -> nat, valueWeight:T2 -> nat):(size:nat)
-    ensures size == StructuralSize(Volume(), LeafBits(keyWeight, innerValueWeight, valueWeight))
-    ensures Volume() <= size && LeafBits(keyWeight, innerValueWeight, valueWeight) <= size
+  ghost function SizeBound(keyWeight:T0 -> nat, innerValueWeight:T1 -> nat, valueWeight:T2 -> nat):(size:nat)
+    ensures size == RepresentationSizeBound(VolumeBound(), LeafBits(keyWeight, innerValueWeight, valueWeight))
+    ensures VolumeBound() <= size && LeafBits(keyWeight, innerValueWeight, valueWeight) <= size
     ensures Cardinality() <= size && CardinalityKeys() <= size
-    ensures VolumeKeys() <= size
+    ensures VolumeBoundKeys() <= size
     ensures 1 <= size
-    ensures Valid() ==> size <= USize(keyWeight, innerValueWeight, valueWeight)
+    ensures Valid() ==> size <= USizeBound(keyWeight, innerValueWeight, valueWeight)
   {
     representation_submap_map_map_t(Model(), Universe(), keyWeight, innerValueWeight, valueWeight, Valid());
-    RepresentationSize_map_map_t(Model(), keyWeight, innerValueWeight, valueWeight)
+    RepresentationSizeBound_map_map_t(Model(), keyWeight, innerValueWeight, valueWeight)
   }
 
-  ghost function USize(keyWeight:T0 -> nat, innerValueWeight:T1 -> nat, valueWeight:T2 -> nat):(size:nat)
-    ensures size == StructuralSize(UVolume(), ULeafBits(keyWeight, innerValueWeight, valueWeight))
-    ensures UVolume() <= size && ULeafBits(keyWeight, innerValueWeight, valueWeight) <= size
+  ghost function USizeBound(keyWeight:T0 -> nat, innerValueWeight:T1 -> nat, valueWeight:T2 -> nat):(size:nat)
+    ensures size == RepresentationSizeBound(UVolumeBound(), ULeafBits(keyWeight, innerValueWeight, valueWeight))
+    ensures UVolumeBound() <= size && ULeafBits(keyWeight, innerValueWeight, valueWeight) <= size
     ensures UCardinality() <= size && UCardinalityKeys() <= size
-    ensures UVolumeKeys() <= size
+    ensures UVolumeBoundKeys() <= size
     ensures 1 <= size
   {
     reveal UCardinalityKeys();
-    RepresentationSize_map_map_t(Universe(), keyWeight, innerValueWeight, valueWeight)
+    RepresentationSizeBound_map_map_t(Universe(), keyWeight, innerValueWeight, valueWeight)
   }
 
   ghost function LeafBits(keyWeight:T0 -> nat, innerValueWeight:T1 -> nat, valueWeight:T2 -> nat):(bits:nat)
@@ -268,10 +268,10 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> extends MapFamily<map<T0, T1>, T2> {
 
   ghost function Cost(work:nat, operandSize:nat, context:NestedMapContext<T0,T1,T2>):(cost:nat)
     ensures
-      (work <= context.bound+1 && Size(context.keyWeight, context.innerValueWeight, context.valueWeight) <= context.bound && operandSize <= context.bound)
+      (work <= context.bound+1 && SizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight) <= context.bound && operandSize <= context.bound)
       ==> (cost <= BudgetPrimitiveStep(context.bound))
   {
-    var size := Size(context.keyWeight, context.innerValueWeight, context.valueWeight);
+    var size := SizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight);
     collection_step_bound(work, size, operandSize, context.bound);
     CostRepresentation(work, size, operandSize)
   }
@@ -280,9 +280,9 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> extends MapFamily<map<T0, T1>, T2> {
     requires Valid()
     requires key.Model() in Model().Keys
     ensures value == Model()[key.Model()]
-    ensures context.valueWeight(value) <= Size(context.keyWeight, context.innerValueWeight, context.valueWeight)
+    ensures context.valueWeight(value) <= SizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight)
     ensures counter_out == counter_in + Cost(TraversalWork(),
-      key.Size(context.keyWeight, context.innerValueWeight), context)
+      key.SizeBound(context.keyWeight, context.innerValueWeight), context)
 
 
   method Insert(key:Map<T0, T1>, value:T2, ghost counter_in:nat, ghost context:NestedMapContext<T0,T1,T2>)
@@ -298,7 +298,7 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> extends MapFamily<map<T0, T1>, T2> {
           MaxLeafWeight(ULeafBits(context.keyWeight, context.innerValueWeight, context.valueWeight),
             MaxLeafWeight(key.LeafBits(context.keyWeight, context.innerValueWeight), context.valueWeight(value)))
     ensures counter_out == counter_in + Cost(TraversalWork(),
-      key.Size(context.keyWeight, context.innerValueWeight) + context.valueWeight(value), context)
+      key.SizeBound(context.keyWeight, context.innerValueWeight) + context.valueWeight(value), context)
 
 
   method Remove(key:Map<T0, T1>, ghost counter_in:nat, ghost context:NestedMapContext<T0,T1,T2>)
@@ -312,22 +312,22 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> extends MapFamily<map<T0, T1>, T2> {
     ensures result.Model() == Model() - {key.Model()}
     ensures result.Universe() == Universe()
     ensures result.Keys() == Keys() - {key.Model()}
-    ensures result.Size(context.keyWeight, context.innerValueWeight, context.valueWeight) <= Size(context.keyWeight, context.innerValueWeight, context.valueWeight)
-    ensures result.USize(context.keyWeight, context.innerValueWeight, context.valueWeight) == USize(context.keyWeight, context.innerValueWeight, context.valueWeight)
+    ensures result.SizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight) <= SizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight)
+    ensures result.USizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight) == USizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight)
     ensures counter_out == counter_in + Cost(TraversalWork(),
-      key.Size(context.keyWeight, context.innerValueWeight), context)
+      key.SizeBound(context.keyWeight, context.innerValueWeight), context)
 
 
   method PickKey(ghost counter_in:nat, ghost context:NestedMapContext<T0,T1,T2>) returns (key:Map<T0, T1>, ghost counter_out:nat)
     requires Model() != map[]
     requires Valid()
     ensures key.Valid()
-    ensures key.Volume() <= UCardinalityKeys()
-    ensures key.UVolume() <= UCardinalityKeys()
+    ensures key.VolumeBound() <= UCardinalityKeys()
+    ensures key.UVolumeBound() <= UCardinalityKeys()
     ensures key.Model() in Model().Keys
     ensures key.Universe() == key.Model()
-    ensures key.USize(context.keyWeight, context.innerValueWeight) == key.Size(context.keyWeight, context.innerValueWeight)
-    ensures key.Size(context.keyWeight, context.innerValueWeight) <= Size(context.keyWeight, context.innerValueWeight, context.valueWeight)
+    ensures key.USizeBound(context.keyWeight, context.innerValueWeight) == key.SizeBound(context.keyWeight, context.innerValueWeight)
+    ensures key.SizeBound(context.keyWeight, context.innerValueWeight) <= SizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight)
     ensures key.ULeafBits(context.keyWeight, context.innerValueWeight) <= LeafBits(context.keyWeight, context.innerValueWeight, context.valueWeight)
     ensures counter_out == counter_in + Cost(key.TraversalWork(), 0, context)
 
@@ -340,7 +340,7 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> extends MapFamily<map<T0, T1>, T2> {
     requires Valid()
     ensures contains == (key.Model() in Model().Keys)
     ensures counter_out == counter_in + Cost(TraversalWork(),
-      key.Size(context.keyWeight, context.innerValueWeight), context)
+      key.SizeBound(context.keyWeight, context.innerValueWeight), context)
 
   method IsEmpty(ghost counter_in:nat, ghost context:NestedMapContext<T0,T1,T2>) returns (empty:bool, ghost counter_out:nat)
     requires Valid()
@@ -354,8 +354,8 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> extends MapFamily<map<T0, T1>, T2> {
     ensures result.UCardinalityKeys() <= UCardinalityKeys()
     ensures result.Model() == Model()
     ensures result.Universe() == Model()
-    ensures result.Size(context.keyWeight, context.innerValueWeight, context.valueWeight) == Size(context.keyWeight, context.innerValueWeight,
-        context.valueWeight) && result.USize(context.keyWeight, context.innerValueWeight, context.valueWeight) == Size(context.keyWeight,
+    ensures result.SizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight) == SizeBound(context.keyWeight, context.innerValueWeight,
+        context.valueWeight) && result.USizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight) == SizeBound(context.keyWeight,
         context.innerValueWeight, context.valueWeight)
     ensures counter_out == counter_in + Cost(TraversalWork(), 0, context)
 
@@ -370,10 +370,10 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> extends MapFamily<map<T0, T1>, T2> {
   }
 
   lemma u_size_bound(volume:nat, bits:nat, keyWeight:T0 -> nat, innerValueWeight:T1 -> nat, valueWeight:T2 -> nat)
-    requires UVolume() <= volume && ULeafBits(keyWeight, innerValueWeight, valueWeight) <= bits && 1 <= bits
-    ensures USize(keyWeight, innerValueWeight, valueWeight) <= StructuralSize(volume, bits)
+    requires UVolumeBound() <= volume && ULeafBits(keyWeight, innerValueWeight, valueWeight) <= bits && 1 <= bits
+    ensures USizeBound(keyWeight, innerValueWeight, valueWeight) <= RepresentationSizeBound(volume, bits)
   {
-    structural_size_monotonic(UVolume(), ULeafBits(keyWeight, innerValueWeight, valueWeight), volume, bits);
+    representation_size_bound_monotonic(UVolumeBound(), ULeafBits(keyWeight, innerValueWeight, valueWeight), volume, bits);
   }
   
   lemma {:isolate_assertions} universe_within_bound(U:Map_Map_T<T0, T1, T2>, context:NestedMapContext<T0,T1,T2>)
@@ -382,10 +382,10 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> extends MapFamily<map<T0, T1>, T2> {
     ensures forall key | key in Universe().Keys :: Universe()[key] == U.Model()[key]
     ensures Cardinality() <= UCardinality() <= U.Cardinality() <= U.UCardinality()
     ensures CardinalityKeys() <= UCardinalityKeys() <= U.CardinalityKeys() <= U.UCardinalityKeys()
-    ensures Volume() <= UVolume() <= U.Volume() <= U.UVolume()
-    ensures VolumeKeys() <= UVolumeKeys() <= U.VolumeKeys() <= U.UVolumeKeys()
-    ensures Size(context.keyWeight, context.innerValueWeight, context.valueWeight) <= USize(context.keyWeight, context.innerValueWeight,
-        context.valueWeight) <= U.Size(context.keyWeight, context.innerValueWeight, context.valueWeight) <= U.USize(context.keyWeight,
+    ensures VolumeBound() <= UVolumeBound() <= U.VolumeBound() <= U.UVolumeBound()
+    ensures VolumeBoundKeys() <= UVolumeBoundKeys() <= U.VolumeBoundKeys() <= U.UVolumeBoundKeys()
+    ensures SizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight) <= USizeBound(context.keyWeight, context.innerValueWeight,
+        context.valueWeight) <= U.SizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight) <= U.USizeBound(context.keyWeight,
         context.innerValueWeight, context.valueWeight)
     ensures LeafBits(context.keyWeight, context.innerValueWeight, context.valueWeight) <= ULeafBits(context.keyWeight, context.innerValueWeight,
         context.valueWeight) <= U.LeafBits(context.keyWeight, context.innerValueWeight, context.valueWeight) <= U.ULeafBits(context.keyWeight,
@@ -400,7 +400,7 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> extends MapFamily<map<T0, T1>, T2> {
 
   lemma u_volume_bound(count:nat, key:nat)
     requires UCardinality() <= count && UCardinalityKeys() <= key
-    ensures UVolume() <= count * (1 + key)
+    ensures UVolumeBound() <= count * (1 + key)
   {
     nonnegative_product_monotonic(UCardinality(), 1 + UCardinalityKeys(), count, 1 + key);
   }
@@ -429,39 +429,39 @@ trait Map_Set_T<K(==), V(==)> extends MapFamily<set<K>, V> {
     (forall key | key in Model().Keys :: Model()[key] == Universe()[key]) &&
     Cardinality() <= UCardinality() &&
     CardinalityKeys() <= UCardinalityKeys() &&
-    Volume() <= UVolume() &&
-    VolumeKeys() <= UVolumeKeys()
+    VolumeBound() <= UVolumeBound() &&
+    VolumeBoundKeys() <= UVolumeBoundKeys()
   }
 
   ghost function CardinalityKeys():nat { MaxCardinality_set(Model().Keys) }
   ghost function {:opaque} UCardinalityKeys():nat { MaxCardinality_set(Universe().Keys) }
 
-  ghost function Volume():nat { Cardinality() * (1 + CardinalityKeys()) }
-  ghost function UVolume():nat { UCardinality() * (1 + UCardinalityKeys()) }
-  ghost function VolumeKeys():nat { CardinalityKeys() }
-  ghost function UVolumeKeys():nat { UCardinalityKeys() }
+  ghost function VolumeBound():nat { Cardinality() * (1 + CardinalityKeys()) }
+  ghost function UVolumeBound():nat { UCardinality() * (1 + UCardinalityKeys()) }
+  ghost function VolumeBoundKeys():nat { CardinalityKeys() }
+  ghost function UVolumeBoundKeys():nat { UCardinalityKeys() }
 
-  ghost function Size(keyWeight:K -> nat, valueWeight:V -> nat):(size:nat)
-    ensures size == StructuralSize(Volume(), LeafBits(keyWeight, valueWeight))
-    ensures Volume() <= size && LeafBits(keyWeight, valueWeight) <= size
+  ghost function SizeBound(keyWeight:K -> nat, valueWeight:V -> nat):(size:nat)
+    ensures size == RepresentationSizeBound(VolumeBound(), LeafBits(keyWeight, valueWeight))
+    ensures VolumeBound() <= size && LeafBits(keyWeight, valueWeight) <= size
     ensures Cardinality() <= size && CardinalityKeys() <= size
-    ensures VolumeKeys() <= size
+    ensures VolumeBoundKeys() <= size
     ensures 1 <= size
-    ensures Valid() ==> size <= USize(keyWeight, valueWeight)
+    ensures Valid() ==> size <= USizeBound(keyWeight, valueWeight)
   {
     representation_submap_map_set_t(Model(), Universe(), keyWeight, valueWeight, Valid());
-    RepresentationSize_map_set_t(Model(), keyWeight, valueWeight)
+    RepresentationSizeBound_map_set_t(Model(), keyWeight, valueWeight)
   }
 
-  ghost function USize(keyWeight:K -> nat, valueWeight:V -> nat):(size:nat)
-    ensures size == StructuralSize(UVolume(), ULeafBits(keyWeight, valueWeight))
-    ensures UVolume() <= size && ULeafBits(keyWeight, valueWeight) <= size
+  ghost function USizeBound(keyWeight:K -> nat, valueWeight:V -> nat):(size:nat)
+    ensures size == RepresentationSizeBound(UVolumeBound(), ULeafBits(keyWeight, valueWeight))
+    ensures UVolumeBound() <= size && ULeafBits(keyWeight, valueWeight) <= size
     ensures UCardinality() <= size && UCardinalityKeys() <= size
-    ensures UVolumeKeys() <= size
+    ensures UVolumeBoundKeys() <= size
     ensures 1 <= size
   {
     reveal UCardinalityKeys();
-    RepresentationSize_map_set_t(Universe(), keyWeight, valueWeight)
+    RepresentationSizeBound_map_set_t(Universe(), keyWeight, valueWeight)
   }
 
   ghost function LeafBits(keyWeight:K -> nat, valueWeight:V -> nat):(bits:nat)
@@ -477,10 +477,10 @@ trait Map_Set_T<K(==), V(==)> extends MapFamily<set<K>, V> {
 
   ghost function Cost(work:nat, operandSize:nat, context:MapContext<K,V>):(cost:nat)
     ensures
-      (work <= context.bound+1 && Size(context.keyWeight, context.valueWeight) <= context.bound && operandSize <= context.bound)
+      (work <= context.bound+1 && SizeBound(context.keyWeight, context.valueWeight) <= context.bound && operandSize <= context.bound)
       ==> (cost <= BudgetPrimitiveStep(context.bound))
   {
-    var size := Size(context.keyWeight, context.valueWeight);
+    var size := SizeBound(context.keyWeight, context.valueWeight);
     collection_step_bound(work, size, operandSize, context.bound);
     CostRepresentation(work, size, operandSize)
   }
@@ -489,16 +489,16 @@ trait Map_Set_T<K(==), V(==)> extends MapFamily<set<K>, V> {
     requires Valid()
     requires key.Model() in Model().Keys
     ensures value == Model()[key.Model()]
-    ensures context.valueWeight(value) <= Size(context.keyWeight, context.valueWeight)
+    ensures context.valueWeight(value) <= SizeBound(context.keyWeight, context.valueWeight)
     ensures counter_out == counter_in + Cost(TraversalWork(),
-      key.Size(context.keyWeight), context)
+      key.SizeBound(context.keyWeight), context)
 
 
   method ContainsKey(key:Set<K>, ghost counter_in:nat, ghost context:MapContext<K,V>) returns (contains:bool, ghost counter_out:nat)
     requires Valid()
     ensures contains == (key.Model() in Model().Keys)
     ensures counter_out == counter_in + Cost(TraversalWork(),
-      key.Size(context.keyWeight), context)
+      key.SizeBound(context.keyWeight), context)
 
   method Insert(key:Set<K>, value:V, ghost counter_in:nat, ghost context:MapContext<K,V>) returns (result:Map_Set_T<K, V>, ghost counter_out:nat)
     requires Valid()
@@ -510,7 +510,7 @@ trait Map_Set_T<K(==), V(==)> extends MapFamily<set<K>, V> {
     ensures result.ULeafBits(context.keyWeight, context.valueWeight) <= MaxLeafWeight(ULeafBits(context.keyWeight, context.valueWeight),
         MaxLeafWeight(key.LeafBits(context.keyWeight), context.valueWeight(value)))
     ensures counter_out == counter_in + Cost(TraversalWork(),
-      key.Size(context.keyWeight) + context.valueWeight(value), context)
+      key.SizeBound(context.keyWeight) + context.valueWeight(value), context)
 
 
   method Remove(key:Set<K>, ghost counter_in:nat, ghost context:MapContext<K,V>) returns (result:Map_Set_T<K, V>, ghost counter_out:nat)
@@ -523,22 +523,22 @@ trait Map_Set_T<K(==), V(==)> extends MapFamily<set<K>, V> {
     ensures result.Model() == Model() - {key.Model()}
     ensures result.Universe() == Universe()
     ensures result.Keys() == Keys() - {key.Model()}
-    ensures result.Size(context.keyWeight, context.valueWeight) <= Size(context.keyWeight, context.valueWeight)
-    ensures result.USize(context.keyWeight, context.valueWeight) == USize(context.keyWeight, context.valueWeight)
+    ensures result.SizeBound(context.keyWeight, context.valueWeight) <= SizeBound(context.keyWeight, context.valueWeight)
+    ensures result.USizeBound(context.keyWeight, context.valueWeight) == USizeBound(context.keyWeight, context.valueWeight)
     ensures counter_out == counter_in + Cost(TraversalWork(),
-      key.Size(context.keyWeight), context)
+      key.SizeBound(context.keyWeight), context)
 
 
   method PickKey(ghost counter_in:nat, ghost context:MapContext<K,V>) returns (key:Set<K>, ghost counter_out:nat)
     requires Model() != map[]
     requires Valid()
     ensures key.Valid()
-    ensures key.Volume() <= UCardinalityKeys()
-    ensures key.UVolume() <= UCardinalityKeys()
+    ensures key.VolumeBound() <= UCardinalityKeys()
+    ensures key.UVolumeBound() <= UCardinalityKeys()
     ensures key.Model() in Model().Keys
     ensures key.Universe() == key.Model()
-    ensures key.USize(context.keyWeight) == key.Size(context.keyWeight)
-    ensures key.Size(context.keyWeight) <= Size(context.keyWeight, context.valueWeight)
+    ensures key.USizeBound(context.keyWeight) == key.SizeBound(context.keyWeight)
+    ensures key.SizeBound(context.keyWeight) <= SizeBound(context.keyWeight, context.valueWeight)
     ensures key.ULeafBits(context.keyWeight) <= LeafBits(context.keyWeight, context.valueWeight)
     ensures counter_out == counter_in + Cost(key.TraversalWork(), 0, context)
 
@@ -559,8 +559,8 @@ trait Map_Set_T<K(==), V(==)> extends MapFamily<set<K>, V> {
     ensures result.UCardinalityKeys() <= UCardinalityKeys()
     ensures result.Model() == Model()
     ensures result.Universe() == Model()
-    ensures result.Size(context.keyWeight, context.valueWeight) == Size(context.keyWeight, context.valueWeight) && result.USize(context.keyWeight,
-        context.valueWeight) == Size(context.keyWeight, context.valueWeight)
+    ensures result.SizeBound(context.keyWeight, context.valueWeight) == SizeBound(context.keyWeight, context.valueWeight) && result.USizeBound(context.keyWeight,
+        context.valueWeight) == SizeBound(context.keyWeight, context.valueWeight)
     ensures counter_out == counter_in + Cost(TraversalWork(), 0, context)
 
   // Complexity bounds
@@ -574,10 +574,10 @@ trait Map_Set_T<K(==), V(==)> extends MapFamily<set<K>, V> {
   }
 
   lemma u_size_bound(volume:nat, bits:nat, keyWeight:K -> nat, valueWeight:V -> nat)
-    requires UVolume() <= volume && ULeafBits(keyWeight, valueWeight) <= bits && 1 <= bits
-    ensures USize(keyWeight, valueWeight) <= StructuralSize(volume, bits)
+    requires UVolumeBound() <= volume && ULeafBits(keyWeight, valueWeight) <= bits && 1 <= bits
+    ensures USizeBound(keyWeight, valueWeight) <= RepresentationSizeBound(volume, bits)
   {
-    structural_size_monotonic(UVolume(), ULeafBits(keyWeight, valueWeight), volume, bits);
+    representation_size_bound_monotonic(UVolumeBound(), ULeafBits(keyWeight, valueWeight), volume, bits);
   }
 
   lemma {:isolate_assertions} universe_within_bound(U:Map_Set_T<K, V>, context:MapContext<K,V>)
@@ -586,10 +586,10 @@ trait Map_Set_T<K(==), V(==)> extends MapFamily<set<K>, V> {
     ensures forall key | key in Universe().Keys :: Universe()[key] == U.Model()[key]
     ensures Cardinality() <= UCardinality() <= U.Cardinality() <= U.UCardinality()
     ensures CardinalityKeys() <= UCardinalityKeys() <= U.CardinalityKeys() <= U.UCardinalityKeys()
-    ensures Volume() <= UVolume() <= U.Volume() <= U.UVolume()
-    ensures VolumeKeys() <= UVolumeKeys() <= U.VolumeKeys() <= U.UVolumeKeys()
-    ensures Size(context.keyWeight, context.valueWeight) <= USize(context.keyWeight, context.valueWeight) <= U.Size(context.keyWeight,
-        context.valueWeight) <= U.USize(context.keyWeight, context.valueWeight)
+    ensures VolumeBound() <= UVolumeBound() <= U.VolumeBound() <= U.UVolumeBound()
+    ensures VolumeBoundKeys() <= UVolumeBoundKeys() <= U.VolumeBoundKeys() <= U.UVolumeBoundKeys()
+    ensures SizeBound(context.keyWeight, context.valueWeight) <= USizeBound(context.keyWeight, context.valueWeight) <= U.SizeBound(context.keyWeight,
+        context.valueWeight) <= U.USizeBound(context.keyWeight, context.valueWeight)
     ensures LeafBits(context.keyWeight, context.valueWeight) <= ULeafBits(context.keyWeight, context.valueWeight) <= U.LeafBits(context.keyWeight,
         context.valueWeight) <= U.ULeafBits(context.keyWeight, context.valueWeight)
   {
@@ -602,7 +602,7 @@ trait Map_Set_T<K(==), V(==)> extends MapFamily<set<K>, V> {
 
   lemma u_volume_bound(count:nat, key:nat)
     requires UCardinality() <= count && UCardinalityKeys() <= key
-    ensures UVolume() <= count*(1+key)
+    ensures UVolumeBound() <= count*(1+key)
   {
     nonnegative_product_monotonic(UCardinality(), 1 + UCardinalityKeys(), count, 1 + key);
   }
@@ -632,9 +632,9 @@ trait Map_MapSet_T<K(==), V(==), R(==)> extends MapFamily<map<set<K>, V>, R> {
     Cardinality() <= UCardinality() &&
     CardinalityKeys() <= UCardinalityKeys() &&
     CardinalityKeysKeys() <= UCardinalityKeysKeys() &&
-    Volume() <= UVolume() &&
-    VolumeKeys() <= UVolumeKeys() &&
-    VolumeKeysKeys() <= UVolumeKeysKeys()
+    VolumeBound() <= UVolumeBound() &&
+    VolumeBoundKeys() <= UVolumeBoundKeys() &&
+    VolumeBoundKeysKeys() <= UVolumeBoundKeysKeys()
   }
   
   ghost function CardinalityKeys():nat { MaxCardinality_map(Model().Keys) }
@@ -642,38 +642,38 @@ trait Map_MapSet_T<K(==), V(==), R(==)> extends MapFamily<map<set<K>, V>, R> {
   ghost function CardinalityKeysKeys():nat { MaxSetKeyCardinality_map_set_t(Model().Keys) }
   ghost function {:opaque} UCardinalityKeysKeys():nat { MaxSetKeyCardinality_map_set_t(Universe().Keys) }
 
-  ghost function Volume():nat { Cardinality() * (1 + VolumeKeys()) }
-  ghost function UVolume():nat { UCardinality() * (1 + UVolumeKeys()) }
-  ghost function VolumeKeys():nat { CardinalityKeys() * (1 + CardinalityKeysKeys()) }
-  ghost function UVolumeKeys():nat { UCardinalityKeys() * (1 + UCardinalityKeysKeys()) }
-  ghost function VolumeKeysKeys():nat { CardinalityKeysKeys() }
-  ghost function UVolumeKeysKeys():nat { UCardinalityKeysKeys() }
+  ghost function VolumeBound():nat { Cardinality() * (1 + VolumeBoundKeys()) }
+  ghost function UVolumeBound():nat { UCardinality() * (1 + UVolumeBoundKeys()) }
+  ghost function VolumeBoundKeys():nat { CardinalityKeys() * (1 + CardinalityKeysKeys()) }
+  ghost function UVolumeBoundKeys():nat { UCardinalityKeys() * (1 + UCardinalityKeysKeys()) }
+  ghost function VolumeBoundKeysKeys():nat { CardinalityKeysKeys() }
+  ghost function UVolumeBoundKeysKeys():nat { UCardinalityKeysKeys() }
 
-  ghost function Size(keyWeight:K -> nat, innerValueWeight:V -> nat, valueWeight:R -> nat):(size:nat)
-    ensures size == StructuralSize(Volume(), LeafBits(keyWeight, innerValueWeight, valueWeight))
-    ensures Volume() <= size && LeafBits(keyWeight, innerValueWeight, valueWeight) <= size
+  ghost function SizeBound(keyWeight:K -> nat, innerValueWeight:V -> nat, valueWeight:R -> nat):(size:nat)
+    ensures size == RepresentationSizeBound(VolumeBound(), LeafBits(keyWeight, innerValueWeight, valueWeight))
+    ensures VolumeBound() <= size && LeafBits(keyWeight, innerValueWeight, valueWeight) <= size
     ensures Cardinality() <= size && CardinalityKeys() <= size && CardinalityKeysKeys() <= size
-    ensures VolumeKeys() <= size && VolumeKeysKeys() <= size
+    ensures VolumeBoundKeys() <= size && VolumeBoundKeysKeys() <= size
     ensures 1 <= size
-    ensures Valid() ==> size <= USize(keyWeight, innerValueWeight, valueWeight)
+    ensures Valid() ==> size <= USizeBound(keyWeight, innerValueWeight, valueWeight)
   {
-    assert CardinalityKeysKeys() <= VolumeKeys();
-    assert VolumeKeys() <= Volume();
+    assert CardinalityKeysKeys() <= VolumeBoundKeys();
+    assert VolumeBoundKeys() <= VolumeBound();
     representation_submap_map_mapset_t(Model(), Universe(), keyWeight, innerValueWeight, valueWeight, Valid());
-    RepresentationSize_map_mapset_t(Model(), keyWeight, innerValueWeight, valueWeight)
+    RepresentationSizeBound_map_mapset_t(Model(), keyWeight, innerValueWeight, valueWeight)
   }
 
-  ghost function USize(keyWeight:K -> nat, innerValueWeight:V -> nat, valueWeight:R -> nat):(size:nat)
-    ensures size == StructuralSize(UVolume(), ULeafBits(keyWeight, innerValueWeight, valueWeight))
-    ensures UVolume() <= size && ULeafBits(keyWeight, innerValueWeight, valueWeight) <= size
+  ghost function USizeBound(keyWeight:K -> nat, innerValueWeight:V -> nat, valueWeight:R -> nat):(size:nat)
+    ensures size == RepresentationSizeBound(UVolumeBound(), ULeafBits(keyWeight, innerValueWeight, valueWeight))
+    ensures UVolumeBound() <= size && ULeafBits(keyWeight, innerValueWeight, valueWeight) <= size
     ensures UCardinality() <= size && UCardinalityKeys() <= size && UCardinalityKeysKeys() <= size
-    ensures UVolumeKeys() <= size && UVolumeKeysKeys() <= size
+    ensures UVolumeBoundKeys() <= size && UVolumeBoundKeysKeys() <= size
     ensures 1 <= size
   {
     reveal UCardinalityKeys(), UCardinalityKeysKeys();
-    assert UCardinalityKeysKeys() <= UVolumeKeys();
-    assert UVolumeKeys() <= UVolume();
-    RepresentationSize_map_mapset_t(Universe(), keyWeight, innerValueWeight, valueWeight)
+    assert UCardinalityKeysKeys() <= UVolumeBoundKeys();
+    assert UVolumeBoundKeys() <= UVolumeBound();
+    RepresentationSizeBound_map_mapset_t(Universe(), keyWeight, innerValueWeight, valueWeight)
   }
 
   ghost function LeafBits(keyWeight:K -> nat, innerValueWeight:V -> nat, valueWeight:R -> nat):(bits:nat)
@@ -689,10 +689,10 @@ trait Map_MapSet_T<K(==), V(==), R(==)> extends MapFamily<map<set<K>, V>, R> {
 
   ghost function Cost(work:nat, operandSize:nat, context:NestedMapContext<K,V,R>):(cost:nat)
     ensures
-      (work <= context.bound+1 && Size(context.keyWeight, context.innerValueWeight, context.valueWeight) <= context.bound && operandSize <= context.bound)
+      (work <= context.bound+1 && SizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight) <= context.bound && operandSize <= context.bound)
       ==> (cost <= BudgetPrimitiveStep(context.bound))
   {
-    var size := Size(context.keyWeight, context.innerValueWeight, context.valueWeight);
+    var size := SizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight);
     collection_step_bound(work, size, operandSize, context.bound);
     CostRepresentation(work, size, operandSize)
   }
@@ -701,16 +701,16 @@ trait Map_MapSet_T<K(==), V(==), R(==)> extends MapFamily<map<set<K>, V>, R> {
     requires Valid()
     requires key.Model() in Model().Keys
     ensures value == Model()[key.Model()]
-    ensures context.valueWeight(value) <= Size(context.keyWeight, context.innerValueWeight, context.valueWeight)
+    ensures context.valueWeight(value) <= SizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight)
     ensures counter_out == counter_in + Cost(TraversalWork(),
-      key.Size(context.keyWeight, context.innerValueWeight), context)
+      key.SizeBound(context.keyWeight, context.innerValueWeight), context)
 
 
   method ContainsKey(key:Map_Set_T<K, V>, ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>) returns (contains:bool, ghost counter_out:nat)
     requires Valid()
     ensures contains == (key.Model() in Model().Keys)
     ensures counter_out == counter_in + Cost(TraversalWork(),
-      key.Size(context.keyWeight, context.innerValueWeight), context)
+      key.SizeBound(context.keyWeight, context.innerValueWeight), context)
 
   method Insert(key:Map_Set_T<K, V>, value:R, ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>)
       returns (result:Map_MapSet_T<K, V, R>, ghost counter_out:nat)
@@ -725,7 +725,7 @@ trait Map_MapSet_T<K(==), V(==), R(==)> extends MapFamily<map<set<K>, V>, R> {
           MaxLeafWeight(ULeafBits(context.keyWeight, context.innerValueWeight, context.valueWeight),
             MaxLeafWeight(key.LeafBits(context.keyWeight, context.innerValueWeight), context.valueWeight(value)))
     ensures counter_out == counter_in + Cost(TraversalWork(),
-      key.Size(context.keyWeight, context.innerValueWeight) + context.valueWeight(value), context)
+      key.SizeBound(context.keyWeight, context.innerValueWeight) + context.valueWeight(value), context)
 
 
   method Remove(key:Map_Set_T<K, V>, ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>)
@@ -740,10 +740,10 @@ trait Map_MapSet_T<K(==), V(==), R(==)> extends MapFamily<map<set<K>, V>, R> {
     ensures result.Model() == Model() - {key.Model()}
     ensures result.Universe() == Universe()
     ensures result.Keys() == Keys() - {key.Model()}
-    ensures result.Size(context.keyWeight, context.innerValueWeight, context.valueWeight) <= Size(context.keyWeight, context.innerValueWeight, context.valueWeight)
-    ensures result.USize(context.keyWeight, context.innerValueWeight, context.valueWeight) == USize(context.keyWeight, context.innerValueWeight, context.valueWeight)
+    ensures result.SizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight) <= SizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight)
+    ensures result.USizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight) == USizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight)
     ensures counter_out == counter_in + Cost(TraversalWork(),
-      key.Size(context.keyWeight, context.innerValueWeight), context)
+      key.SizeBound(context.keyWeight, context.innerValueWeight), context)
 
 
   method PickKey(ghost counter_in:nat, ghost context:NestedMapContext<K,V,R>) returns (key:Map_Set_T<K, V>, ghost counter_out:nat)
@@ -754,12 +754,12 @@ trait Map_MapSet_T<K(==), V(==), R(==)> extends MapFamily<map<set<K>, V>, R> {
     ensures key.UCardinality() <= UCardinalityKeys()
     ensures key.CardinalityKeys() <= UCardinalityKeysKeys()
     ensures key.UCardinalityKeys() <= UCardinalityKeysKeys()
-    ensures key.Volume() <= UVolumeKeys()
-    ensures key.UVolume() <= UVolumeKeys()
+    ensures key.VolumeBound() <= UVolumeBoundKeys()
+    ensures key.UVolumeBound() <= UVolumeBoundKeys()
     ensures key.Model() in Model().Keys
     ensures key.Universe() == key.Model()
-    ensures key.USize(context.keyWeight, context.innerValueWeight) == key.Size(context.keyWeight, context.innerValueWeight)
-    ensures key.Size(context.keyWeight, context.innerValueWeight) <= Size(context.keyWeight, context.innerValueWeight, context.valueWeight)
+    ensures key.USizeBound(context.keyWeight, context.innerValueWeight) == key.SizeBound(context.keyWeight, context.innerValueWeight)
+    ensures key.SizeBound(context.keyWeight, context.innerValueWeight) <= SizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight)
     ensures key.ULeafBits(context.keyWeight, context.innerValueWeight) <= LeafBits(context.keyWeight, context.innerValueWeight, context.valueWeight)
     ensures counter_out == counter_in + Cost(key.TraversalWork(), 0, context)
 
@@ -782,8 +782,8 @@ trait Map_MapSet_T<K(==), V(==), R(==)> extends MapFamily<map<set<K>, V>, R> {
     ensures result.UCardinalityKeysKeys() <= UCardinalityKeysKeys()
     ensures result.Model() == Model()
     ensures result.Universe() == Model()
-    ensures result.Size(context.keyWeight, context.innerValueWeight, context.valueWeight) == Size(context.keyWeight, context.innerValueWeight,
-        context.valueWeight) && result.USize(context.keyWeight, context.innerValueWeight, context.valueWeight) == Size(context.keyWeight,
+    ensures result.SizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight) == SizeBound(context.keyWeight, context.innerValueWeight,
+        context.valueWeight) && result.USizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight) == SizeBound(context.keyWeight,
         context.innerValueWeight, context.valueWeight)
     ensures counter_out == counter_in + Cost(TraversalWork(), 0, context)
 
@@ -798,10 +798,10 @@ trait Map_MapSet_T<K(==), V(==), R(==)> extends MapFamily<map<set<K>, V>, R> {
   }
 
   lemma u_size_bound(volume:nat, bits:nat, keyWeight:K -> nat, innerValueWeight:V -> nat, valueWeight:R -> nat)
-    requires UVolume() <= volume && ULeafBits(keyWeight, innerValueWeight, valueWeight) <= bits && 1 <= bits
-    ensures USize(keyWeight, innerValueWeight, valueWeight) <= StructuralSize(volume, bits)
+    requires UVolumeBound() <= volume && ULeafBits(keyWeight, innerValueWeight, valueWeight) <= bits && 1 <= bits
+    ensures USizeBound(keyWeight, innerValueWeight, valueWeight) <= RepresentationSizeBound(volume, bits)
   {
-    structural_size_monotonic(UVolume(), ULeafBits(keyWeight, innerValueWeight, valueWeight), volume, bits);
+    representation_size_bound_monotonic(UVolumeBound(), ULeafBits(keyWeight, innerValueWeight, valueWeight), volume, bits);
   }
 
   lemma {:isolate_assertions} universe_within_bound(U:Map_MapSet_T<K, V, R>, context:NestedMapContext<K,V,R>)
@@ -811,11 +811,11 @@ trait Map_MapSet_T<K(==), V(==), R(==)> extends MapFamily<map<set<K>, V>, R> {
     ensures Cardinality() <= UCardinality() <= U.Cardinality() <= U.UCardinality()
     ensures CardinalityKeys() <= UCardinalityKeys() <= U.CardinalityKeys() <= U.UCardinalityKeys()
     ensures CardinalityKeysKeys() <= UCardinalityKeysKeys() <= U.CardinalityKeysKeys() <= U.UCardinalityKeysKeys()
-    ensures Volume() <= UVolume() <= U.Volume() <= U.UVolume()
-    ensures VolumeKeys() <= UVolumeKeys() <= U.VolumeKeys() <= U.UVolumeKeys()
-    ensures VolumeKeysKeys() <= UVolumeKeysKeys() <= U.VolumeKeysKeys() <= U.UVolumeKeysKeys()
-    ensures Size(context.keyWeight, context.innerValueWeight, context.valueWeight) <= USize(context.keyWeight, context.innerValueWeight,
-        context.valueWeight) <= U.Size(context.keyWeight, context.innerValueWeight, context.valueWeight) <= U.USize(context.keyWeight,
+    ensures VolumeBound() <= UVolumeBound() <= U.VolumeBound() <= U.UVolumeBound()
+    ensures VolumeBoundKeys() <= UVolumeBoundKeys() <= U.VolumeBoundKeys() <= U.UVolumeBoundKeys()
+    ensures VolumeBoundKeysKeys() <= UVolumeBoundKeysKeys() <= U.VolumeBoundKeysKeys() <= U.UVolumeBoundKeysKeys()
+    ensures SizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight) <= USizeBound(context.keyWeight, context.innerValueWeight,
+        context.valueWeight) <= U.SizeBound(context.keyWeight, context.innerValueWeight, context.valueWeight) <= U.USizeBound(context.keyWeight,
         context.innerValueWeight, context.valueWeight)
     ensures LeafBits(context.keyWeight, context.innerValueWeight, context.valueWeight) <= ULeafBits(context.keyWeight, context.innerValueWeight,
         context.valueWeight) <= U.LeafBits(context.keyWeight, context.innerValueWeight, context.valueWeight) <= U.ULeafBits(context.keyWeight,
@@ -827,18 +827,18 @@ trait Map_MapSet_T<K(==), V(==), R(==)> extends MapFamily<map<set<K>, V>, R> {
     max_by_monotonic(Universe().Keys, U.Model().Keys, item => |item|);
     max_by_monotonic(Universe().Keys, U.Model().Keys, KeyCardinality_map_set_t);
     nonnegative_product_monotonic(UCardinalityKeys(), 1 + UCardinalityKeysKeys(), U.CardinalityKeys(), 1 + U.CardinalityKeysKeys());
-    nonnegative_product_monotonic(UCardinality(), 1 + UVolumeKeys(), U.Cardinality(), 1 + U.VolumeKeys());
+    nonnegative_product_monotonic(UCardinality(), 1 + UVolumeBoundKeys(), U.Cardinality(), 1 + U.VolumeBoundKeys());
   }
 
   lemma u_volume_bound(count:nat, keys:nat, elements:nat)
     requires UCardinality() <= count && UCardinalityKeys() <= keys
     requires UCardinalityKeysKeys() <= elements
-    ensures UVolume() <= count*(1+keys*(1+elements))
-    ensures UVolumeKeys() <= keys*(1+elements)
-    ensures UVolumeKeysKeys() <= elements
+    ensures UVolumeBound() <= count*(1+keys*(1+elements))
+    ensures UVolumeBoundKeys() <= keys*(1+elements)
+    ensures UVolumeBoundKeysKeys() <= elements
   {
     nonnegative_product_monotonic(UCardinalityKeys(), 1 + UCardinalityKeysKeys(), keys, 1 + elements);
-    nonnegative_product_monotonic(UCardinality(), 1 + UVolumeKeys(), count, 1 + keys*(1+elements));
+    nonnegative_product_monotonic(UCardinality(), 1 + UVolumeBoundKeys(), count, 1 + keys*(1+elements));
   }
 
   lemma u_cardinality_keys_bound(bound:nat)

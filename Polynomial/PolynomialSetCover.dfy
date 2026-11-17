@@ -1,10 +1,10 @@
+include "../Foundations/RepresentationBounds.dfy"
 include "../Problems/SetSystemRepresentation.dfy"
-include "../Problems/SetSystemCollections.dfy"
-include "../Problems/SetCoverLemmas.dfy"
-include "../Problems/HittingSetLemmas.dfy"
-include "../Foundations/PolynomialBounds.dfy"
-include "../Foundations/CollectionSizes.dfy"
-include "../Foundations/Collections.dfy"
+include "../Problems/SetCover.dfy"
+include "../Problems/HittingSet.dfy"
+include "../Arithmetic/PolynomialBounds.dfy"
+include "../Foundations/ExactCollectionSizes.dfy"
+include "../Foundations/CollectionLaws.dfy"
 include "../Foundations/LoopCosts.dfy"
 include "../Arithmetic/CostedArithmetic.dfy"
 // Complexity models and polynomial bounds for SetCover verification,
@@ -22,10 +22,10 @@ lemma budget_verify_set_cover_is_polynomial()
 }
 
 lemma set_cover_certificate_size_is_polynomial()
-  ensures HasPolynomialBound((n:nat) => true, (n:nat) => n, BoundSetCoverCertificateSize, SetCoverCertificateSizeCoefficient, 1)
-  ensures IsPolynomial((n:nat) => true, (n:nat) => n, BoundSetCoverCertificateSize)
+  ensures HasPolynomialBound((n:nat) => true, (n:nat) => n, BudgetSetCoverCertificateSize, SetCoverCertificateSizeCoefficient, 1)
+  ensures IsPolynomial((n:nat) => true, (n:nat) => n, BudgetSetCoverCertificateSize)
 {
-  polynomial_witness((n:nat) => true, (n:nat) => n, BoundSetCoverCertificateSize, SetCoverCertificateSizeCoefficient, 1);
+  polynomial_witness((n:nat) => true, (n:nat) => n, BudgetSetCoverCertificateSize, SetCoverCertificateSizeCoefficient, 1);
 }
 
 lemma budget_transform_hitting_set_to_set_cover_is_polynomial()
@@ -36,10 +36,10 @@ lemma budget_transform_hitting_set_to_set_cover_is_polynomial()
 }
 
 lemma hitting_set_to_set_cover_output_size_is_polynomial()
-  ensures HasPolynomialBound((n:nat) => true, (n:nat) => n, BoundHittingSetToSetCoverOutputSize, HittingSetToSetCoverOutputSizeCoefficient, 12)
-  ensures IsPolynomial((n:nat) => true, (n:nat) => n, BoundHittingSetToSetCoverOutputSize)
+  ensures HasPolynomialBound((n:nat) => true, (n:nat) => n, BudgetHittingSetToSetCoverOutputSize, HittingSetToSetCoverOutputSizeCoefficient, 12)
+  ensures IsPolynomial((n:nat) => true, (n:nat) => n, BudgetHittingSetToSetCoverOutputSize)
 {
-  polynomial_witness((n:nat) => true, (n:nat) => n, BoundHittingSetToSetCoverOutputSize, HittingSetToSetCoverOutputSizeCoefficient, 12);
+  polynomial_witness((n:nat) => true, (n:nat) => n, BudgetHittingSetToSetCoverOutputSize, HittingSetToSetCoverOutputSizeCoefficient, 12);
 }
 
 
@@ -47,26 +47,30 @@ lemma hitting_set_to_set_cover_output_size_is_polynomial()
 
 // This corollary is included for completeness and is not needed by the complexity analyses.
 // It expresses the verifier budget in terms of the instance size for a short certificate.
-lemma budget_verify_set_cover_short_input_bound(U:Set<int>, S:SetSet<int>, k:nat, certificate:SetSet<int>)
-  requires SetCoverCertificateSize(certificate.Model(), IntBits) <=
-           BoundSetCoverCertificateSize(SetSystemInstanceSize(U.Model(), S.Model(), k, IntBits))
-  ensures BudgetVerifySetCover(SetCoverInputSize(U.Model(), S.Model(), k, certificate.Model(), IntBits)) <=
-          VerifySetCoverBudgetCoefficient*NatPower(3, 15)*NatPower(SetSystemInstanceSize(U.Model(), S.Model(), k, IntBits)+1, 15)
+lemma budget_verify_set_cover_short_input_bound<T>(instance:SetSystemInstance<T>, certificate:SetSet<T>, weight:T -> nat)
+  requires SetCoverCertificateSize(certificate.Model(), weight) <=
+           BudgetSetCoverCertificateSize(SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight))
+  ensures var instanceSize := SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight);
+    var input := SetCoverInputSize(instance.universe.Model(), instance.sets.Model(), instance.k, certificate.Model(), weight);
+    BudgetVerifySetCover(input) <= VerifySetCoverBudgetCoefficient*NatPower(3, 15)*NatPower(instanceSize+1, 15)
 {
-  var input := SetCoverInputSize(U.Model(), S.Model(), k, certificate.Model(), IntBits);
-  var instance := SetSystemInstanceSize(U.Model(), S.Model(), k, IntBits);
-  assert input <= 2*instance;
-  polynomial_size_substitution(instance, input, BudgetVerifySetCover(input), 2, 1, VerifySetCoverBudgetCoefficient, 15);
+  var U, S, k := instance.universe, instance.sets, instance.k;
+  var input := SetCoverInputSize(U.Model(), S.Model(), k, certificate.Model(), weight);
+  var instanceSize := SetSystemInstanceSize(U.Model(), S.Model(), k, weight);
+  assert input <= 2*instanceSize;
+  polynomial_size_substitution(instanceSize, input, BudgetVerifySetCover(input), 2, 1, VerifySetCoverBudgetCoefficient, 15);
 }
 
-lemma budget_verify_set_cover_input_bound(U:Set<int>, S:SetSet<int>, k:nat, certificate:SetSet<int>)
-  ensures BudgetVerifySetCoverPhase(SetCoverOperandSizeBound(U,S,k,certificate)) <=
-          BudgetVerifySetCover(SetCoverInputSize(U.Model(), S.Model(), k, certificate.Model(), IntBits))
+lemma budget_verify_set_cover_input_bound<T>(instance:SetSystemInstance<T>, certificate:SetSet<T>, weight:T -> nat)
+  ensures BudgetVerifySetCoverPhase(SetCoverInputSizeBound(instance, certificate, weight)) <=
+          BudgetVerifySetCover(SetCoverInputSize(instance.universe.Model(), instance.sets.Model(), instance.k, certificate.Model(), weight))
 {
-  set_cover_phase_size_bound(U,S,k,certificate);
-  set_cover_budget_polynomial(SetCoverOperandSizeBound(U,S,k,certificate));
-  polynomial_size_substitution(SetCoverInputSize(U.Model(), S.Model(), k, certificate.Model(), IntBits),SetCoverOperandSizeBound(U,S,k,certificate),
-    BudgetVerifySetCoverPhase(SetCoverOperandSizeBound(U,S,k,certificate)),21,3,364,5);
+  var U, S, k := instance.universe, instance.sets, instance.k;
+  var input := SetCoverInputSize(U.Model(), S.Model(), k, certificate.Model(), weight);
+  var size := SetCoverInputSizeBound(instance, certificate, weight);
+  set_cover_input_size_bound_polynomial(instance, certificate, weight);
+  set_cover_budget_polynomial(size);
+  polynomial_size_substitution(input, size, BudgetVerifySetCoverPhase(size), 21, 3, 364, 5);
 }
 
 // Every correct certificate is a subset of S. This exact linear result needs
@@ -75,65 +79,74 @@ lemma set_cover_certificate_instance_size_bound<T>(universe:set<T>, sets:set<set
     certificate:set<set<T>>, weight:T -> nat)
   requires certificate <= sets
   ensures SetCoverCertificateSize(certificate, weight) <=
-          BoundSetCoverCertificateSize(SetSystemInstanceSize(universe, sets, k, weight))
+          BudgetSetCoverCertificateSize(SetSystemInstanceSize(universe, sets, k, weight))
 {
   size_subset_set(certificate, sets, member => Size_set(member, weight));
 }
 
-lemma budget_transform_hitting_set_to_set_cover_input_bound(U:Set<int>, S:SetSet<int>, k:nat)
-  ensures BudgetTransformHittingSetToSetCoverPhase(HittingSetPhaseSizeBound(U,S,k)) <= BudgetTransformHittingSetToSetCover(SetSystemInstanceSize(U.Model(), S.Model(), k, IntBits))
+lemma budget_transform_hitting_set_to_set_cover_input_bound<T>(instance:SetSystemInstance<T>, weight:T -> nat)
+  ensures BudgetTransformHittingSetToSetCoverPhase(SetSystemInstanceSizeBound(instance, weight)) <=
+    BudgetTransformHittingSetToSetCover(SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight))
 {
-  hitting_set_phase_size_bound(U,S,k);
-  hitting_set_budget_polynomial(HittingSetPhaseSizeBound(U,S,k));
-  polynomial_size_substitution(SetSystemInstanceSize(U.Model(), S.Model(), k, IntBits),HittingSetPhaseSizeBound(U,S,k),
-    BudgetTransformHittingSetToSetCoverPhase(HittingSetPhaseSizeBound(U,S,k)),17,3,258048,14);
+  var U, S, k := instance.universe, instance.sets, instance.k;
+  var input := SetSystemInstanceSize(U.Model(), S.Model(), k, weight);
+  var size := SetSystemInstanceSizeBound(instance, weight);
+  set_system_instance_size_bound_polynomial(instance, weight);
+  hitting_set_budget_polynomial(size);
+  polynomial_size_substitution(input, size, BudgetTransformHittingSetToSetCoverPhase(size), 17, 3, 258048, 14);
 }
 
-lemma {:isolate_assertions} hitting_set_output_input_bound(U:Set<int>, S:SetSet<int>, k:nat, r:SetCoverSetIntInstance)
-  requires r.0.Model() == S.Model()
-  requires r.1.Size(IntBits) <= HittingSetOperandSizeBound(HittingSetPhaseSizeBound(U,S,k))
-  requires NatBits(r.2) <= NatBits(k)
-  ensures SetSystemInstanceSize(r.0.Model(), r.1.Model(), r.2, Size_setint) <= BoundHittingSetToSetCoverOutputSize(SetSystemInstanceSize(U.Model(), S.Model(), k, IntBits))
-  ensures HittingSetOutputOperandSizeBound(r) <= BoundHittingSetToSetCoverOutputSize(SetSystemInstanceSize(U.Model(), S.Model(), k, IntBits))
+lemma hitting_set_output_input_bound<T>(instance:SetSystemInstance<T>, r:SetCoverSetInstance<T>, weight:T -> nat)
+  requires r.universe.Model() == instance.sets.Model()
+  requires r.sets.SizeBound(weight) <= HittingSetConstructionSizeBound(SetSystemInstanceSizeBound(instance, weight))
+  requires NatBits(r.k) <= NatBits(instance.k)
+  ensures SetSystemInstanceSize(r.universe.Model(), r.sets.Model(), r.k, member => Size_set(member, weight)) <=
+    BudgetHittingSetToSetCoverOutputSize(SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight))
 {
-  var n := HittingSetPhaseSizeBound(U,S,k);
-  representation_bound_setset(r.0.Model(), IntBits);
-  size_extensional_set(r.0.Model(), Size_setint, child => Size_set(child, IntBits));
-  representation_bound_setsetset(r.1.Model(), IntBits);
-  forall sets | sets in r.1.Model()
-    ensures Size_setsetint(sets) == Size_set(sets, child => Size_set(child, IntBits))
-  {
-    size_extensional_set(sets, Size_setint, child => Size_set(child, IntBits));
-  }
-  size_extensional_set(r.1.Model(), Size_setsetint, sets => Size_set(sets, child => Size_set(child, IntBits)));
-  size_extensional_set(r.1.Model(), Size_setsetint, sets => Size_set(sets, Size_setint));
-  assert SetSystemInstanceSize(r.0.Model(), r.1.Model(), r.2, Size_setint) <=
-    1+r.0.Size(IntBits)+r.1.Size(IntBits)+NatBits(r.2);
-  hitting_set_operand_polynomial_bound(n);
-  assert r.0.Size(IntBits) == S.Size(IntBits);
+  var U, S, k := instance.universe, instance.sets, instance.k;
+  var input := SetSystemInstanceSize(U.Model(), S.Model(), k, weight);
+  var n := SetSystemInstanceSizeBound(instance, weight);
+  var output := SetSystemInstanceSize(r.universe.Model(), r.sets.Model(), r.k, member => Size_set(member, weight));
+  representation_bound_setset(r.universe.Model(), weight);
+  representation_bound_setsetset(r.sets.Model(), weight);
+  assert output <= 1+r.universe.SizeBound(weight)+r.sets.SizeBound(weight)+NatBits(r.k);
+  assert r.universe.SizeBound(weight) == S.SizeBound(weight);
+  hitting_set_construction_size_bound_polynomial(n);
   polynomial_degree_weaken(n, 1+2*n, 3, 1, 4);
-  assert HittingSetOutputOperandSizeBound(r) <= 10*NatPower(n+1,4);
-  hitting_set_phase_size_bound(U,S,k);
-  polynomial_size_substitution(SetSystemInstanceSize(U.Model(), S.Model(), k, IntBits), n, HittingSetOutputOperandSizeBound(r), 17,3,10,4);
+  set_system_instance_size_bound_polynomial(instance, weight);
+  polynomial_size_substitution(input, n, output, 17, 3, 10, 4);
 }
 
 
-lemma set_cover_phase_size_bound(U:Set<int>, S:SetSet<int>, k:nat, certificate:SetSet<int>)
-  ensures SetCoverOperandSizeBound(U,S,k,certificate) <= 21*NatPower(SetCoverInputSize(U.Model(), S.Model(), k, certificate.Model(), IntBits)+1,3)
+lemma set_cover_input_size_bound_polynomial<T>(instance:SetSystemInstance<T>, certificate:SetSet<T>, weight:T -> nat)
+  ensures var input := SetCoverInputSize(instance.universe.Model(), instance.sets.Model(), instance.k, certificate.Model(), weight);
+    input <= SetCoverInputSizeBound(instance, certificate, weight) <= 21*NatPower(input+1, 3)
 {
-  var input := SetCoverInputSize(U.Model(), S.Model(), k, certificate.Model(), IntBits);
-  representation_bound_set(U.Model(),IntBits);
-  representation_bound_setset(S.Model(),IntBits);
-  representation_bound_setset(certificate.Model(),IntBits);
-  assert U.Size(IntBits) <= 4*NatPower(Size_setint(U.Model())+1,2);
-  assert S.Size(IntBits) <= 7*NatPower(Size_setsetint(S.Model())+1,3);
-  assert certificate.Size(IntBits) <= 7*NatPower(Size_setsetint(certificate.Model())+1,3);
-  assert NatBits(k) <= input;
-  polynomial_base_monotonic(Size_setint(U.Model())+1,input+1,2);
-  polynomial_base_monotonic(Size_setsetint(S.Model())+1,input+1,3);
-  polynomial_base_monotonic(Size_setsetint(certificate.Model())+1,input+1,3);
-  polynomial_degree_weaken(input,U.Size(IntBits),4,2,3);
-  polynomial_degree_weaken(input,input,1,1,3);
+  var U, S, k := instance.universe, instance.sets, instance.k;
+  var input := SetCoverInputSize(U.Model(), S.Model(), k, certificate.Model(), weight);
+  var instanceSize := SetSystemInstanceSize(U.Model(), S.Model(), k, weight);
+  var certificateSize := SetCoverCertificateSize(certificate.Model(), weight);
+  set_system_instance_size_bound_polynomial(instance, weight);
+  representation_bound_setset(certificate.Model(), weight);
+  weighted_monomial_bound(instanceSize+1, input, 3, 3, 12);
+  weighted_monomial_bound(certificateSize+1, input, 3, 3, 7);
+  reveal SetCoverInputSizeBound();
+}
+
+lemma set_system_instance_size_bound_polynomial<T>(instance:SetSystemInstance<T>, weight:T -> nat)
+  ensures var input := SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight);
+    input <= SetSystemInstanceSizeBound(instance, weight) <= 12*NatPower(input+1, 3)
+{
+  var U, S, k := instance.universe, instance.sets, instance.k;
+  var input := SetSystemInstanceSize(U.Model(), S.Model(), k, weight);
+  var universeSize := Size_set(U.Model(), weight);
+  var familySize := Size_set(S.Model(), member => Size_set(member, weight));
+  representation_bound_set(U.Model(), weight);
+  representation_bound_setset(S.Model(), weight);
+  weighted_monomial_bound(universeSize+1, input, 2, 3, 4);
+  weighted_monomial_bound(familySize+1, input, 3, 3, 7);
+  weighted_monomial_bound(1+NatBits(k), input, 1, 3, 1);
+  reveal SetSystemInstanceSizeBound();
 }
 
 // Polynomial primitive work in the public size envelope; no structural-only
@@ -155,26 +168,10 @@ lemma set_cover_budget_polynomial(n:nat)
   polynomial_sum_bound(n,BudgetCheckSetCoverCertificateAdmissible(n),BudgetVerifySetCoverCore(n),140,224,4,5,5);
 }
 
-lemma hitting_set_phase_size_bound(U:Set<int>, S:SetSet<int>, k:nat)
-  ensures HittingSetPhaseSizeBound(U,S,k) <= 17*NatPower(SetSystemInstanceSize(U.Model(), S.Model(), k, IntBits)+1,3)
-{
-  var input := SetSystemInstanceSize(U.Model(), S.Model(), k, IntBits);
-  representation_bound_set(U.Model(),IntBits);
-  representation_bound_setset(S.Model(),IntBits);
-  assert U.Size(IntBits) <= 4*NatPower(Size_setint(U.Model())+1,2);
-  assert S.Size(IntBits) <= 7*NatPower(Size_setsetint(S.Model())+1,3);
-  assert NatBits(k) <= input;
-  assert {:split_here} true;
-  polynomial_base_monotonic(Size_setint(U.Model())+1,input+1,2);
-  polynomial_base_monotonic(Size_setsetint(S.Model())+1,input+1,3);
-  polynomial_degree_weaken(input,U.Size(IntBits),4,2,3);
-  polynomial_degree_weaken(input,input+2,3,1,3);
-}
-
 lemma {:isolate_assertions} hitting_set_budget_polynomial(n:nat)
   ensures BudgetTransformHittingSetToSetCoverPhase(n) <= 258048*NatPower(n+1,14)
 {
-  var size := HittingSetOperandSizeBound(n);
+  var size := HittingSetConstructionSizeBound(n);
   var primitiveBudget := BudgetPrimitiveStep(size);
   reveal BudgetBuildIncidenceSet();
   hitting_set_primitive_polynomial(n);
@@ -190,62 +187,62 @@ lemma {:isolate_assertions} hitting_set_budget_polynomial(n:nat)
     n*BudgetBuildIncidenceSet(n),10*12288,11*12288,14,14,14);
 }
 
-lemma {:isolate_assertions} hitting_set_primitive_polynomial(n:nat)
-  ensures BudgetPrimitiveStep(HittingSetOperandSizeBound(n)) <= 12288*NatPower(n+1,12)
+lemma hitting_set_primitive_polynomial(n:nat)
+  ensures BudgetPrimitiveStep(HittingSetConstructionSizeBound(n)) <= 12288*NatPower(n+1,12)
 {
-  var size := HittingSetOperandSizeBound(n);
+  var size := HittingSetConstructionSizeBound(n);
   budget_primitive_step_polynomial(size);
-  hitting_set_operand_polynomial_bound(n);
+  hitting_set_construction_size_bound_polynomial(n);
   polynomial_size_substitution(n,size,BudgetPrimitiveStep(size),7,4,24,3);
   assert {:fuel NatPower,4} NatPower(8,3) == 512;
 }
 
-// Weighted primitive work; constant control is absorbed by the source audit.
-lemma {:isolate_assertions} hitting_set_operand_polynomial_bound(n:nat)
-  ensures HittingSetOperandSizeBound(n) <= 7*NatPower(n+1,4)
+// Bound the construction's representation sizes in the source scale.
+lemma hitting_set_construction_size_bound_polynomial(n:nat)
+  ensures HittingSetConstructionSizeBound(n) <= 7*NatPower(n+1,4)
 {
-  reveal HittingSetOperandSizeBound();
+  reveal HittingSetConstructionSizeBound();
   polynomial_product_bound(n,n,1+n,1,1,1,1);
-  structural_volume_polynomial(n,n*(1+n),n,1,2);
-  structural_size_polynomial(n*(1+n*(1+n)),n+1,n,2,3);
+  structural_volume_bound_polynomial(n,n*(1+n),n,1,2);
+  representation_size_bound_polynomial(n*(1+n*(1+n)),n+1,n,2,3);
 }
 
 // A fixed output universe may contain repeated or empty incidence sets of sets.
 // Bound its dimensions and all leaves once, before the executable traversal.
-lemma hitting_set_output_size_bound(S:SetSet<int>, SS:SetSetSet<int>, n:nat)
+lemma hitting_set_output_size_bound<T>(S:SetSet<T>, SS:SetSetSet<T>, weight:T -> nat, n:nat)
   requires S.Valid() && SS.Valid()
   requires SS.UCardinality() <= n && S.Cardinality() <= n && S.Cardinality1() <= n
-  requires S.LeafBits(IntBits) <= n+1
+  requires S.LeafBits(weight) <= n+1
   requires forall setSet | setSet in SS.Universe() :: setSet <= S.Model()
-  ensures SS.USize(IntBits) <= HittingSetOperandSizeBound(n)
+  ensures SS.USizeBound(weight) <= HittingSetConstructionSizeBound(n)
 {
   forall setSet | setSet in SS.Universe()
     ensures |setSet| <= n && MaxCardinality_set(setSet) <= n
-    ensures MaxLeafBits_setset(setSet,IntBits) <= n+1
+    ensures MaxLeafBits_setset(setSet,weight) <= n+1
   {
     subset_cardinality_bound_set(setSet,S.Model());
     max_by_monotonic(setSet,S.Model(),item => |item|);
-    representation_subset_setset(setSet,S.Model(),IntBits);
+    representation_subset_setset(setSet,S.Model(),weight);
   }
   SS.u_cardinality1_bound(n);
   SS.u_cardinality2_bound(n);
   SS.u_volume_bound(n,n,n);
-  SS.u_leaf_bits_bound(n+1,IntBits);
-  SS.u_size_bound(n*(1+n*(1+n)),n+1,IntBits);
-  reveal HittingSetOperandSizeBound();
+  SS.u_leaf_bits_bound(n+1,weight);
+  SS.u_size_bound(n*(1+n*(1+n)),n+1,weight);
+  reveal HittingSetConstructionSizeBound();
 }
 
-lemma hitting_set_singleton_universe_bounds(S:SetSet<int>, SS:SetSetSet<int>)
+lemma hitting_set_singleton_universe_bounds<T>(S:SetSet<T>, SS:SetSetSet<T>)
   requires S.Valid() && SS.Valid()
   requires SS.Universe() == (set s | s in S.Model() :: {s})
-  ensures SS.UVolume1() <= 1 + S.UVolume1()
+  ensures SS.UVolumeBound1() <= 1 + S.UVolumeBound1()
   ensures SS.UCardinality1() <= 1
   ensures SS.UCardinality2() <= S.UCardinality1()
-  ensures SS.UVolume2() <= S.UVolume1()
+  ensures SS.UVolumeBound2() <= S.UVolumeBound1()
 {
   forall child | child in SS.Universe()
     ensures |child| <= 1
-    ensures MaxCardinality_set(child) <= S.UVolume1()
+    ensures MaxCardinality_set(child) <= S.UVolumeBound1()
   {
     var s :| s in S.Model() && child == {s};
     reveal S.UCardinality1();
@@ -256,17 +253,17 @@ lemma hitting_set_singleton_universe_bounds(S:SetSet<int>, SS:SetSetSet<int>)
   SS.u_cardinality2_bound(S.UCardinality1());
 }
 
-lemma hitting_set_incidence_universe_bounds(U:Set<int>, S:SetSet<int>, SS:SetSetSet<int>)
+lemma hitting_set_incidence_universe_bounds<T>(U:Set<T>, S:SetSet<T>, SS:SetSetSet<T>)
   requires S.Valid() && SS.Valid()
   requires SS.Universe() == (set u | u in U.Model() :: (set s | s in S.Model() && u in s))
-  ensures SS.UVolume1() <= S.UVolume()
+  ensures SS.UVolumeBound1() <= S.UVolumeBound()
   ensures SS.UCardinality1() <= S.UCardinality()
   ensures SS.UCardinality2() <= S.UCardinality1()
-  ensures SS.UVolume2() <= S.UVolume1()
+  ensures SS.UVolumeBound2() <= S.UVolumeBound1()
 {
   forall child | child in SS.Universe()
     ensures |child| <= S.UCardinality()
-    ensures MaxCardinality_set(child) <= S.UVolume1()
+    ensures MaxCardinality_set(child) <= S.UVolumeBound1()
   {
     assert child <= S.Model();
     subset_cardinality_bound_set(child, S.Model());
@@ -283,7 +280,7 @@ ghost function BudgetVerifySetCover(n:nat):(bound:nat)
   ensures bound <= VerifySetCoverBudgetCoefficient*NatPower(n+1, 15)
 { VerifySetCoverBudgetCoefficient*NatPower(n+1, 15) }
 
-ghost function BoundSetCoverCertificateSize(n:nat):(bound:nat)
+ghost function BudgetSetCoverCertificateSize(n:nat):(bound:nat)
   ensures bound <= SetCoverCertificateSizeCoefficient*NatPower(n+1, 1)
 { n }
 
@@ -291,7 +288,7 @@ ghost function BudgetTransformHittingSetToSetCover(n:nat):(bound:nat)
   ensures bound <= HittingSetToSetCoverBudgetCoefficient*NatPower(n+1, 42)
 { HittingSetToSetCoverBudgetCoefficient*NatPower(n+1, 42) }
 
-ghost function BoundHittingSetToSetCoverOutputSize(n:nat):(bound:nat)
+ghost function BudgetHittingSetToSetCoverOutputSize(n:nat):(bound:nat)
   ensures bound <= HittingSetToSetCoverOutputSizeCoefficient*NatPower(n+1, 12)
 { HittingSetToSetCoverOutputSizeCoefficient*NatPower(n+1, 12) }
 
@@ -320,17 +317,13 @@ ghost function {:opaque} BudgetCheckUniverseElement(n:nat):(budget:nat)
 
 ghost function BudgetCheckCoverSet(n:nat):nat { 4*BudgetPrimitiveStep(n) }
 
-// The phase bound includes labels of rejected certificates and the stored k.
-ghost function SetCoverOperandSizeBound(U:Set<int>, S:SetSet<int>, k:nat, certificate:SetSet<int>):nat
-{ U.Size(IntBits)+S.Size(IntBits)+certificate.Size(IntBits)+NatBits(k) }
-
-ghost function {:isolate_assertions} BudgetTransformHittingSetToSetCoverPhase(n:nat):(budget:nat)
-  ensures var size := HittingSetOperandSizeBound(n);
+ghost function BudgetTransformHittingSetToSetCoverPhase(n:nat):(budget:nat)
+  ensures var size := HittingSetConstructionSizeBound(n);
     4*BudgetPrimitiveStep(size)+n*BudgetAddSingletonSourceSet(size) <= budget
-  ensures var size := HittingSetOperandSizeBound(n);
+  ensures var size := HittingSetConstructionSizeBound(n);
     4*BudgetPrimitiveStep(size)+n*BudgetBuildIncidenceSet(n) <= budget
 {
-  var size := HittingSetOperandSizeBound(n);
+  var size := HittingSetConstructionSizeBound(n);
   var setup := 4*BudgetPrimitiveStep(size);
   var singletons := n*BudgetAddSingletonSourceSet(size);
   var incidences := n*BudgetBuildIncidenceSet(n);
@@ -339,34 +332,25 @@ ghost function {:isolate_assertions} BudgetTransformHittingSetToSetCoverPhase(n:
   setup+singletons+incidences
 }
 
-// Bounds growing sets of sets of sets; construction may exceed input size.
-ghost function {:opaque} HittingSetOperandSizeBound(n:nat):(size:nat)
+// Bounds receiver sizes and the total external operand size of each
+// construction operation, including sets of sets of sets.
+ghost function {:opaque} HittingSetConstructionSizeBound(n:nat):(size:nat)
   ensures n <= size && 1 <= size
-{ StructuralSize(n*(1+n*(1+n)),n+1) }
+{ RepresentationSizeBound(n*(1+n*(1+n)),n+1) }
 
 ghost function BudgetAddSingletonSourceSet(size:nat):nat
 { 6*BudgetPrimitiveStep(size) }
 
 ghost function {:opaque} BudgetBuildIncidenceSet(n:nat):(budget:nat)
-  ensures var size := HittingSetOperandSizeBound(n);
+  ensures var size := HittingSetConstructionSizeBound(n);
     4*BudgetPrimitiveStep(size)+n*BudgetAddIncidentSourceSet(size)+2*BudgetPrimitiveStep(size) <= budget
 {
-  var size := HittingSetOperandSizeBound(n);
+  var size := HittingSetConstructionSizeBound(n);
   4*BudgetPrimitiveStep(size)+n*BudgetAddIncidentSourceSet(size)+2*BudgetPrimitiveStep(size)
 }
 
 ghost function BudgetAddIncidentSourceSet(size:nat):nat
 { 5*BudgetPrimitiveStep(size) }
-
-// Phase bound for input representation, dimensions, label weights and stored k.
-// hitting_set_phase_size_bound relates it to canonical source instance size.
-ghost function HittingSetPhaseSizeBound(U:Set<int>, S:SetSet<int>, k:nat):nat
-{ U.Size(IntBits)+S.Size(IntBits)+2+NatBits(k) }
-
-// Auxiliary representation bound used to primitiveBudget output operands; this is not an
-// alternative instance size. It dominates the exact destination size below.
-ghost function HittingSetOutputOperandSizeBound(r:SetCoverSetIntInstance):nat
-{ 1+r.0.Size(IntBits)+r.1.Size(IntBits)+NatBits(r.2) }
 
 // Constants
 

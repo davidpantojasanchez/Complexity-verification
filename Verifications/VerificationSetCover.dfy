@@ -1,82 +1,81 @@
 include "../Polynomial/PolynomialSetCover.dfy"
-include "../Foundations/CollectionSizes.dfy"
+include "../Foundations/ExactCollectionSizes.dfy"
 include "../Problems/SetSystemRepresentation.dfy"
 include "../Arithmetic/CostedArithmetic.dfy"
 include "../Collections/ConcreteSet.dfy"
-include "../Problems/SetCoverLemmas.dfy"
+include "../Problems/SetCover.dfy"
 include "../Collections/Set.dfy"
 include "../Arithmetic/BitLengths.dfy"
-include "../Foundations/Collections.dfy"
+include "../Foundations/CollectionLaws.dfy"
 include "../Foundations/LoopCosts.dfy"
 
-/*
-The public verifier accepts exactly the initialized Set Cover certificates.
-Weighted collection and arithmetic charges advance one counter. The source audit
-absorbs constant control; the public exit returns the accumulated budget.
-Its fixed input-size polynomial is conditional on the realization model;
-binary decoding and bit-level implementation proofs remain separate. The native
-_base/_simple variants retain structural counters and the same acceptance semantics.
-*/
-
 // Every positive instance has an initialized, correct certificate of linear size.
-ghost method SetCoverHasShortCertificate(U:Set<int>, S:SetSet<int>, k:nat) returns (certificate:SetSet<int>)
-  requires U.Init() && S.Init()
-  requires SetCoverValidInstance(U.Model(), S.Model())
-  requires SetCover(U.Model(), S.Model(), k)
+ghost method SetCoverHasShortCertificate<T>(instance:SetSystemInstance<T>) returns (certificate:SetSet<T>)
+  requires instance.universe.Init() && instance.sets.Init()
+  requires SetCoverValidInstance(instance.Model())
+  requires SetCover(instance.Model())
   ensures fresh(certificate)
   ensures certificate.Init()
-  ensures SetCoverCertificate(U.Model(), S.Model(), k, certificate.Model())
-  ensures SetCoverCertificateSize(certificate.Model(), IntBits) <=
-          BoundSetCoverCertificateSize(SetSystemInstanceSize(U.Model(), S.Model(), k, IntBits))
+  ensures SetCoverCertificate(instance.Model(), certificate.Model())
+  ensures forall weight:T -> nat ::
+    SetCoverCertificateSize(certificate.Model(), weight) <= BudgetSetCoverCertificateSize(
+      SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight))
 {
-  var certificateModel :| certificateModel <= S.Model() && SetCoverCertificate(U.Model(), S.Model(), k, certificateModel);
-  certificate := new ConcreteSetSet<int>(certificateModel, certificateModel);
-  set_cover_certificate_instance_size_bound(U.Model(), S.Model(), k, certificate.Model(), IntBits);
+  var U, S, k := instance.universe, instance.sets, instance.k;
+  var certificateModel :| certificateModel <= S.Model() && SetCoverCertificate(instance.Model(), certificateModel);
+  certificate := new ConcreteSetSet<T>(certificateModel, certificateModel);
+  forall weight:T -> nat
+    ensures SetCoverCertificateSize(certificate.Model(), weight) <=
+      BudgetSetCoverCertificateSize(SetSystemInstanceSize(U.Model(), S.Model(), k, weight))
+  {
+    set_cover_certificate_instance_size_bound(U.Model(), S.Model(), k, certificate.Model(), weight);
+  }
 }
 
 // Collection and arithmetic primitives advance one weighted counter.
-method VerifySetCover(U:Set<int>, S:SetSet<int>, k:nat, certificate:SetSet<int>) returns (accepted:bool, ghost counter:nat)
-  requires U.Init() && S.Init() && certificate.Init()
-  requires SetCoverValidInstance(U.Model(), S.Model())
-  ensures accepted == SetCoverCertificate(U.Model(), S.Model(), k, certificate.Model())
-  ensures accepted ==> SetCover(U.Model(), S.Model(), k)
-  ensures 0 < counter <= BudgetVerifySetCover(SetCoverInputSize(U.Model(), S.Model(), k, certificate.Model(), IntBits))
+method VerifySetCover<T>(instance:SetSystemInstance<T>, certificate:SetSet<T>, ghost weight:T -> nat)
+    returns (accepted:bool, ghost counter:nat)
+  requires instance.universe.Init() && instance.sets.Init() && certificate.Init()
+  requires SetCoverValidInstance(instance.Model())
+  ensures accepted == SetCoverCertificate(instance.Model(), certificate.Model())
+  ensures accepted ==> SetCover(instance.Model())
+  ensures 0 < counter <= BudgetVerifySetCover(SetCoverInputSize(
+    instance.universe.Model(), instance.sets.Model(), instance.k, certificate.Model(), weight))
 {
-  budget_verify_set_cover_input_bound(U, S, k, certificate);
-  ghost var n:nat := SetCoverOperandSizeBound(U, S, k, certificate);
+  var U, S := instance.universe, instance.sets;
+  budget_verify_set_cover_input_bound(instance, certificate, weight);
+  ghost var n := SetCoverInputSizeBound(instance, certificate, weight);
   var admissible:bool;
-  admissible, counter := CheckSetCoverCertificateAdmissible(U, S, certificate, n, 0);
+  admissible, counter := CheckSetCoverCertificateAdmissible(U, S, certificate, weight, n, 0);
   if admissible {
-    accepted, counter := VerifySetCoverCore(U, S, k, certificate, n, counter);
+    accepted, counter := VerifySetCoverCore(instance, certificate, weight, n, counter);
   } else {
     accepted := false;
-    if SetCoverCertificate(U.Model(), S.Model(), k, certificate.Model()) {
-      set_cover_certificate_volume_bound(U.Model(), S.Model(), k, certificate.Model());
+    if SetCoverCertificate(instance.Model(), certificate.Model()) {
+      set_cover_certificate_cardinality_bounds(instance.Model(), certificate.Model());
       assert false;
     }
   }
 }
 
 
-// Check only structural admissibility; neither coverage nor membership in S is assumed.
-// Initialization is a representation invariant of the supplied collection, as for U and S.
-method CheckSetCoverCertificateAdmissible(U:Set<int>, S:SetSet<int>, certificate:SetSet<int>, ghost n:nat, ghost counter_in:nat)
+// Check structural admissibility.
+method CheckSetCoverCertificateAdmissible<T>(U:Set<T>, S:SetSet<T>, certificate:SetSet<T>,
+    ghost weight:T -> nat, ghost n:nat, ghost counter_in:nat)
     returns (admissible:bool, ghost counter:nat)
   // Representation in
-  requires U.Size(IntBits) <= n && S.Size(IntBits) <= n && certificate.Size(IntBits) <= n
+  requires U.SizeBound(weight) <= n && S.SizeBound(weight) <= n && certificate.SizeBound(weight) <= n
   requires U.Init() && S.Init() && certificate.Init()
   // State out
   ensures admissible == (certificate.Cardinality() <= S.Cardinality() &&
     forall member | member in certificate.Model() :: |member| <= U.Cardinality())
-  ensures admissible ==> certificate.UVolume1() <= U.UVolume()
+  ensures admissible ==> certificate.UVolumeBound1() <= U.UVolumeBound()
   // Cost
   ensures counter_in < counter
   ensures counter <= counter_in + BudgetCheckSetCoverCertificateAdmissible(n)
 {
-  ghost var context := BitSetCost(IntBits, n);
+  ghost var context := BitSetCost(weight, n);
   ghost var primitiveBudget := BudgetPrimitiveStep(n);
-  nat_multiplication_monotonic(S.Cardinality(), 1, 1+S.Cardinality1());
-  nat_multiplication_monotonic(certificate.Cardinality(), 1, 1+certificate.Cardinality1());
   var count:nat;
   var limit:nat;
   var width:nat;
@@ -95,7 +94,7 @@ method CheckSetCoverCertificateAdmissible(U:Set<int>, S:SetSet<int>, certificate
     admissible := false;
     return;
   }
-  var remaining:SetSet<int> := certificate;
+  var remaining:SetSet<T> := certificate;
   var empty:bool;
   empty, counter := remaining.IsEmpty(counter, context);
   admissible := true;
@@ -120,12 +119,12 @@ method CheckSetCoverCertificateAdmissible(U:Set<int>, S:SetSet<int>, certificate
     ghost var processed := certificate.Cardinality()-remaining.Cardinality();
     linear_loop_budget_step(base, step, certificate.Cardinality() - remaining.Cardinality());
     remaining.universe_within_bound(certificate, context);
-    var member:Set<int>;
+    var member:Set<T>;
     member, counter := remaining.Pick(counter, context);
-    var memberVolume:nat;
-    memberVolume, counter := member.Count(counter, context);
-    nat_bits_linear_bound(memberVolume);
-    admissible, counter := LessEqualNat(memberVolume, width, counter);
+    var memberCount:nat;
+    memberCount, counter := member.Count(counter, context);
+    nat_bits_linear_bound(memberCount);
+    admissible, counter := LessEqualNat(memberCount, width, counter);
     remaining, counter := remaining.Remove(member, counter, context);
     empty, counter := remaining.IsEmpty(counter, context);
     assert counter <= before + step;
@@ -141,23 +140,25 @@ method CheckSetCoverCertificateAdmissible(U:Set<int>, S:SetSet<int>, certificate
 
 
 // Verify coverage and cardinality after the public entry establishes admissibility.
-method VerifySetCoverCore(U:Set<int>, S:SetSet<int>, k:nat, certificate:SetSet<int>, ghost n:nat, ghost counter_in:nat)
+method VerifySetCoverCore<T>(instance:SetSystemInstance<T>, certificate:SetSet<T>, ghost weight:T -> nat,
+    ghost n:nat, ghost counter_in:nat)
     returns (accepted:bool, ghost counter:nat)
   // Representation in
-  requires U.Size(IntBits) <= n && S.Size(IntBits) <= n && certificate.Size(IntBits) <= n
-  requires NatBits(k) <= n
-  requires SetCoverValidInstance(U.Model(), S.Model())
-  requires U.Init() && S.Init() && certificate.Init()
-  requires certificate.UVolume1() <= U.UVolume()
-  requires certificate.Cardinality() <= S.Cardinality()
+  requires instance.universe.SizeBound(weight) <= n && instance.sets.SizeBound(weight) <= n && certificate.SizeBound(weight) <= n
+  requires NatBits(instance.k) <= n
+  requires SetCoverValidInstance(instance.Model())
+  requires instance.universe.Init() && instance.sets.Init() && certificate.Init()
+  requires certificate.UVolumeBound1() <= instance.universe.UVolumeBound()
+  requires certificate.Cardinality() <= instance.sets.Cardinality()
   // State out
-  ensures accepted == SetCoverCertificate(U.Model(), S.Model(), k, certificate.Model())
-  ensures accepted ==> SetCover(U.Model(), S.Model(), k)
+  ensures accepted == SetCoverCertificate(instance.Model(), certificate.Model())
+  ensures accepted ==> SetCover(instance.Model())
   // Cost
   ensures counter_in < counter
   ensures counter <= counter_in + BudgetVerifySetCoverCore(n)
 {
-  ghost var context := BitSetCost(IntBits, n);
+  var U, S, k := instance.universe, instance.sets, instance.k;
+  ghost var context := BitSetCost(weight, n);
   ghost var primitiveBudget := BudgetPrimitiveStep(n);
   counter := counter_in;
   var certificateCardinality:nat;
@@ -170,12 +171,12 @@ method VerifySetCoverCore(U:Set<int>, S:SetSet<int>, k:nat, certificate:SetSet<i
     return false, counter;
   }
   var isSubset:bool;
-  isSubset, counter := IsSubset(certificate, S, counter, n);
+  isSubset, counter := IsSubset(certificate, S, counter, weight, n);
   assert counter <= counter_in + 2*primitiveBudget + BudgetIsSubset(n);
   if (!isSubset) {
     return false, counter;
   }
-  var remainingUniverse:Set<int>;
+  var remainingUniverse:Set<T>;
   remainingUniverse := U;
   accepted := true;
   var remainingUniverseEmpty:bool;
@@ -193,7 +194,7 @@ method VerifySetCoverCore(U:Set<int>, S:SetSet<int>, k:nat, certificate:SetSet<i
     invariant S.Valid()
     invariant certificate.Model() <= S.Model()
     invariant certificate.Cardinality() <= S.Cardinality()
-    invariant certificate.UVolume1() <= U.UVolume()
+    invariant certificate.UVolumeBound1() <= U.UVolumeBound()
     // State
     invariant accepted == IsCover(U.Model() - remainingUniverse.Model() , certificate.Model())
     // Cost
@@ -202,7 +203,8 @@ method VerifySetCoverCore(U:Set<int>, S:SetSet<int>, k:nat, certificate:SetSet<i
       U.Cardinality() - remainingUniverse.Cardinality())
   {
     linear_loop_budget_step(loopBase, BudgetCheckUniverseElement(n), U.Cardinality() - remainingUniverse.Cardinality());
-    accepted, remainingUniverse, remainingUniverseEmpty, counter := CheckUniverseElement(U, S, k, certificate, remainingUniverse, counter, n);
+    accepted, remainingUniverse, remainingUniverseEmpty, counter := CheckUniverseElement(
+      U, S, certificate, remainingUniverse, counter, weight, n);
   }
   assert accepted ==> U.Model() - remainingUniverse.Model() == U.Model();
   linear_loop_budget_bound(loopBase, BudgetCheckUniverseElement(n), U.Cardinality() - remainingUniverse.Cardinality(), n);
@@ -211,9 +213,10 @@ method VerifySetCoverCore(U:Set<int>, S:SetSet<int>, k:nat, certificate:SetSet<i
 }
 
 
-method IsSubset(S1:SetSet<int>, S2:SetSet<int>, ghost counter_in:nat, ghost n:nat) returns (b:bool, ghost counter:nat)
+method IsSubset<T>(S1:SetSet<T>, S2:SetSet<T>, ghost counter_in:nat, ghost weight:T -> nat, ghost n:nat)
+    returns (b:bool, ghost counter:nat)
   // Representation in
-  requires S1.Size(IntBits) <= n && S2.Size(IntBits) <= n
+  requires S1.SizeBound(weight) <= n && S2.SizeBound(weight) <= n
   requires S1.Init() && S2.Valid()
   // State out
   ensures b == (S1.Model() <= S2.Model())
@@ -221,11 +224,11 @@ method IsSubset(S1:SetSet<int>, S2:SetSet<int>, ghost counter_in:nat, ghost n:na
   ensures counter_in < counter
   ensures counter <= counter_in + BudgetIsSubset(n)
 {
-  ghost var context := BitSetCost(IntBits, n);
+  ghost var context := BitSetCost(weight, n);
   ghost var primitiveBudget := BudgetPrimitiveStep(n);
   counter := counter_in;
   b := true;
-  var S1':SetSet<int>;
+  var S1':SetSet<T>;
   S1' := S1;
   var S1'_empty:bool;
   S1'_empty, counter := S1'.IsEmpty(counter, context);
@@ -247,18 +250,19 @@ method IsSubset(S1:SetSet<int>, S2:SetSet<int>, ghost counter_in:nat, ghost n:na
     S1.Cardinality() - S1'.Cardinality())
   {
     linear_loop_budget_step(loopBase, BudgetIsSubsetStep(n), S1.Cardinality() - S1'.Cardinality());
-    S1', S1'_empty, b, counter := IsSubsetStep(S1, S2, S1', counter, b, n);
+    S1', S1'_empty, b, counter := IsSubsetStep(S1, S2, S1', counter, b, weight, n);
   }
   linear_loop_budget_bound(loopBase, BudgetIsSubsetStep(n), S1.Cardinality() - S1'.Cardinality(), n);
 }
 
 
-method IsSubsetStep(S1:SetSet<int>, S2:SetSet<int>, S1':SetSet<int>, ghost counter_in:nat, b:bool, ghost n:nat)
-    returns (S1'':SetSet<int>, S1'_empty:bool, b':bool, ghost counter:nat)
+method IsSubsetStep<T>(S1:SetSet<T>, S2:SetSet<T>, S1':SetSet<T>,
+    ghost counter_in:nat, b:bool, ghost weight:T -> nat, ghost n:nat)
+    returns (S1'':SetSet<T>, S1'_empty:bool, b':bool, ghost counter:nat)
   // Progress in
   requires S1'.Model() != {}
   // Representation in
-  requires S1.Size(IntBits) <= n && S2.Size(IntBits) <= n
+  requires S1.SizeBound(weight) <= n && S2.SizeBound(weight) <= n
   requires S1'.UniverseWithin(S1)
   requires S2.Valid()
   // State in
@@ -274,10 +278,10 @@ method IsSubsetStep(S1:SetSet<int>, S2:SetSet<int>, S1':SetSet<int>, ghost count
   ensures counter_in < counter
   ensures counter <= counter_in + BudgetIsSubsetStep(n)
 {
-  ghost var context := BitSetCost(IntBits, n);
+  ghost var context := BitSetCost(weight, n);
   S1'.universe_within_bound(S1, context);
   counter := counter_in;
-  var s:Set<int>;
+  var s:Set<T>;
   s, counter := S1'.Pick(counter, context);
 
   var s_in_S2:bool;
@@ -289,19 +293,20 @@ method IsSubsetStep(S1:SetSet<int>, S2:SetSet<int>, S1':SetSet<int>, ghost count
 }
 
 
-method CheckUniverseElement(U:Set<int>, S:SetSet<int>, k:nat, certificate:SetSet<int>, remainingUniverse:Set<int>, ghost counter_in:nat, ghost n:nat)
-    returns (covered:bool, remainingUniverseOut:Set<int>, remainingUniverseOutEmpty:bool, ghost counter:nat)
+method CheckUniverseElement<T>(U:Set<T>, S:SetSet<T>, certificate:SetSet<T>, remainingUniverse:Set<T>,
+    ghost counter_in:nat, ghost weight:T -> nat, ghost n:nat)
+    returns (covered:bool, remainingUniverseOut:Set<T>, remainingUniverseOutEmpty:bool, ghost counter:nat)
   // Progress in
   requires remainingUniverse.Model() != {}
   // Representation in
-  requires U.Size(IntBits) <= n && S.Size(IntBits) <= n && certificate.Size(IntBits) <= n
+  requires U.SizeBound(weight) <= n && S.SizeBound(weight) <= n && certificate.SizeBound(weight) <= n
   requires U.Valid()
   requires S.Valid()
   requires certificate.Init()
   requires remainingUniverse.UniverseWithin(U)
   requires certificate.Model() <= S.Model()
   requires certificate.Cardinality() <= S.Cardinality()
-  requires certificate.UVolume1() <= U.UVolume()
+  requires certificate.UVolumeBound1() <= U.UVolumeBound()
   // State in
   requires IsCover(U.Model() - remainingUniverse.Model(), certificate.Model())
   // Progress out
@@ -315,15 +320,15 @@ method CheckUniverseElement(U:Set<int>, S:SetSet<int>, k:nat, certificate:SetSet
   ensures counter_in < counter
   ensures counter <= counter_in + BudgetCheckUniverseElement(n)
 {
-  ghost var context := BitSetCost(IntBits, n);
+  ghost var context := BitSetCost(weight, n);
   ghost var primitiveBudget := BudgetPrimitiveStep(n);
   remainingUniverse.universe_within_bound(U, context);
   counter := counter_in;
-  var u:int;
+  var u:T;
   u, counter := remainingUniverse.Pick(counter, context);
   remainingUniverseOut, counter := remainingUniverse.Remove(u, counter, context);
 
-  var remainingCertificate:SetSet<int>;
+  var remainingCertificate:SetSet<T>;
   remainingCertificate := certificate;
 
   var elementCovered:bool := false;
@@ -337,12 +342,12 @@ method CheckUniverseElement(U:Set<int>, S:SetSet<int>, k:nat, certificate:SetSet
     decreases remainingCertificate.Cardinality()
     invariant remainingCertificateEmpty == (remainingCertificate.Model() == {})
     // Representation
-    invariant IntBits(u) <= n
+    invariant weight(u) <= n
     invariant remainingCertificate.UniverseWithin(certificate)
     invariant certificate.Init()
     invariant S.Valid()
     invariant certificate.Cardinality() <= S.Cardinality()
-    invariant certificate.UVolume1() <= U.UVolume()
+    invariant certificate.UVolumeBound1() <= U.UVolumeBound()
     // State
     invariant elementCovered == (exists i' | i' in certificate.Model() - remainingCertificate.Model() :: u in i')
     // Cost
@@ -352,7 +357,8 @@ method CheckUniverseElement(U:Set<int>, S:SetSet<int>, k:nat, certificate:SetSet
   {
     linear_loop_budget_step(setup, BudgetCheckCoverSet(n),
       certificate.Cardinality()-remainingCertificate.Cardinality());
-    elementCovered, remainingCertificate, remainingCertificateEmpty, counter := CheckCoverSet(U, S, k, certificate, remainingCertificate, u, counter, n);
+    elementCovered, remainingCertificate, remainingCertificateEmpty, counter := CheckCoverSet(
+      U, S, certificate, remainingCertificate, u, counter, weight, n);
   }
   linear_loop_budget_bound(setup, BudgetCheckCoverSet(n), certificate.Cardinality()-remainingCertificate.Cardinality(), n);
   covered := elementCovered;
@@ -367,19 +373,20 @@ method CheckUniverseElement(U:Set<int>, S:SetSet<int>, k:nat, certificate:SetSet
 }
 
 
-method CheckCoverSet(U:Set<int>, S:SetSet<int>, k:nat, certificate:SetSet<int>, remainingCertificate:SetSet<int>, u:int, ghost counter_in:nat, ghost n:nat)
-    returns (elementCovered:bool, remainingCertificateOut:SetSet<int>, remainingCertificateOutEmpty:bool, ghost counter:nat)
+method CheckCoverSet<T>(U:Set<T>, S:SetSet<T>, certificate:SetSet<T>, remainingCertificate:SetSet<T>, u:T,
+    ghost counter_in:nat, ghost weight:T -> nat, ghost n:nat)
+    returns (elementCovered:bool, remainingCertificateOut:SetSet<T>, remainingCertificateOutEmpty:bool, ghost counter:nat)
   // Progress in
   requires remainingCertificate.Model() != {}
   // Representation in
-  requires U.Size(IntBits) <= n && S.Size(IntBits) <= n && certificate.Size(IntBits) <= n
-  requires IntBits(u) <= n
+  requires U.SizeBound(weight) <= n && S.SizeBound(weight) <= n && certificate.SizeBound(weight) <= n
+  requires weight(u) <= n
   requires U.Valid()
   requires S.Valid()
   requires certificate.Valid()
   requires remainingCertificate.UniverseWithin(certificate)
   requires certificate.Cardinality() <= S.Cardinality()
-  requires certificate.UVolume1() <= U.UVolume()
+  requires certificate.UVolumeBound1() <= U.UVolumeBound()
   // State in
   requires !(exists i' | i' in certificate.Model() - remainingCertificate.Model() :: u in i')
   // Progress out
@@ -393,10 +400,10 @@ method CheckCoverSet(U:Set<int>, S:SetSet<int>, k:nat, certificate:SetSet<int>, 
   ensures counter_in < counter
   ensures counter <= counter_in + BudgetCheckCoverSet(n)
 {
-  ghost var context := BitSetCost(IntBits, n);
+  ghost var context := BitSetCost(weight, n);
   remainingCertificate.universe_within_bound(certificate, context);
   counter := counter_in;
-  var i:Set<int>;
+  var i:Set<T>;
   i, counter := remainingCertificate.Pick(counter, context);
   elementCovered, counter := i.Contains(u, counter, context);
   remainingCertificateOut, counter := remainingCertificate.Remove(i, counter, context);

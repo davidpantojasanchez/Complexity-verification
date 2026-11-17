@@ -30,20 +30,6 @@ lemma multiplication_distributive(a:int, b:int, c:int)
   ensures a*(b+c) == a*b+a*c
 {}
 
-lemma product_bound_implies_quotient_bound(factor:nat, value:nat, bound:nat)
-  requires 0 < factor
-  requires factor*value <= bound
-  ensures value <= bound/factor
-{
-  if bound/factor < value {
-    assert bound/factor + 1 <= value;
-    nat_multiplication_monotonic(factor, bound/factor + 1, value);
-    assert factor*(bound/factor + 1) == factor*(bound/factor) + factor;
-    assert bound == factor*(bound/factor) + bound%factor;
-    assert bound%factor < factor;
-  }
-}
-
 lemma power_product(base:nat, left:nat, right:nat)
   ensures NatPower(base, left)*NatPower(base, right) == NatPower(base, left+right)
   decreases left
@@ -58,20 +44,3 @@ lemma positive_real_scale_order(factor:real, left:real, right:real)
   requires 0.0 < factor
   ensures (left <= right) == (factor * left <= factor * right)
 {}
-
-// Positive denominators preserve both inclusive comparisons, also for total=0.
-lemma nat_rational_comparison(value:nat, total:nat, numerator:nat, denominator:nat)
-  requires 0 < denominator
-  ensures ((value as real) <= (numerator as real) / (denominator as real) * (total as real)) ==
-    (denominator * value <= numerator * total)
-  ensures ((numerator as real) / (denominator as real) * (total as real) <= (value as real)) ==
-    (numerator * total <= denominator * value)
-{
-  var threshold := (numerator as real) / (denominator as real);
-  assert threshold * (denominator as real) == numerator as real;
-  assert (denominator as real) * (threshold * (total as real)) ==
-    (numerator * total) as real;
-  assert (denominator as real) * (value as real) == (denominator * value) as real;
-  positive_real_scale_order(denominator as real, value as real, threshold * (total as real));
-  positive_real_scale_order(denominator as real, threshold * (total as real), value as real);
-}

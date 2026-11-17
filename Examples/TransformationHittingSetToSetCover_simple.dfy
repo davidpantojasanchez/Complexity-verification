@@ -2,17 +2,18 @@ include "../Problems/HittingSet.dfy"
 include "../Problems/SetCover.dfy"
 include "../Reductions/ReductionHittingSetToSetCover.dfy"
 include "../Arithmetic/BitLengths.dfy"
-include "../Foundations/Collections.dfy"
+include "../Foundations/CollectionLaws.dfy"
 include "../Foundations/LoopCosts.dfy"
 
 
-method TransformHittingSetToSetCover_simple(U:set<int>, S:set<set<int>>, k:nat) returns (r:SetCoverInstance<set<int>>, ghost counter:nat)
-  requires HittingSetValidInstance(U, S)
-  ensures r == HittingSetToSetCover(U, S, k)
-  ensures counter <= BudgetTransformHittingSetToSetCover_simple(U, S, k)
+method TransformHittingSetToSetCover_simple<T(==)>(instance:HittingSetModel<T>) returns (r:SetCoverModel<set<T>>, ghost counter:nat)
+  requires HittingSetValidInstance(instance)
+  ensures r == HittingSetToSetCover(instance)
+  ensures counter <= BudgetTransformHittingSetToSetCover_simple(instance.universe, instance.sets, instance.k)
 {
+  var U, S, k := instance.universe, instance.sets, instance.k;
   counter := 0;
-  var SS:set<set<set<int>>> := {}; counter := counter + 1;
+  var SS:set<set<set<T>>> := {}; counter := counter + 1;
   // Edge case
   var S_contains_empty:bool := {} in S; counter := counter + |S|*|U|;
   if (S_contains_empty) {
@@ -28,7 +29,7 @@ method TransformHittingSetToSetCover_simple(U:set<int>, S:set<set<int>>, k:nat) 
     }
     counter := counter + 1;
     difference_empty_set(S, S');
-    return (S, SS, 0), counter;
+    return SetSystemModel(S, SS, 0), counter;
   }
   // Regular case
   var U' := U; counter := counter + |U|;
@@ -43,16 +44,30 @@ method TransformHittingSetToSetCover_simple(U:set<int>, S:set<set<int>>, k:nat) 
   }
   counter := counter + 1;
   difference_empty_set(U, U');
+
+  ghost var target := HittingSetToSetCover(instance);
+  assert SS == target.sets by {
+    forall incidence | incidence in SS
+      ensures incidence in target.sets
+    {
+      var u :| u in U && (set s | s in S && u in s) == incidence;
+    }
+    forall incidence | incidence in target.sets
+      ensures incidence in SS
+    {
+      var u :| u in U && (set s | s in S && u in s) == incidence;
+    }
+  }
   
-  return (S, SS, k), counter;
+  return SetSystemModel(S, SS, k), counter;
 }
 
 
-method BuildIncidenceSet_simple(U:set<int>, S:set<set<int>>, k:nat, U':set<int>, SS:set<set<set<int>>>, ghost counter_in:nat)
-    returns (U'':set<int>, SS':set<set<set<int>>>, ghost counter:nat)
+method BuildIncidenceSet_simple<T(==)>(U:set<T>, S:set<set<T>>, k:nat, U':set<T>, SS:set<set<set<T>>>, ghost counter_in:nat)
+    returns (U'':set<T>, SS':set<set<set<T>>>, ghost counter:nat)
 // Problem requirements
 requires U' != {}
-requires HittingSetValidInstance(U, S)
+requires SetSystemMembersWithinUniverse(U, S)
 requires U' <= U
 requires SS == (set u | u in (U - U') :: (set s | s in S && u in s))
 ensures |U''| == |U'| - 1
@@ -66,7 +81,7 @@ ensures counter <= counter_in + BudgetBuildIncidenceSet_simple(U, S, k)
   U'' := U' - {u};
   counter := counter + |U|;
 
-  var sets_in_S_that_contain_u:set<set<int>> := {};
+  var sets_in_S_that_contain_u:set<set<T>> := {};
   var S' := S;
   counter := counter + |S|;
   while (S' != {})
@@ -102,11 +117,11 @@ ensures counter <= counter_in + BudgetBuildIncidenceSet_simple(U, S, k)
 }
 
 
-method AddIncidentSourceSet_simple(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, u:int, sets_in_S_that_contain_u:set<set<int>>, ghost counter_in:nat)
-    returns (S'':set<set<int>>, sets_in_S_that_contain_u':set<set<int>>, ghost counter:nat)
+method AddIncidentSourceSet_simple<T(==)>(U:set<T>, S:set<set<T>>, k:nat, S':set<set<T>>, u:T, sets_in_S_that_contain_u:set<set<T>>, ghost counter_in:nat)
+    returns (S'':set<set<T>>, sets_in_S_that_contain_u':set<set<T>>, ghost counter:nat)
 // Problem requirements
 requires S' != {}
-requires HittingSetValidInstance(U, S)
+requires SetSystemMembersWithinUniverse(U, S)
 requires S' <= S
 requires sets_in_S_that_contain_u == (set s | s in (S - S') && u in s)
 ensures |S''| == |S'| - 1
@@ -133,11 +148,11 @@ ensures counter <= counter_in + BudgetAddIncidentSourceSet_simple(U, S, k)
 }
 
 
-method AddSingletonSourceSet_simple(U:set<int>, S:set<set<int>>, k:nat, S':set<set<int>>, SS:set<set<set<int>>>, ghost counter_in:nat)
-    returns (S'':set<set<int>>, SS':set<set<set<int>>>, ghost counter:nat)
+method AddSingletonSourceSet_simple<T(==)>(U:set<T>, S:set<set<T>>, k:nat, S':set<set<T>>, SS:set<set<set<T>>>, ghost counter_in:nat)
+    returns (S'':set<set<T>>, SS':set<set<set<T>>>, ghost counter:nat)
 // Problem requirements
 requires S' != {}
-requires HittingSetValidInstance(U, S)
+requires SetSystemMembersWithinUniverse(U, S)
 requires S' <= S
 requires SS == (set s | s in (S - S') :: {s})
 ensures |S''| == |S'| - 1
@@ -150,28 +165,28 @@ ensures counter == counter_in + CostAddSingletonSourceSet_simple(U, S, k)
   counter := counter + |U|;
   S'' := S' - {s};
   counter := counter + |S|*|U|;
-  var s_set:set<set<int>> := {s};
+  var s_set:set<set<T>> := {s};
   counter := counter + |U|;
   SS' := SS + {s_set};
   counter := counter + |S|*|U|;
 }
 
 
-ghost function BudgetAddIncidentSourceSet_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
+ghost function BudgetAddIncidentSourceSet_simple<T>(U:set<T>, S:set<set<T>>, k:nat) : (o:nat)
 {
   3*|S|*|U| + 2*|U| + 1
 }
-ghost function BudgetBuildIncidenceSet_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
+ghost function BudgetBuildIncidenceSet_simple<T>(U:set<T>, S:set<set<T>>, k:nat) : (o:nat)
 {
   3*|S|*|S|*|U| + 2*|S|*|U|*|U| + 4*|S|*|U| + 3*|S| + |U| + 2
 }
-ghost function CostAddSingletonSourceSet_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
+ghost function CostAddSingletonSourceSet_simple<T>(U:set<T>, S:set<set<T>>, k:nat) : (o:nat)
 {
   2*|S|*|U| + 2*|U|
 }
 
 
-ghost function BudgetTransformHittingSetToSetCover_simple(U:set<int>, S:set<set<int>>, k:nat) : (o:nat)
+ghost function BudgetTransformHittingSetToSetCover_simple<T>(U:set<T>, S:set<set<T>>, k:nat) : (o:nat)
   ensures 2*|S|*|U| + 2 + |S|*(CostAddSingletonSourceSet_simple(U, S, k) + 1) <= o
   ensures |S|*|U| + |U| + 2 + |U|*(BudgetBuildIncidenceSet_simple(U, S, k) + 1) <= o
 {

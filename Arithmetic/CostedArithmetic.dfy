@@ -1,18 +1,4 @@
-include "BitLengths.dfy"
-
-type PositiveDenominator = value:nat | 0 < value witness 1
-
-// Nonnegative rational
-datatype Rational = Rational(numerator:nat, denominator:PositiveDenominator)
-{
-  // Exact mathematical value used for verification
-  ghost function Model():real
-  { (numerator as real) / (denominator as real) }
-}
-
-// Length of the stored pair, including non-reduced representations.
-ghost function RationalBits(threshold:Rational):nat
-{ NatBits(threshold.numerator) + NatBits(threshold.denominator) }
+include "Rationals.dfy"
 
 // Native-value arithmetic with explicit length-sensitive accounting. These
 // budgets model elementary binary algorithms; the native operators below are
@@ -81,7 +67,6 @@ method CompareNatToRational(
   right, counter := MultiplyNat(threshold.numerator, total, counter);
   atMost, counter := LessEqualNat(left, right, counter);
   atLeast, counter := LessEqualNat(right, left, counter);
-  cost_nat_arithmetic_commutative(left, right);
   nat_rational_comparison(value, total, threshold.numerator, threshold.denominator);
 }
 
@@ -118,7 +103,7 @@ ghost function {:opaque} BudgetNatArithmetic(maximum:nat):(budget:nat)
 { 1 + 2*NatBits(maximum) + NatBits(maximum)*NatBits(maximum) }
 
 // Independent length bounds for populations and the stored threshold fields.
-lemma {:induction false} {:isolate_assertions} cost_compare_nat_to_rational_bound(
+lemma {:induction false} cost_compare_nat_to_rational_bound(
     value:nat, total:nat, threshold:Rational, populationBits:nat, thresholdBits:nat)
   requires NatBits(value) <= populationBits && NatBits(total) <= populationBits
   requires NatBits(threshold.numerator) <= thresholdBits
@@ -126,17 +111,12 @@ lemma {:induction false} {:isolate_assertions} cost_compare_nat_to_rational_boun
   ensures CostCompareNatToRational(value, total, threshold) <=
     4 + 2 * populationBits * thresholdBits + 4 * (populationBits + thresholdBits)
 {
-  reveal CostAddNat(), CostSubtractNat(), CostLessEqualNat(), CostMultiplyNat();
   nat_bits_multiply(threshold.denominator, value);
   nat_bits_multiply(threshold.numerator, total);
   nonnegative_product_monotonic(
     NatBits(threshold.denominator), NatBits(value), thresholdBits, populationBits);
   nonnegative_product_monotonic(
     NatBits(threshold.numerator), NatBits(total), thresholdBits, populationBits);
-  assert CostMultiplyNat(threshold.denominator, value) <= 1 + populationBits * thresholdBits;
-  assert CostMultiplyNat(threshold.numerator, total) <= 1 + populationBits * thresholdBits;
-  assert CostLessEqualNat(threshold.denominator * value, threshold.numerator * total) <=
-    1 + 2 * (populationBits + thresholdBits);
   calc {
     CostCompareNatToRational(value, total, threshold);
     == CostMultiplyNat(threshold.denominator, value) +
@@ -155,42 +135,8 @@ lemma nat_arithmetic_within_budget(left:nat, right:nat, maximum:nat)
   ensures CostMultiplyNat(left, right) <= BudgetNatArithmetic(maximum)
   ensures CostLessEqualNat(left, right) <= BudgetNatArithmetic(maximum)
 {
-  reveal BudgetNatArithmetic();
-  reveal CostAddNat(), CostSubtractNat(), CostLessEqualNat(), CostMultiplyNat();
   nat_bits_monotonic(left, maximum);
   nat_bits_monotonic(right, maximum);
   nonnegative_product_monotonic(NatBits(left), NatBits(right),
     NatBits(maximum), NatBits(maximum));
-
-  assert CostAddNat(left, right) <= BudgetNatArithmetic(maximum);
-
-  assert CostSubtractNat(left, right) <= BudgetNatArithmetic(maximum);
-
-  assert CostMultiplyNat(left, right) <= BudgetNatArithmetic(maximum);
-
-  assert CostLessEqualNat(left, right) <= BudgetNatArithmetic(maximum);
-}
-
-lemma cost_less_equal_nat_monotonic(left:nat, right:nat, leftBound:nat, rightBound:nat)
-  requires NatBits(left) <= NatBits(leftBound) && NatBits(right) <= NatBits(rightBound)
-  ensures CostLessEqualNat(left, right) <= CostLessEqualNat(leftBound, rightBound)
-{
-  reveal CostLessEqualNat();
-}
-
-lemma budget_nat_arithmetic_bits_bound(maximum:nat, bits:nat)
-  requires NatBits(maximum) <= bits
-  ensures BudgetNatArithmetic(maximum) <= 1+2*bits+bits*bits
-{
-  reveal BudgetNatArithmetic();
-  nonnegative_product_monotonic(NatBits(maximum), NatBits(maximum), bits, bits);
-}
-
-lemma cost_nat_arithmetic_commutative(left:nat, right:nat)
-  ensures CostAddNat(left, right) == CostAddNat(right, left)
-  ensures CostSubtractNat(left, right) == CostSubtractNat(right, left)
-  ensures CostLessEqualNat(left, right) == CostLessEqualNat(right, left)
-  ensures CostMultiplyNat(left, right) == CostMultiplyNat(right, left)
-{
-  reveal CostAddNat(), CostSubtractNat(), CostLessEqualNat(), CostMultiplyNat();
 }

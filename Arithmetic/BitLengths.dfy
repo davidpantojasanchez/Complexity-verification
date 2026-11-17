@@ -65,15 +65,6 @@ lemma nat_bits_from_power(value:nat, bits:nat)
   }
 }
 
-lemma power_two_add(left:nat, right:nat)
-  ensures NatPower(2, left + right) == NatPower(2, left) * NatPower(2, right)
-  decreases left
-{
-  if left != 0 {
-    power_two_add(left - 1, right);
-  }
-}
-
 // Addition can grow by one digit; multiplication adds operand lengths.
 lemma nat_bits_add(left:nat, right:nat)
   ensures NatBits(left + right) <=
@@ -92,12 +83,12 @@ lemma nat_bits_add(left:nat, right:nat)
   }
 }
 
-lemma {:isolate_assertions} nat_bits_multiply(left:nat, right:nat)
+lemma nat_bits_multiply(left:nat, right:nat)
   ensures NatBits(left * right) <= NatBits(left) + NatBits(right)
 {
   nat_bits_range(left);
   nat_bits_range(right);
-  power_two_add(NatBits(left), NatBits(right));
+  power_product(2, NatBits(left), NatBits(right));
   var leftPower := NatPower(2, NatBits(left));
   var rightPower := NatPower(2, NatBits(right));
   nonnegative_product_monotonic(left, right, leftPower - 1, rightPower - 1);
