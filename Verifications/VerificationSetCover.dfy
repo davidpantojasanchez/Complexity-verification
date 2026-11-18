@@ -1,5 +1,4 @@
 include "../Polynomial/PolynomialSetCover.dfy"
-include "../Foundations/ExactCollectionSizes.dfy"
 include "../Problems/SetSystemRepresentation.dfy"
 include "../Arithmetic/CostedArithmetic.dfy"
 include "../Collections/ConcreteSet.dfy"
@@ -18,17 +17,14 @@ ghost method SetCoverHasShortCertificate<T>(instance:SetSystemInstance<T>) retur
   ensures certificate.Init()
   ensures SetCoverCertificate(instance.Model(), certificate.Model())
   ensures forall weight:T -> nat ::
-    SetCoverCertificateSize(certificate.Model(), weight) <= BudgetSetCoverCertificateSize(
-      SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight))
+    certificate.Size(weight) <= BudgetSetCoverCertificateSize(instance.Size(weight))
 {
-  var U, S, k := instance.universe, instance.sets, instance.k;
-  var certificateModel :| certificateModel <= S.Model() && SetCoverCertificate(instance.Model(), certificateModel);
+  var certificateModel :| certificateModel <= instance.sets.Model() && SetCoverCertificate(instance.Model(), certificateModel);
   certificate := new ConcreteSetSet<T>(certificateModel, certificateModel);
   forall weight:T -> nat
-    ensures SetCoverCertificateSize(certificate.Model(), weight) <=
-      BudgetSetCoverCertificateSize(SetSystemInstanceSize(U.Model(), S.Model(), k, weight))
+    ensures certificate.Size(weight) <= BudgetSetCoverCertificateSize(instance.Size(weight))
   {
-    set_cover_certificate_instance_size_bound(U.Model(), S.Model(), k, certificate.Model(), weight);
+    set_cover_certificate_instance_size_bound(instance, certificate, weight);
   }
 }
 
@@ -39,8 +35,7 @@ method VerifySetCover<T>(instance:SetSystemInstance<T>, certificate:SetSet<T>, g
   requires SetCoverValidInstance(instance.Model())
   ensures accepted == SetCoverCertificate(instance.Model(), certificate.Model())
   ensures accepted ==> SetCover(instance.Model())
-  ensures 0 < counter <= BudgetVerifySetCover(SetCoverInputSize(
-    instance.universe.Model(), instance.sets.Model(), instance.k, certificate.Model(), weight))
+  ensures 0 < counter <= BudgetVerifySetCover(SetCoverInputSize(instance, certificate, weight))
 {
   var U, S := instance.universe, instance.sets;
   budget_verify_set_cover_input_bound(instance, certificate, weight);

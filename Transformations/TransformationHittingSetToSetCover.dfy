@@ -1,6 +1,5 @@
 include "../Polynomial/PolynomialSetCover.dfy"
 include "../Problems/SetSystemRepresentation.dfy"
-include "../Foundations/ExactCollectionSizes.dfy"
 include "../Problems/HittingSet.dfy"
 include "../Problems/SetCover.dfy"
 include "../Reductions/ReductionHittingSetToSetCover.dfy"
@@ -22,21 +21,19 @@ method {:isolate_assertions} TransformHittingSetToSetCover<T(!new)>(instance:Set
   ensures r.sets.Cardinality1() <= instance.sets.Cardinality()+1
   ensures r.sets.Cardinality2() <= instance.universe.Cardinality()
   ensures NatBits(r.k) <= NatBits(instance.k)
-  ensures r.sets.SizeBound(weight) <= HittingSetConstructionSizeBound(SetSystemInstanceSizeBound(instance, weight))
-  ensures SetSystemInstanceSize(r.universe.Model(), r.sets.Model(), r.k, member => Size_set(member, weight)) <=
-          BudgetHittingSetToSetCoverOutputSize(SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight))
+  ensures r.sets.SizeBound(weight) <= HittingSetConstructionSizeBound(instance.SizeBound(weight))
+  ensures r.Size(weight) <= BudgetHittingSetToSetCoverOutputSize(instance.Size(weight))
   // State out
   ensures r.Model() == HittingSetToSetCover(instance.Model())
   ensures SetCoverValidInstance(r.Model())
   ensures r.universe == instance.sets
   ensures forall setSet | setSet in r.sets.Model() :: setSet <= instance.sets.Model()
   // Cost
-  ensures 0 < counter <= BudgetTransformHittingSetToSetCover(
-    SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight))
+  ensures 0 < counter <= BudgetTransformHittingSetToSetCover(instance.Size(weight))
 {
   var U, S, k := instance.universe, instance.sets, instance.k;
   budget_transform_hitting_set_to_set_cover_input_bound(instance, weight);
-  ghost var n := SetSystemInstanceSizeBound(instance, weight);
+  ghost var n := instance.SizeBound(weight);
   ghost var size := HittingSetConstructionSizeBound(n);
   ghost var primitiveBudget := BudgetPrimitiveStep(size);
   ghost var context := BitSetCost(weight, size);

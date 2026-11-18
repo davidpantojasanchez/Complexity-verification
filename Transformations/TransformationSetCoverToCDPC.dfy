@@ -1,6 +1,5 @@
 include "../Polynomial/PolynomialCDPC.dfy"
 include "../Problems/CDPCRepresentation.dfy"
-include "../Foundations/ExactCollectionSizes.dfy"
 include "../Problems/SetSystemRepresentation.dfy"
 include "../Arithmetic/CostedArithmetic.dfy"
 include "../Problems/SetCover.dfy"
@@ -23,22 +22,15 @@ method TransformSetCoverToCDPC<T(!new)>(instance:SetSystemInstance<T>, ghost wei
   ensures r.questions.Valid() && r.fitness.Valid() && r.multiplicity.Valid() && r.privateQuestions.Valid()
   ensures CDPCConstructionOutputBounds(r, instance.universe.Cardinality()+instance.sets.Cardinality()+1, instance.sets.Model()+{{}})
   ensures CDPCConstructionBitsBounds(r, instance.universe.Cardinality()+instance.sets.Cardinality()+1)
-  ensures CDPCInstanceSize(r.questions.Model(), r.fitness.Model(), r.multiplicity.Model(),
-    r.privateQuestions.Model(), r.thresholds, member => Size_set(member, weight)) <=
-          BudgetSetCoverToCDPCOutputSize(SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight))
+  ensures r.Size(weight) <= BudgetSetCoverToCDPCOutputSize(instance.Size(weight))
   // Cost
-  ensures 0 < counter <= BudgetTransformSetCoverToCDPC(
-    SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight))
+  ensures 0 < counter <= BudgetTransformSetCoverToCDPC(instance.Size(weight))
 {
   var U, S, k := instance.universe, instance.sets, instance.k;
   subset_cardinality_bound_setset(S.Universe(), U.Model());
   S.u_cardinality1_bound(U.Cardinality());
   ghost var n := U.Cardinality()+S.Cardinality()+1;
   ghost var bits := CDPCConstructionLeafBound(U, S, k, weight);
-  ghost var phaseBudget := BudgetTransformSetCoverToCDPCPhase(n, bits);
-  ghost var inputSize := SetSystemInstanceSize(U.Model(), S.Model(), k, weight);
-  budget_transform_set_cover_to_cdpc_input_bound(instance, weight);
-  assert phaseBudget <= BudgetTransformSetCoverToCDPC(inputSize);
   nat_bits_monotonic(n, CDPCConstructionValueBound(n));
   var source:SetSet<T>;
   var privateQuestion:Set<T>;
@@ -56,8 +48,8 @@ method TransformSetCoverToCDPC<T(!new)>(instance:SetSystemInstance<T>, ghost wei
     r, counter := HandleNontrivialCase(U, source, privateQuestion, cardinalityS, k, weight, n, bits, counter);
     cdpc_construction_output_source_bound(r, n, source.Model()+{{}}, S.Model()+{{}});
   }
-  assert 0 < counter <= phaseBudget;
-  assert 0 < counter <= BudgetTransformSetCoverToCDPC(inputSize);
+  assert 0 < counter <= BudgetTransformSetCoverToCDPCPhase(n, bits);
+  budget_transform_set_cover_to_cdpc_input_bound(instance, weight);
   assert CDPCConstructionOutputBounds(r, n, S.Model()+{{}});
   assert CDPCConstructionBitsBounds(r, n) by {
     cdpc_construction_bits_bound(r, n, S.Model()+{{}});

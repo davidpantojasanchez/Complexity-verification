@@ -763,6 +763,7 @@ class ConcreteMap_MapSet_T<K(==), V(==), R(==)> extends Map_MapSet_T<K, V, R> {
     reveal Valid();
     result := new ConcreteMap_MapSet_T(entries, entries);
     reveal result.UCardinalityKeys(), result.UCardinalityKeysKeys();
+    assert result.UCardinalityKeys() == MaxCardinality_map(entries.Keys);
     counter_out := counter_in + Cost(TraversalWork(), 0, context);
   }
 

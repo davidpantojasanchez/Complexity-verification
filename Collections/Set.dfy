@@ -1,6 +1,7 @@
 include "../Foundations/CollectionLaws.dfy"
 include "../Foundations/RepresentationCosts.dfy"
 include "../Foundations/CollectionRepresentation.dfy"
+include "../Foundations/RepresentationBounds.dfy"
 /*
 Traits for sets of different levels of nesting
 Concrete implementations are defined in ConcreteSet.dfy.
@@ -60,6 +61,16 @@ trait Set<T(==)> extends SetFamily<T> {
   ghost function VolumeBound():nat { Cardinality() }
   ghost function UVolumeBound():nat { UCardinality() }
 
+  ghost function Size(weight:T -> nat):(size:nat)
+    ensures 1+Cardinality() <= size
+    ensures LeafBits(weight) <= size
+    ensures size <= SizeBound(weight) <= 4*NatPower(size+1, 2)
+  {
+    representation_bound_set(Model(), weight);
+    size_properties_set(Model(), weight);
+    Size_set(Model(), weight)
+  }
+
   ghost function SizeBound(weight:T -> nat):(size:nat)
     ensures size == RepresentationSizeBound(VolumeBound(), LeafBits(weight))
     ensures VolumeBound() <= size && LeafBits(weight) <= size
@@ -67,6 +78,7 @@ trait Set<T(==)> extends SetFamily<T> {
     ensures 1 <= size
     ensures Valid() ==> size <= USizeBound(weight)
   {
+    representation_bound_set(Model(), weight);
     representation_subset_set(Model(), Universe(), weight, Valid());
     RepresentationSizeBound_set(Model(), weight)
   }
@@ -217,6 +229,17 @@ trait SetSet<T(==)> extends SetFamily<set<T>> {
   ghost function VolumeBound1():nat { Cardinality1() }
   ghost function UVolumeBound1():nat { UCardinality1() }
 
+  ghost function Size(weight:T -> nat):(size:nat)
+    ensures 1+Cardinality() <= size
+    ensures LeafBits(weight) <= size
+    ensures size <= SizeBound(weight) <= 7*NatPower(size+1, 3)
+  {
+    var memberSize := (member:set<T>) => Size_set(member, weight);
+    representation_bound_setset(Model(), weight);
+    size_properties_set(Model(), memberSize);
+    Size_set(Model(), memberSize)
+  }
+
   ghost function SizeBound(weight:T -> nat):(size:nat)
     ensures size == RepresentationSizeBound(VolumeBound(), LeafBits(weight))
     ensures VolumeBound() <= size && LeafBits(weight) <= size
@@ -225,6 +248,7 @@ trait SetSet<T(==)> extends SetFamily<set<T>> {
     ensures 1 <= size
     ensures Valid() ==> size <= USizeBound(weight)
   {
+    representation_bound_setset(Model(), weight);
     representation_subset_setset(Model(), Universe(), weight, Valid());
     RepresentationSizeBound_setset(Model(), weight)
   }
@@ -407,6 +431,16 @@ trait SetSetSet<T(==)> extends SetFamily<set<set<T>>> {
   ghost function VolumeBound2():nat { Cardinality2() }
   ghost function UVolumeBound2():nat { UCardinality2() }
 
+  ghost function Size(weight:T -> nat):(size:nat)
+    ensures 1+Cardinality() <= size
+    ensures size <= SizeBound(weight) <= 10*NatPower(size+1, 4)
+  {
+    var memberSize := (sets:set<set<T>>) => Size_set(sets, member => Size_set(member, weight));
+    representation_bound_setsetset(Model(), weight);
+    size_properties_set(Model(), memberSize);
+    Size_set(Model(), memberSize)
+  }
+
   ghost function SizeBound(weight:T -> nat):(size:nat)
     ensures size == RepresentationSizeBound(VolumeBound(), LeafBits(weight))
     ensures VolumeBound() <= size && LeafBits(weight) <= size
@@ -417,7 +451,9 @@ trait SetSetSet<T(==)> extends SetFamily<set<set<T>>> {
   {
     assert Cardinality2() <= VolumeBound1();
     assert VolumeBound1() <= VolumeBound();
+    representation_bound_setsetset(Model(), weight);
     representation_subset_setsetset(Model(), Universe(), weight, Valid());
+    nat_multiplication_monotonic(3*VolumeBound(), 1, LeafBits(weight));
     RepresentationSizeBound_setsetset(Model(), weight)
   }
 

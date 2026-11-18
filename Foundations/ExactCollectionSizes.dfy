@@ -2,7 +2,7 @@ include "CollectionMaxima.dfy"
 include "../Arithmetic/PolynomialBounds.dfy"
 include "../Arithmetic/BitLengths.dfy"
 
-// Exact native representation sizes: generic sets/maps and Boolean answer maps.
+// Exact native representation sizes: generic sets and maps.
 
 // Exact set size and its map-entry interpretation; headers count even for
 // empty containers, and generic leaves supply their own representation weight.
@@ -58,22 +58,6 @@ lemma size_properties_set<E>(items:set<E>, weight:E -> nat)
     size_member_set(items, weight, item);
   }
   max_by_bound(items, Size_set(items, weight), weight);
-}
-
-// Extensional weights and subset sizes apply to nested shapes too, using
-// the sizes of children as element weights.
-lemma {:induction false} size_extensional_set<E>(items:set<E>, left:E -> nat, right:E -> nat)
-  requires forall item | item in items :: left(item) == right(item)
-  ensures Size_set(items, left) == Size_set(items, right)
-  decreases |items|
-{
-  reveal Size_set();
-  if items != {} {
-    var item :| item in items;
-    size_remove_set(items, left, item);
-    size_remove_set(items, right, item);
-    size_extensional_set(items - {item}, left, right);
-  }
 }
 
 lemma {:induction false} size_remove_set<E>(items:set<E>, weight:E -> nat, item:E)
@@ -135,46 +119,4 @@ lemma size_properties_map<K, V>(items:map<K, V>, keyWeight:K -> nat, valueWeight
   ensures 1+|items| <= Size_map(items, keyWeight, valueWeight)
 {
   size_properties_set(items.Keys, (key:K) => if key in items then keyWeight(key)+valueWeight(items[key]) else 0);
-}
-
-// Representation size depends on weights on stored entries only.
-lemma size_extensional_map<K,V>(items:map<K,V>, leftKey:K -> nat, rightKey:K -> nat,
-    leftValue:V -> nat, rightValue:V -> nat)
-  requires forall key | key in items :: leftKey(key) == rightKey(key) && leftValue(items[key]) == rightValue(items[key])
-  ensures Size_map(items, leftKey, leftValue) == Size_map(items, rightKey, rightValue)
-{
-  size_extensional_set(items.Keys,
-    key => if key in items then leftKey(key)+leftValue(items[key]) else 0,
-    key => if key in items then rightKey(key)+rightValue(items[key]) else 0);
-}
-
-// Boolean answer maps and weighted populations reuse the same generic sizes.
-ghost function Size_map_t_bool<Q>(answers:map<Q, bool>, weight:Q -> nat):nat
-{ Size_map(answers, weight, BoolBits) }
-
-lemma size_bound_map_t_bool<Q>(answers:map<Q, bool>, weight:Q -> nat, count:nat, bits:nat)
-  requires |answers| <= count
-  requires forall question | question in answers :: weight(question) <= bits
-  ensures Size_map_t_bool(answers, weight) <= 1+count*(2+bits)
-{
-  size_bound_map(answers, weight, BoolBits, bits, 1);
-  nonnegative_product_monotonic(|answers|, 2+bits, count, 2+bits);
-}
-
-lemma size_bound_map_map_t_bool_t<Q, V>(population:map<map<Q, bool>, V>, weight:Q -> nat, valueWeight:V -> nat,
-    count:nat, questions:nat, bits:nat, values:nat)
-  requires |population| <= count
-  requires forall candidate | candidate in population :: |candidate| <= questions && valueWeight(population[candidate]) <= values
-  requires forall candidate | candidate in population :: forall question | question in candidate :: weight(question) <= bits
-  ensures Size_map(population, (candidate:map<Q, bool>) => Size_map_t_bool(candidate, weight), valueWeight) <=
-    1+count*(2+questions*(2+bits)+values)
-{
-  forall candidate | candidate in population
-    ensures Size_map_t_bool(candidate, weight) <= 1+questions*(2+bits)
-  {
-    size_bound_map_t_bool(candidate, weight, questions, bits);
-  }
-  size_bound_map(population, (candidate:map<Q, bool>) => Size_map_t_bool(candidate, weight), valueWeight,
-    1+questions*(2+bits), values);
-  nonnegative_product_monotonic(|population|, 2+questions*(2+bits)+values, count, 2+questions*(2+bits)+values);
 }

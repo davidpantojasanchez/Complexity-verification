@@ -52,21 +52,13 @@ lemma set_cover_to_cdpc_output_size_is_polynomial()
 // This corollary is included for completeness and is not needed by the complexity analyses.
 // It expresses the verifier budget in terms of the instance size for a short certificate.
 lemma budget_verify_cdpc_short_input_bound<Q(!new)>(instance:CDPCInstance<Q>, interview:Interview<Q>, weight:Q -> nat)
-  requires CDPCCertificateSize(interview.Model(), weight) <= BudgetCDPCCertificateSize(
-    CDPCInstanceSize(instance.questions.Model(), instance.fitness.Model(), instance.multiplicity.Model(),
-      instance.privateQuestions.Model(), instance.thresholds, weight))
-  ensures var instanceSize := CDPCInstanceSize(instance.questions.Model(), instance.fitness.Model(), instance.multiplicity.Model(),
-      instance.privateQuestions.Model(), instance.thresholds, weight);
-    var input := CDPCInputSize(instance.questions.Model(), instance.fitness.Model(), instance.multiplicity.Model(),
-      instance.privateQuestions.Model(), instance.thresholds, interview.Model(), weight);
+  requires interview.Size(weight) <= BudgetCDPCCertificateSize(instance.Size(weight))
+  ensures var instanceSize := instance.Size(weight);
+    var input := CDPCInputSize(instance, interview, weight);
     BudgetVerifyCDPC(input) <= VerifyCDPCBudgetCoefficient*NatPower(5, 21)*NatPower(instanceSize+1, 63)
 {
-  var questions, fitness, multiplicity, privateQuestions, thresholds :=
-    instance.questions, instance.fitness, instance.multiplicity, instance.privateQuestions, instance.thresholds;
-  var instanceSize := CDPCInstanceSize(questions.Model(), fitness.Model(), multiplicity.Model(),
-    privateQuestions.Model(), thresholds, weight);
-  var input := CDPCInputSize(questions.Model(), fitness.Model(), multiplicity.Model(),
-    privateQuestions.Model(), thresholds, interview.Model(), weight);
+  var instanceSize := instance.Size(weight);
+  var input := CDPCInputSize(instance, interview, weight);
   weighted_monomial_bound(instanceSize, instanceSize, 1, 3, 1);
   polynomial_size_substitution(instanceSize, input, BudgetVerifyCDPC(input), 4, 3, VerifyCDPCBudgetCoefficient, 21);
 }
@@ -74,13 +66,10 @@ lemma budget_verify_cdpc_short_input_bound<Q(!new)>(instance:CDPCInstance<Q>, in
 lemma budget_verify_cdpc_input_bound<Q(!new)>(instance:CDPCInstance<Q>, interview:Interview<Q>, weight:Q -> nat)
   ensures var size := CDPCInputSizeBound(instance, interview, weight);
     NatBits(MultiplicityMaximum(instance.multiplicity.Model())) <= size &&
-    BudgetVerifyCDPCPhase(size) <= BudgetVerifyCDPC(CDPCInputSize(instance.questions.Model(), instance.fitness.Model(),
-      instance.multiplicity.Model(), instance.privateQuestions.Model(), instance.thresholds, interview.Model(), weight))
+    BudgetVerifyCDPCPhase(size) <= BudgetVerifyCDPC(CDPCInputSize(instance, interview, weight))
 {
-  var questions, fitness, multiplicity, privateQuestions, thresholds :=
-    instance.questions, instance.fitness, instance.multiplicity, instance.privateQuestions, instance.thresholds;
-  var input := CDPCInputSize(questions.Model(), fitness.Model(), multiplicity.Model(),
-    privateQuestions.Model(), thresholds, interview.Model(), weight);
+  var multiplicity := instance.multiplicity;
+  var input := CDPCInputSize(instance, interview, weight);
   var size := CDPCInputSizeBound(instance, interview, weight);
   var model := multiplicity.Model();
   assert NatBits(MultiplicityMaximum(model)) <= multiplicity.SizeBound(weight, BoolBits, NatBits) by {
@@ -98,25 +87,21 @@ lemma budget_verify_cdpc_input_bound<Q(!new)>(instance:CDPCInstance<Q>, intervie
   polynomial_size_substitution(input, size, BudgetVerifyCDPCPhase(size), 32, 3, 12000, 7);
 }
 
-lemma cdpc_certificate_instance_size_bound<Q(!new)>(questions:set<Q>, fitness:map<Candidate<Q>, bool>,
-    multiplicity:map<Candidate<Q>, nat>, privateQuestions:set<Q>,
-    thresholds:CDPCThresholds<Rational>, certificate:InterviewModel<Q>, weight:Q -> nat)
-  requires InterviewFits(certificate, questions)
-  requires InterviewNodes(certificate) <= CDPCCertificateNodeCountBound(|fitness|+|questions|+1)
-  ensures CDPCCertificateSize(certificate, weight) <=
-    BudgetCDPCCertificateSize(CDPCInstanceSize(questions, fitness, multiplicity, privateQuestions, thresholds, weight))
+lemma cdpc_certificate_instance_size_bound<Q(!new)>(instance:CDPCInstance<Q>, certificate:Interview<Q>, weight:Q -> nat)
+  requires InterviewFits(certificate.Model(), instance.questions.Model())
+  requires certificate.NodeCount() <= CDPCCertificateNodeCountBound(instance.fitness.Cardinality()+instance.questions.Cardinality()+1)
+  ensures certificate.Size(weight) <= BudgetCDPCCertificateSize(instance.Size(weight))
 {
-  var n := CDPCInstanceSize(questions, fitness, multiplicity, privateQuestions, thresholds, weight);
-  var structural := |fitness|+|questions|+1;
-  var nodes := InterviewNodes(certificate);
+  var n := instance.Size(weight);
+  var questions := instance.questions.Model();
+  var structural := instance.fitness.Cardinality()+instance.questions.Cardinality()+1;
+  var nodes := certificate.NodeCount();
   var bits := MaxBy(questions, weight);
-  size_properties_set(questions, weight);
-  size_properties_map(fitness, (candidate:Candidate<Q>) => Size_map(candidate, weight, BoolBits), BoolBits);
   cdpc_short_node_count_bound(n, structural, nodes);
   // Fitting interviews use only labels already present in the instance.
-  interview_questions_bound(certificate, questions);
+  interview_questions_bound(certificate.Model(), questions);
   max_by_properties(questions, weight);
-  interview_size_bound(certificate, weight, bits);
+  interview_size_bound(certificate.Model(), weight, bits);
   polynomial_product_bound(n, nodes, 1+bits, 3, 1, 2, 1);
 }
 
@@ -124,10 +109,10 @@ lemma budget_transform_set_cover_to_cdpc_input_bound<T(!new)>(instance:SetSystem
   requires instance.universe.Init() && instance.sets.Init()
   ensures BudgetTransformSetCoverToCDPCPhase(instance.universe.Cardinality()+instance.sets.Cardinality()+1,
     CDPCConstructionLeafBound(instance.universe, instance.sets, instance.k, weight)) <=
-      BudgetTransformSetCoverToCDPC(SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight))
+      BudgetTransformSetCoverToCDPC(instance.Size(weight))
 {
   var U, S, k := instance.universe, instance.sets, instance.k;
-  var input := SetSystemInstanceSize(U.Model(), S.Model(), k, weight);
+  var input := instance.Size(weight);
   var n := U.Cardinality()+S.Cardinality()+1;
   var bits := CDPCConstructionLeafBound(U, S, k, weight);
   cdpc_construction_scale_polynomial(instance, weight);
@@ -140,9 +125,7 @@ lemma {:isolate_assertions} cdpc_construction_output_input_bound<T(!new)>(
   requires instance.universe.Init() && instance.sets.Init()
   requires SetCoverValidInstance(instance.Model())
   requires CDPCConstructionOutputBounds(r, instance.universe.Cardinality()+instance.sets.Cardinality()+1, instance.sets.Model()+{{}})
-  ensures CDPCInstanceSize(r.questions.Model(), r.fitness.Model(), r.multiplicity.Model(),
-    r.privateQuestions.Model(), r.thresholds, member => Size_set(member, weight)) <=
-    BudgetSetCoverToCDPCOutputSize(SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight))
+  ensures r.Size(weight) <= BudgetSetCoverToCDPCOutputSize(instance.Size(weight))
 {
   var U:Set<T>, S:SetSet<T>, k := instance.universe, instance.sets, instance.k;
   var n := U.Cardinality()+S.Cardinality()+1;
@@ -166,38 +149,32 @@ lemma {:isolate_assertions} cdpc_construction_output_input_bound<T(!new)>(
   assert forall question | question in source :: forall value | value in question :: weight(value) <= bits;
   cdpc_construction_output_size_bound(r, n, bits, source, weight);
   cdpc_construction_scale_polynomial(instance, weight);
-  var input := SetSystemInstanceSize(U.Model(), S.Model(), k, weight);
-  var output := CDPCInstanceSize(r.questions.Model(), r.fitness.Model(), r.multiplicity.Model(),
-    r.privateQuestions.Model(), r.thresholds, member => Size_set(member, weight));
+  var input := instance.Size(weight);
+  var output := r.Size(weight);
   polynomial_size_substitution(input, n+bits, output, 12, 4, 64, 5);
 }
 
 
 // Bound the internal scale in the exact size of the entire supplied input.
 lemma cdpc_input_size_bound_polynomial<Q(!new)>(instance:CDPCInstance<Q>, interview:Interview<Q>, weight:Q -> nat)
-  ensures var input := CDPCInputSize(instance.questions.Model(), instance.fitness.Model(), instance.multiplicity.Model(),
-      instance.privateQuestions.Model(), instance.thresholds, interview.Model(), weight);
+  ensures var input := CDPCInputSize(instance, interview, weight);
     input <= CDPCInputSizeBound(instance, interview, weight) <=
       32*NatPower(input+1, 3)
 {
   var questions, fitness, multiplicity, privateQuestions, thresholds :=
     instance.questions, instance.fitness, instance.multiplicity, instance.privateQuestions, instance.thresholds;
-  var input := CDPCInputSize(questions.Model(), fitness.Model(), multiplicity.Model(),
-    privateQuestions.Model(), thresholds, interview.Model(), weight);
-  var fitnessSize := Size_map(fitness.Model(), (candidate:Candidate<Q>) => Size_map(candidate, weight, BoolBits), BoolBits);
-  var multiplicitySize := Size_map(multiplicity.Model(), (candidate:Candidate<Q>) => Size_map(candidate, weight, BoolBits), NatBits);
-  representation_bound_set(questions.Model(), weight);
-  representation_bound_set(privateQuestions.Model(), weight);
-  representation_bound_map_map_t(fitness.Model(), weight, BoolBits, BoolBits);
-  representation_bound_map_map_t(multiplicity.Model(), weight, BoolBits, NatBits);
-  interview_representation_bound(interview.Model(), weight);
-  weighted_monomial_bound(Size_set(questions.Model(), weight)+1, input, 2, 3, 4);
-  weighted_monomial_bound(Size_set(privateQuestions.Model(), weight)+1, input, 2, 3, 4);
-  weighted_monomial_bound(fitnessSize+1, input, 3, 3, 7);
-  weighted_monomial_bound(multiplicitySize+1, input, 3, 3, 7);
-  weighted_monomial_bound(InterviewSize(interview.Model(), weight)+1, input, 2, 3, 2);
+  var input := CDPCInputSize(instance, interview, weight);
+  weighted_monomial_bound(questions.Size(weight)+1, input, 2, 3, 4);
+  weighted_monomial_bound(privateQuestions.Size(weight)+1, input, 2, 3, 4);
+  weighted_monomial_bound(fitness.Size(weight, BoolBits, BoolBits)+1, input, 3, 3, 7);
+  weighted_monomial_bound(multiplicity.Size(weight, BoolBits, NatBits)+1, input, 3, 3, 7);
+  weighted_monomial_bound(interview.Size(weight)+1, input, 2, 3, 2);
   weighted_monomial_bound(5+CDPCThresholdsBits(thresholds), input, 1, 3, 1);
-  reveal CDPCInputSizeBound();
+  var cube := NatPower(input+1, 3);
+  assert questions.SizeBound(weight) <= 4*cube && privateQuestions.SizeBound(weight) <= 4*cube;
+  assert fitness.SizeBound(weight, BoolBits, BoolBits) <= 7*cube && multiplicity.SizeBound(weight, BoolBits, NatBits) <= 7*cube;
+  assert interview.SizeBound(weight) <= 2*cube && 5+CDPCThresholdsBits(thresholds) <= cube;
+  reveal CDPCInputSizeBound(), instance.SizeBound();
 }
 
 lemma {:isolate_assertions} cdpc_budget_polynomial(n:nat)
@@ -271,16 +248,12 @@ lemma cdpc_short_node_count_bound(n:nat, structural:nat, nodes:nat)
 lemma cdpc_construction_scale_polynomial<T(!new)>(instance:SetSystemInstance<T>, weight:T -> nat)
   requires instance.universe.Init() && instance.sets.Init()
   ensures var n := instance.universe.Cardinality()+instance.sets.Cardinality()+1;
-    var input := SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight);
+    var input := instance.Size(weight);
     n+CDPCConstructionLeafBound(instance.universe, instance.sets, instance.k, weight) <= 12*NatPower(input+1, 4)
 {
-  var U, S, k := instance.universe, instance.sets, instance.k;
-  var input := SetSystemInstanceSize(U.Model(), S.Model(), k, weight);
+  var U, S := instance.universe, instance.sets;
+  var input := instance.Size(weight);
   var n := U.Cardinality()+S.Cardinality()+1;
-  representation_bound_set(U.Model(), weight);
-  representation_bound_setset(S.Model(), weight);
-  assert n <= input;
-  assert U.ULeafBits(weight)+S.ULeafBits(weight)+NatBits(k) <= input;
   cdpc_construction_value_polynomial_bound(n);
   nat_bits_linear_bound(CDPCConstructionValueBound(n));
   polynomial_base_monotonic(n+1, input+1, 4);
@@ -351,15 +324,14 @@ lemma cdpc_construction_output_size_bound<T(!new)>(r:CDPCSetInstance<T>, n:nat, 
   requires CDPCConstructionOutputBounds(r, n, source)
   requires forall question | question in source :: |question| <= n
   requires forall question | question in source :: forall value | value in question :: weight(value) <= bits
-  ensures CDPCInstanceSize(r.questions.Model(), r.fitness.Model(), r.multiplicity.Model(),
-    r.privateQuestions.Model(), r.thresholds, member => Size_set(member, weight)) <= 64*NatPower(n+bits+1, 5)
+  ensures r.Size(weight) <= 64*NatPower(n+bits+1, 5)
 {
   var m := n+bits;
   cdpc_construction_bits_bound(r, n, source);
   cdpc_construction_question_family_size_bound(r.questions.Model(), weight, m);
   cdpc_construction_question_family_size_bound(r.privateQuestions.Model(), weight, m);
-  polynomial_degree_weaken(m, Size_set(r.questions.Model(), member => Size_set(member, weight)), 4, 3, 5);
-  polynomial_degree_weaken(m, Size_set(r.privateQuestions.Model(), member => Size_set(member, weight)), 4, 3, 5);
+  polynomial_degree_weaken(m, r.questions.Size(weight), 4, 3, 5);
+  polynomial_degree_weaken(m, r.privateQuestions.Size(weight), 4, 3, 5);
   polynomial_degree_weaken(m, m, 1, 1, 4);
   forall candidate | candidate in r.fitness.Model()
     ensures |candidate| <= m && BoolBits(r.fitness.Model()[candidate]) <= 9*NatPower(m+1, 4)
@@ -422,8 +394,9 @@ lemma cdpc_construction_population_operand_bound<T, V>(population:map<map<set<T>
     16*NatPower(n+1, 5)
 {
   var questionWeight := (question:set<T>) => Size_set(question, weight);
+  var candidateWeight := (candidate:map<set<T>, bool>) => Size_map(candidate, questionWeight, BoolBits);
   forall candidate | candidate in population
-    ensures forall question | question in candidate :: questionWeight(question) <= 1+n*(1+n)
+    ensures candidateWeight(candidate) <= 1+n*(3+n*(1+n))
   {
     forall question | question in candidate
       ensures questionWeight(question) <= 1+n*(1+n)
@@ -431,10 +404,12 @@ lemma cdpc_construction_population_operand_bound<T, V>(population:map<map<set<T>
       size_bound_set(question, weight, n);
       nonnegative_product_monotonic(|question|, 1+n, n, 1+n);
     }
+    size_bound_map(candidate, questionWeight, BoolBits, 1+n*(1+n), 1);
+    nonnegative_product_monotonic(|candidate|, 3+n*(1+n), n, 3+n*(1+n));
   }
-  size_bound_map_map_t_bool_t(population, questionWeight, valueWeight, n, n, 1+n*(1+n), 9*NatPower(n+1, 4));
-  size_extensional_map(population, candidate => Size_map_t_bool(candidate, questionWeight),
-    candidate => Size_map(candidate, questionWeight, BoolBits), valueWeight, valueWeight);
+  size_bound_map(population, candidateWeight, valueWeight, 1+n*(3+n*(1+n)), 9*NatPower(n+1, 4));
+  nonnegative_product_monotonic(|population|, 2+n*(3+n*(1+n))+9*NatPower(n+1, 4),
+    n, 2+n*(3+n*(1+n))+9*NatPower(n+1, 4));
   polynomial_product_bound(n, n, 1+n, 1, 1, 1, 1);
   assert 3+n*(1+n) <= 4*NatPower(n+1, 2);
   polynomial_product_bound(n, n, 3+n*(1+n), 1, 4, 1, 2);

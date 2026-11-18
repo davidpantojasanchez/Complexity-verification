@@ -1,6 +1,4 @@
 include "CDPC.dfy"
-include "../Foundations/ExactCollectionSizes.dfy"
-include "../Foundations/RepresentationBounds.dfy"
 include "../Arithmetic/Rationals.dfy"
 
 include "../Collections/Set.dfy"
@@ -21,11 +19,44 @@ datatype CDPCInstance<Q(==)> = CDPCInstance(questions:Set<Q>, fitness:Map_Map_T<
     CDPCModel(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
       CDPCThresholdsModel(thresholds))
   }
+
+  ghost function Size(weight:Q -> nat):nat
+  {
+    5+questions.Size(weight)+fitness.Size(weight, BoolBits, BoolBits)+
+      multiplicity.Size(weight, BoolBits, NatBits)+privateQuestions.Size(weight)+CDPCThresholdsBits(thresholds)
+  }
+
+  ghost function {:opaque} SizeBound(weight:Q -> nat):(size:nat)
+    ensures questions.SizeBound(weight) <= size && privateQuestions.SizeBound(weight) <= size
+    ensures fitness.SizeBound(weight, BoolBits, BoolBits) <= size
+    ensures multiplicity.SizeBound(weight, BoolBits, NatBits) <= size && CDPCThresholdsBits(thresholds) <= size
+    ensures Size(weight) <= size
+  {
+    5+questions.SizeBound(weight)+fitness.SizeBound(weight, BoolBits, BoolBits)+
+      multiplicity.SizeBound(weight, BoolBits, NatBits)+privateQuestions.SizeBound(weight)+CDPCThresholdsBits(thresholds)
+  }
 }
 
 // The compound-label representation still needs its pending label adapter.
 datatype CDPCSetInstance<T(==)> = CDPCSetInstance(questions:SetSet<T>, fitness:Map_MapSet_T<T, bool, bool>,
   multiplicity:Map_MapSet_T<T, bool, nat>, privateQuestions:SetSet<T>, thresholds:CDPCThresholds<Rational>)
+{
+  ghost function Size(weight:T -> nat):nat
+  {
+    5+questions.Size(weight)+fitness.Size(weight, BoolBits, BoolBits)+
+      multiplicity.Size(weight, BoolBits, NatBits)+privateQuestions.Size(weight)+CDPCThresholdsBits(thresholds)
+  }
+
+  ghost function {:opaque} SizeBound(weight:T -> nat):(size:nat)
+    ensures questions.SizeBound(weight) <= size && privateQuestions.SizeBound(weight) <= size
+    ensures fitness.SizeBound(weight, BoolBits, BoolBits) <= size
+    ensures multiplicity.SizeBound(weight, BoolBits, NatBits) <= size && CDPCThresholdsBits(thresholds) <= size
+    ensures Size(weight) <= size
+  {
+    5+questions.SizeBound(weight)+fitness.SizeBound(weight, BoolBits, BoolBits)+
+      multiplicity.SizeBound(weight, BoolBits, NatBits)+privateQuestions.SizeBound(weight)+CDPCThresholdsBits(thresholds)
+  }
+}
 
 // Measure the stored rational pairs, including unreduced fields.
 ghost function CDPCThresholdsBits(thresholds:CDPCThresholds<Rational>):nat
@@ -34,43 +65,16 @@ ghost function CDPCThresholdsBits(thresholds:CDPCThresholds<Rational>):nat
   RationalBits(thresholds.fitnessLower)+RationalBits(thresholds.fitnessUpper)
 }
 
-ghost function CDPCInstanceSize<Q(!new)>(questions:set<Q>, fitness:map<Candidate<Q>, bool>,
-    multiplicity:map<Candidate<Q>, nat>, privateQuestions:set<Q>,
-    thresholds:CDPCThresholds<Rational>, weight:Q -> nat):nat
-{
-  5+Size_set(questions, weight)+Size_set(privateQuestions, weight)+
-  Size_map(fitness, (candidate:Candidate<Q>) => Size_map(candidate, weight, BoolBits), BoolBits)+
-  Size_map(multiplicity, (candidate:Candidate<Q>) => Size_map(candidate, weight, BoolBits), NatBits)+
-  CDPCThresholdsBits(thresholds)
-}
+ghost function CDPCInputSize<Q(!new)>(instance:CDPCInstance<Q>, interview:Interview<Q>, weight:Q -> nat):nat
+{ instance.Size(weight)+interview.Size(weight) }
 
-ghost function CDPCCertificateSize<Q>(certificate:InterviewModel<Q>, weight:Q -> nat):nat
-{ InterviewSize(certificate, weight) }
-
-ghost function CDPCInputSize<Q(!new)>(questions:set<Q>, fitness:map<Candidate<Q>, bool>,
-    multiplicity:map<Candidate<Q>, nat>, privateQuestions:set<Q>,
-    thresholds:CDPCThresholds<Rational>, interview:InterviewModel<Q>, weight:Q -> nat):nat
-{ CDPCInstanceSize(questions, fitness, multiplicity, privateQuestions, thresholds, weight)+CDPCCertificateSize(interview, weight) }
-
-// Bound the models of the supplied instance and interview using the canonical
-// headers and stored fields. Retained collection universes are separate.
+// Include the entire supplied interview in the verifier's input bound.
 ghost function {:opaque} CDPCInputSizeBound<Q(!new)>(instance:CDPCInstance<Q>, interview:Interview<Q>, weight:Q -> nat):(size:nat)
+  ensures instance.SizeBound(weight) <= size && interview.SizeBound(weight) <= size
   ensures instance.questions.SizeBound(weight) <= size
   ensures instance.fitness.SizeBound(weight, BoolBits, BoolBits) <= size
   ensures instance.multiplicity.SizeBound(weight, BoolBits, NatBits) <= size
   ensures instance.privateQuestions.SizeBound(weight) <= size
-  ensures CDPCThresholdsBits(instance.thresholds) <= size && interview.SizeBound(weight) <= size
-  ensures CDPCInputSize(instance.questions.Model(), instance.fitness.Model(), instance.multiplicity.Model(),
-    instance.privateQuestions.Model(), instance.thresholds, interview.Model(), weight) <= size
-{
-  var questions, fitness, multiplicity, privateQuestions, thresholds :=
-    instance.questions, instance.fitness, instance.multiplicity, instance.privateQuestions, instance.thresholds;
-  representation_bound_set(questions.Model(), weight);
-  representation_bound_map_map_t(fitness.Model(), weight, BoolBits, BoolBits);
-  representation_bound_map_map_t(multiplicity.Model(), weight, BoolBits, NatBits);
-  representation_bound_set(privateQuestions.Model(), weight);
-  interview_representation_bound(interview.Model(), weight);
-  5+questions.SizeBound(weight)+fitness.SizeBound(weight, BoolBits, BoolBits)+
-    multiplicity.SizeBound(weight, BoolBits, NatBits)+privateQuestions.SizeBound(weight)+
-    CDPCThresholdsBits(thresholds)+interview.SizeBound(weight)
-}
+  ensures CDPCThresholdsBits(instance.thresholds) <= size
+  ensures CDPCInputSize(instance, interview, weight) <= size
+{ instance.SizeBound(weight)+interview.SizeBound(weight) }

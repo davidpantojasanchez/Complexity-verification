@@ -60,6 +60,15 @@ trait Map<T0(==), T1(==)> extends MapFamily<T0, T1> {
   ghost function VolumeBound():nat { Cardinality() }
   ghost function UVolumeBound():nat { UCardinality() }
 
+  ghost function Size(keyWeight:T0 -> nat, valueWeight:T1 -> nat):(size:nat)
+    ensures 1+Cardinality() <= size
+    ensures size <= SizeBound(keyWeight, valueWeight) <= 4*NatPower(size+1, 2)
+  {
+    representation_bound_map(Model(), keyWeight, valueWeight);
+    size_properties_map(Model(), keyWeight, valueWeight);
+    Size_map(Model(), keyWeight, valueWeight)
+  }
+
   ghost function SizeBound(keyWeight:T0 -> nat, valueWeight:T1 -> nat):(size:nat)
     ensures size == RepresentationSizeBound(VolumeBound(), LeafBits(keyWeight, valueWeight))
     ensures VolumeBound() <= size && LeafBits(keyWeight, valueWeight) <= size
@@ -67,6 +76,7 @@ trait Map<T0(==), T1(==)> extends MapFamily<T0, T1> {
     ensures 1 <= size
     ensures Valid() ==> size <= USizeBound(keyWeight, valueWeight)
   {
+    representation_bound_map(Model(), keyWeight, valueWeight);
     representation_submap_map(Model(), Universe(), keyWeight, valueWeight, Valid());
     RepresentationSizeBound_map(Model(), keyWeight, valueWeight)
   }
@@ -232,6 +242,15 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> extends MapFamily<map<T0, T1>, T2> {
   ghost function VolumeBoundKeys():nat { CardinalityKeys() }
   ghost function UVolumeBoundKeys():nat { UCardinalityKeys() }
 
+  ghost function Size(keyWeight:T0 -> nat, innerValueWeight:T1 -> nat, valueWeight:T2 -> nat):(size:nat)
+    ensures 1+Cardinality() <= size
+    ensures size <= SizeBound(keyWeight, innerValueWeight, valueWeight) <= 7*NatPower(size+1, 3)
+  {
+    representation_bound_map_map_t(Model(), keyWeight, innerValueWeight, valueWeight);
+    size_properties_map(Model(), key => Size_map(key, keyWeight, innerValueWeight), valueWeight);
+    Size_map(Model(), key => Size_map(key, keyWeight, innerValueWeight), valueWeight)
+  }
+
   ghost function SizeBound(keyWeight:T0 -> nat, innerValueWeight:T1 -> nat, valueWeight:T2 -> nat):(size:nat)
     ensures size == RepresentationSizeBound(VolumeBound(), LeafBits(keyWeight, innerValueWeight, valueWeight))
     ensures VolumeBound() <= size && LeafBits(keyWeight, innerValueWeight, valueWeight) <= size
@@ -240,6 +259,7 @@ trait Map_Map_T<T0(==), T1(==), T2(==)> extends MapFamily<map<T0, T1>, T2> {
     ensures 1 <= size
     ensures Valid() ==> size <= USizeBound(keyWeight, innerValueWeight, valueWeight)
   {
+    representation_bound_map_map_t(Model(), keyWeight, innerValueWeight, valueWeight);
     representation_submap_map_map_t(Model(), Universe(), keyWeight, innerValueWeight, valueWeight, Valid());
     RepresentationSizeBound_map_map_t(Model(), keyWeight, innerValueWeight, valueWeight)
   }
@@ -441,6 +461,15 @@ trait Map_Set_T<K(==), V(==)> extends MapFamily<set<K>, V> {
   ghost function VolumeBoundKeys():nat { CardinalityKeys() }
   ghost function UVolumeBoundKeys():nat { UCardinalityKeys() }
 
+  ghost function Size(keyWeight:K -> nat, valueWeight:V -> nat):(size:nat)
+    ensures 1+Cardinality() <= size
+    ensures size <= SizeBound(keyWeight, valueWeight) <= 7*NatPower(size+1, 3)
+  {
+    representation_bound_map_set_t(Model(), keyWeight, valueWeight);
+    size_properties_map(Model(), key => Size_set(key, keyWeight), valueWeight);
+    Size_map(Model(), key => Size_set(key, keyWeight), valueWeight)
+  }
+
   ghost function SizeBound(keyWeight:K -> nat, valueWeight:V -> nat):(size:nat)
     ensures size == RepresentationSizeBound(VolumeBound(), LeafBits(keyWeight, valueWeight))
     ensures VolumeBound() <= size && LeafBits(keyWeight, valueWeight) <= size
@@ -449,6 +478,7 @@ trait Map_Set_T<K(==), V(==)> extends MapFamily<set<K>, V> {
     ensures 1 <= size
     ensures Valid() ==> size <= USizeBound(keyWeight, valueWeight)
   {
+    representation_bound_map_set_t(Model(), keyWeight, valueWeight);
     representation_submap_map_set_t(Model(), Universe(), keyWeight, valueWeight, Valid());
     RepresentationSizeBound_map_set_t(Model(), keyWeight, valueWeight)
   }
@@ -649,6 +679,15 @@ trait Map_MapSet_T<K(==), V(==), R(==)> extends MapFamily<map<set<K>, V>, R> {
   ghost function VolumeBoundKeysKeys():nat { CardinalityKeysKeys() }
   ghost function UVolumeBoundKeysKeys():nat { UCardinalityKeysKeys() }
 
+  ghost function Size(keyWeight:K -> nat, innerValueWeight:V -> nat, valueWeight:R -> nat):(size:nat)
+    ensures 1+Cardinality() <= size
+    ensures size <= SizeBound(keyWeight, innerValueWeight, valueWeight) <= 10*NatPower(size+1, 4)
+  {
+    representation_bound_map_mapset_t(Model(), keyWeight, innerValueWeight, valueWeight);
+    size_properties_map(Model(), key => Size_map(key, child => Size_set(child, keyWeight), innerValueWeight), valueWeight);
+    Size_map(Model(), key => Size_map(key, child => Size_set(child, keyWeight), innerValueWeight), valueWeight)
+  }
+
   ghost function SizeBound(keyWeight:K -> nat, innerValueWeight:V -> nat, valueWeight:R -> nat):(size:nat)
     ensures size == RepresentationSizeBound(VolumeBound(), LeafBits(keyWeight, innerValueWeight, valueWeight))
     ensures VolumeBound() <= size && LeafBits(keyWeight, innerValueWeight, valueWeight) <= size
@@ -659,7 +698,9 @@ trait Map_MapSet_T<K(==), V(==), R(==)> extends MapFamily<map<set<K>, V>, R> {
   {
     assert CardinalityKeysKeys() <= VolumeBoundKeys();
     assert VolumeBoundKeys() <= VolumeBound();
+    representation_bound_map_mapset_t(Model(), keyWeight, innerValueWeight, valueWeight);
     representation_submap_map_mapset_t(Model(), Universe(), keyWeight, innerValueWeight, valueWeight, Valid());
+    nat_multiplication_monotonic(3*VolumeBound(), 1, LeafBits(keyWeight, innerValueWeight, valueWeight));
     RepresentationSizeBound_map_mapset_t(Model(), keyWeight, innerValueWeight, valueWeight)
   }
 

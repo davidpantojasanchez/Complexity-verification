@@ -11,12 +11,9 @@ ghost method CDPCHasShortCertificate<Q(!new)>(
   ensures fresh(certificate)
   ensures CDPCCertificate(instance.Model(), certificate.Model())
   ensures forall weight:Q -> nat ::
-    CDPCCertificateSize(certificate.Model(), weight) <= BudgetCDPCCertificateSize(CDPCInstanceSize(
-      instance.questions.Model(), instance.fitness.Model(), instance.multiplicity.Model(),
-      instance.privateQuestions.Model(), instance.thresholds, weight))
+    certificate.Size(weight) <= BudgetCDPCCertificateSize(instance.Size(weight))
 {
-  var questions, fitness, multiplicity, privateQuestions, thresholds :=
-    instance.questions, instance.fitness, instance.multiplicity, instance.privateQuestions, instance.thresholds;
+  var questions, fitness := instance.questions, instance.fitness;
   var tree :| CDPCCertificate(instance.Model(), tree);
   certificate := new ConcreteInterview<Q>(tree);
   cdpc_certificate_node_count_bound(instance.Model(), tree);
@@ -26,12 +23,9 @@ ghost method CDPCHasShortCertificate<Q(!new)>(
   multiplication_associative(2, n, n);
   assert 2*fitness.Cardinality()*questions.Cardinality()+1 <= 2*n*n+1;
   forall weight:Q -> nat
-    ensures CDPCCertificateSize(certificate.Model(), weight) <= BudgetCDPCCertificateSize(CDPCInstanceSize(
-      questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
-      thresholds, weight))
+    ensures certificate.Size(weight) <= BudgetCDPCCertificateSize(instance.Size(weight))
   {
-    cdpc_certificate_instance_size_bound(questions.Model(), fitness.Model(), multiplicity.Model(), privateQuestions.Model(),
-      thresholds, certificate.Model(), weight);
+    cdpc_certificate_instance_size_bound(instance, certificate, weight);
   }
 }
 
@@ -43,8 +37,7 @@ method VerifyCDPC<Q(!new)>(
   requires CDPCValidInstance(instance.Model())
   ensures accepted == CDPCCertificate(instance.Model(), interview.Model())
   ensures accepted ==> CDPC(instance.Model())
-  ensures 0 < counter <= BudgetVerifyCDPC(CDPCInputSize(instance.questions.Model(), instance.fitness.Model(),
-    instance.multiplicity.Model(), instance.privateQuestions.Model(), instance.thresholds, interview.Model(), weight))
+  ensures 0 < counter <= BudgetVerifyCDPC(CDPCInputSize(instance, interview, weight))
 {
   var questions, fitness, multiplicity, privateQuestions, thresholds :=
     instance.questions, instance.fitness, instance.multiplicity, instance.privateQuestions, instance.thresholds;

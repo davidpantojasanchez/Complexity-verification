@@ -48,25 +48,22 @@ lemma hitting_set_to_set_cover_output_size_is_polynomial()
 // This corollary is included for completeness and is not needed by the complexity analyses.
 // It expresses the verifier budget in terms of the instance size for a short certificate.
 lemma budget_verify_set_cover_short_input_bound<T>(instance:SetSystemInstance<T>, certificate:SetSet<T>, weight:T -> nat)
-  requires SetCoverCertificateSize(certificate.Model(), weight) <=
-           BudgetSetCoverCertificateSize(SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight))
-  ensures var instanceSize := SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight);
-    var input := SetCoverInputSize(instance.universe.Model(), instance.sets.Model(), instance.k, certificate.Model(), weight);
+  requires certificate.Size(weight) <= BudgetSetCoverCertificateSize(instance.Size(weight))
+  ensures var instanceSize := instance.Size(weight);
+    var input := SetCoverInputSize(instance, certificate, weight);
     BudgetVerifySetCover(input) <= VerifySetCoverBudgetCoefficient*NatPower(3, 15)*NatPower(instanceSize+1, 15)
 {
-  var U, S, k := instance.universe, instance.sets, instance.k;
-  var input := SetCoverInputSize(U.Model(), S.Model(), k, certificate.Model(), weight);
-  var instanceSize := SetSystemInstanceSize(U.Model(), S.Model(), k, weight);
+  var input := SetCoverInputSize(instance, certificate, weight);
+  var instanceSize := instance.Size(weight);
   assert input <= 2*instanceSize;
   polynomial_size_substitution(instanceSize, input, BudgetVerifySetCover(input), 2, 1, VerifySetCoverBudgetCoefficient, 15);
 }
 
 lemma budget_verify_set_cover_input_bound<T>(instance:SetSystemInstance<T>, certificate:SetSet<T>, weight:T -> nat)
   ensures BudgetVerifySetCoverPhase(SetCoverInputSizeBound(instance, certificate, weight)) <=
-          BudgetVerifySetCover(SetCoverInputSize(instance.universe.Model(), instance.sets.Model(), instance.k, certificate.Model(), weight))
+          BudgetVerifySetCover(SetCoverInputSize(instance, certificate, weight))
 {
-  var U, S, k := instance.universe, instance.sets, instance.k;
-  var input := SetCoverInputSize(U.Model(), S.Model(), k, certificate.Model(), weight);
+  var input := SetCoverInputSize(instance, certificate, weight);
   var size := SetCoverInputSizeBound(instance, certificate, weight);
   set_cover_input_size_bound_polynomial(instance, certificate, weight);
   set_cover_budget_polynomial(size);
@@ -75,22 +72,19 @@ lemma budget_verify_set_cover_input_bound<T>(instance:SetSystemInstance<T>, cert
 
 // Every correct certificate is a subset of S. This exact linear result needs
 // neither a universe-cardinality estimate nor a bound on the numeric value of k.
-lemma set_cover_certificate_instance_size_bound<T>(universe:set<T>, sets:set<set<T>>, k:nat,
-    certificate:set<set<T>>, weight:T -> nat)
-  requires certificate <= sets
-  ensures SetCoverCertificateSize(certificate, weight) <=
-          BudgetSetCoverCertificateSize(SetSystemInstanceSize(universe, sets, k, weight))
+lemma set_cover_certificate_instance_size_bound<T>(instance:SetSystemInstance<T>, certificate:SetSet<T>, weight:T -> nat)
+  requires certificate.Model() <= instance.sets.Model()
+  ensures certificate.Size(weight) <= BudgetSetCoverCertificateSize(instance.Size(weight))
 {
-  size_subset_set(certificate, sets, member => Size_set(member, weight));
+  size_subset_set(certificate.Model(), instance.sets.Model(), member => Size_set(member, weight));
 }
 
 lemma budget_transform_hitting_set_to_set_cover_input_bound<T>(instance:SetSystemInstance<T>, weight:T -> nat)
-  ensures BudgetTransformHittingSetToSetCoverPhase(SetSystemInstanceSizeBound(instance, weight)) <=
-    BudgetTransformHittingSetToSetCover(SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight))
+  ensures BudgetTransformHittingSetToSetCoverPhase(instance.SizeBound(weight)) <=
+    BudgetTransformHittingSetToSetCover(instance.Size(weight))
 {
-  var U, S, k := instance.universe, instance.sets, instance.k;
-  var input := SetSystemInstanceSize(U.Model(), S.Model(), k, weight);
-  var size := SetSystemInstanceSizeBound(instance, weight);
+  var input := instance.Size(weight);
+  var size := instance.SizeBound(weight);
   set_system_instance_size_bound_polynomial(instance, weight);
   hitting_set_budget_polynomial(size);
   polynomial_size_substitution(input, size, BudgetTransformHittingSetToSetCoverPhase(size), 17, 3, 258048, 14);
@@ -98,19 +92,15 @@ lemma budget_transform_hitting_set_to_set_cover_input_bound<T>(instance:SetSyste
 
 lemma hitting_set_output_input_bound<T>(instance:SetSystemInstance<T>, r:SetCoverSetInstance<T>, weight:T -> nat)
   requires r.universe.Model() == instance.sets.Model()
-  requires r.sets.SizeBound(weight) <= HittingSetConstructionSizeBound(SetSystemInstanceSizeBound(instance, weight))
+  requires r.sets.SizeBound(weight) <= HittingSetConstructionSizeBound(instance.SizeBound(weight))
   requires NatBits(r.k) <= NatBits(instance.k)
-  ensures SetSystemInstanceSize(r.universe.Model(), r.sets.Model(), r.k, member => Size_set(member, weight)) <=
-    BudgetHittingSetToSetCoverOutputSize(SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight))
+  ensures r.Size(weight) <= BudgetHittingSetToSetCoverOutputSize(instance.Size(weight))
 {
-  var U, S, k := instance.universe, instance.sets, instance.k;
-  var input := SetSystemInstanceSize(U.Model(), S.Model(), k, weight);
-  var n := SetSystemInstanceSizeBound(instance, weight);
-  var output := SetSystemInstanceSize(r.universe.Model(), r.sets.Model(), r.k, member => Size_set(member, weight));
-  representation_bound_setset(r.universe.Model(), weight);
-  representation_bound_setsetset(r.sets.Model(), weight);
-  assert output <= 1+r.universe.SizeBound(weight)+r.sets.SizeBound(weight)+NatBits(r.k);
-  assert r.universe.SizeBound(weight) == S.SizeBound(weight);
+  var input := instance.Size(weight);
+  var n := instance.SizeBound(weight);
+  var output := r.Size(weight);
+  reveal r.SizeBound();
+  assert r.universe.SizeBound(weight) == instance.sets.SizeBound(weight);
   hitting_set_construction_size_bound_polynomial(n);
   polynomial_degree_weaken(n, 1+2*n, 3, 1, 4);
   set_system_instance_size_bound_polynomial(instance, weight);
@@ -119,34 +109,28 @@ lemma hitting_set_output_input_bound<T>(instance:SetSystemInstance<T>, r:SetCove
 
 
 lemma set_cover_input_size_bound_polynomial<T>(instance:SetSystemInstance<T>, certificate:SetSet<T>, weight:T -> nat)
-  ensures var input := SetCoverInputSize(instance.universe.Model(), instance.sets.Model(), instance.k, certificate.Model(), weight);
+  ensures var input := SetCoverInputSize(instance, certificate, weight);
     input <= SetCoverInputSizeBound(instance, certificate, weight) <= 21*NatPower(input+1, 3)
 {
-  var U, S, k := instance.universe, instance.sets, instance.k;
-  var input := SetCoverInputSize(U.Model(), S.Model(), k, certificate.Model(), weight);
-  var instanceSize := SetSystemInstanceSize(U.Model(), S.Model(), k, weight);
-  var certificateSize := SetCoverCertificateSize(certificate.Model(), weight);
+  var input := SetCoverInputSize(instance, certificate, weight);
+  var instanceSize := instance.Size(weight);
+  var certificateSize := certificate.Size(weight);
   set_system_instance_size_bound_polynomial(instance, weight);
-  representation_bound_setset(certificate.Model(), weight);
   weighted_monomial_bound(instanceSize+1, input, 3, 3, 12);
   weighted_monomial_bound(certificateSize+1, input, 3, 3, 7);
   reveal SetCoverInputSizeBound();
 }
 
 lemma set_system_instance_size_bound_polynomial<T>(instance:SetSystemInstance<T>, weight:T -> nat)
-  ensures var input := SetSystemInstanceSize(instance.universe.Model(), instance.sets.Model(), instance.k, weight);
-    input <= SetSystemInstanceSizeBound(instance, weight) <= 12*NatPower(input+1, 3)
+  ensures var input := instance.Size(weight);
+    input <= instance.SizeBound(weight) <= 12*NatPower(input+1, 3)
 {
   var U, S, k := instance.universe, instance.sets, instance.k;
-  var input := SetSystemInstanceSize(U.Model(), S.Model(), k, weight);
-  var universeSize := Size_set(U.Model(), weight);
-  var familySize := Size_set(S.Model(), member => Size_set(member, weight));
-  representation_bound_set(U.Model(), weight);
-  representation_bound_setset(S.Model(), weight);
-  weighted_monomial_bound(universeSize+1, input, 2, 3, 4);
-  weighted_monomial_bound(familySize+1, input, 3, 3, 7);
+  var input := instance.Size(weight);
+  weighted_monomial_bound(U.Size(weight)+1, input, 2, 3, 4);
+  weighted_monomial_bound(S.Size(weight)+1, input, 3, 3, 7);
   weighted_monomial_bound(1+NatBits(k), input, 1, 3, 1);
-  reveal SetSystemInstanceSizeBound();
+  reveal instance.SizeBound();
 }
 
 // Polynomial primitive work in the public size envelope; no structural-only

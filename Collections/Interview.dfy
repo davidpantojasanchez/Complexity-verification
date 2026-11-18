@@ -175,6 +175,7 @@ ghost function InterviewRepresentationSizeBound<Q>(tree:InterviewModel<Q>, weigh
 }
 
 lemma interview_representation_bound<Q>(tree:InterviewModel<Q>, weight:Q -> nat)
+  ensures InterviewNodes(tree) <= InterviewSize(tree, weight)
   ensures InterviewSize(tree, weight) <= InterviewRepresentationSizeBound(tree, weight)
   ensures InterviewRepresentationSizeBound(tree, weight) <= 2*NatPower(InterviewSize(tree, weight)+1, 2)
 {
@@ -219,9 +220,20 @@ trait Interview<Q(==)> {
   ghost function NodeCount():nat { InterviewNodes(Model()) }
   ghost function Depth():nat { InterviewDepth(Model()) }
 
+  ghost function Size(weight:Q -> nat):(size:nat)
+    ensures NodeCount() <= size
+    ensures size <= SizeBound(weight) <= 2*NatPower(size+1, 2)
+  {
+    interview_representation_bound(Model(), weight);
+    InterviewSize(Model(), weight)
+  }
+
   ghost function SizeBound(weight:Q -> nat):(size:nat)
     ensures 1 <= size && NodeCount() <= size
-  { InterviewRepresentationSizeBound(Model(), weight) }
+  {
+    interview_representation_bound(Model(), weight);
+    InterviewRepresentationSizeBound(Model(), weight)
+  }
 
   ghost function Questions():set<Q> { InterviewQuestions(Model()) }
 
@@ -254,15 +266,6 @@ trait Interview<Q(==)> {
     ensures counter_out == counter_in + Cost(context)
 
   // Complexity bounds
-  lemma size_bound(weight:Q -> nat, bits:nat)
-    requires 1 <= bits
-    requires forall question | question in Questions() :: weight(question) <= bits
-    ensures NodeCount() <= SizeBound(weight) <= NodeCount()*(1+bits)
-  {
-    max_leaf_bits_bound_set(Questions(), weight, bits);
-    nat_multiplication_monotonic(NodeCount(), 1+MaxLeafBits_set(Questions(), weight), 1+bits);
-  }
-
   lemma size_branch_bound(answer:bool, weight:Q -> nat)
     requires Model().Ask?
     ensures InterviewRepresentationSizeBound(if answer then Model().trueBranch else Model().falseBranch, weight) < SizeBound(weight)
